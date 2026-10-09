@@ -102,6 +102,75 @@ export function generateArrivalTimings(
   return { nextBus, nextBus2, nextBus3 };
 }
 
+// Parse LTA ISO EstimatedArrival string to countdown minutes
+function parseLTAEstimatedMinutes(isoString?: string): number {
+  if (!isoString) return 99;
+  const etaTime = new Date(isoString).getTime();
+  if (isNaN(etaTime)) return 99;
+  const diffMs = etaTime - Date.now();
+  const mins = Math.round(diffMs / 60000);
+  return mins <= 0 ? 0 : mins;
+}
+
+// Fetch bus arrivals from our /api/bus-arrival endpoint (which queries LTA DataMall v3)
+export async function fetchLTABusArrivals(
+  serviceNo: string,
+  stopCode: string,
+  baseOffsetSeconds: number = 0
+): Promise<{
+  nextBus: BusArrivalInfo | null;
+  nextBus2: BusArrivalInfo | null;
+  nextBus3: BusArrivalInfo | null;
+  source: 'LTA_DATAMALL_V3' | 'FALLBACK_SIMULATED';
+}> {
+  try {
+    const url = `/api/bus-arrival?BusStopCode=${encodeURIComponent(stopCode)}&ServiceNo=${encodeURIComponent(serviceNo)}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const data = await res.json();
+      const service = data?.Services?.find(
+        (s: { ServiceNo: string }) => s.ServiceNo.toUpperCase() === serviceNo.toUpperCase()
+      ) || data?.Services?.[0];
+
+      if (service) {
+        const parseBus = (busRaw?: any, index: number = 1): BusArrivalInfo | null => {
+          if (!busRaw || !busRaw.EstimatedArrival) return null;
+          return {
+            estimatedMinutes: parseLTAEstimatedMinutes(busRaw.EstimatedArrival),
+            load: (busRaw.Load as BusLoad) || 'SEA',
+            type: (busRaw.Type as BusType) || 'SD',
+            feature: busRaw.Feature === 'WAB' ? 'WAB' : '',
+            busReg: generateBusReg(serviceNo, index),
+            lat: busRaw.Latitude ? parseFloat(busRaw.Latitude) : undefined,
+            lng: busRaw.Longitude ? parseFloat(busRaw.Longitude) : undefined,
+            speedKmH: 30 + (index * 4),
+          };
+        };
+
+        return {
+          nextBus: parseBus(service.NextBus, 1),
+          nextBus2: parseBus(service.NextBus2, 2),
+          nextBus3: parseBus(service.NextBus3, 3),
+          source: data.source || 'LTA_DATAMALL_V3',
+        };
+      }
+    }
+  } catch (err) {
+    // Graceful fallback to client generator
+  }
+
+  const generated = generateArrivalTimings(serviceNo, stopCode, baseOffsetSeconds);
+  return {
+    ...generated,
+    source: 'FALLBACK_SIMULATED',
+  };
+}
+
 // Generate live moving buses along the route coordinates
 export function initLiveBuses(route: BusRoute, direction: number): LiveBus[] {
   const routeDir = direction === 2 && route.direction2 ? route.direction2 : route.direction1;

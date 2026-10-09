@@ -16,6 +16,7 @@ import {
 import {
   findNearestBusStop,
   generateArrivalTimings,
+  fetchLTABusArrivals,
   initLiveBuses,
   stepLiveBuses
 } from './services/busTrackerService';
@@ -82,36 +83,76 @@ export default function App() {
   // Real-time Bus Arrival Timings for active selected stop
   const [refreshCount, setRefreshCount] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [dataSource, setDataSource] = useState<'LTA_DATAMALL_V3' | 'FALLBACK_SIMULATED'>('LTA_DATAMALL_V3');
 
-  const arrivals: BusServiceArrivals = useMemo(() => {
-    const routeDir = direction === 2 && currentRoute.direction2 ? currentRoute.direction2 : currentRoute.direction1;
+  const routeDir = useMemo(() => {
+    return direction === 2 && currentRoute.direction2 ? currentRoute.direction2 : currentRoute.direction1;
+  }, [currentRoute, direction]);
+
+  const [arrivals, setArrivals] = useState<BusServiceArrivals>(() => {
     const { nextBus, nextBus2, nextBus3 } = generateArrivalTimings(
       currentRoute.serviceNo,
-      selectedStop.code,
-      refreshCount * 30
+      selectedStop.code
     );
-
     return {
       serviceNo: currentRoute.serviceNo,
       operator: currentRoute.operator,
       stopCode: selectedStop.code,
       stopName: selectedStop.name,
       roadName: selectedStop.road,
-      destination: routeDir.destination,
+      destination: currentRoute.direction1.destination,
       direction,
       nextBus,
       nextBus2,
       nextBus3,
       lastUpdated: new Date(),
     };
-  }, [currentRoute, selectedStop, direction, refreshCount]);
+  });
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadArrivals = async () => {
+      setIsRefreshing(true);
+      try {
+        const result = await fetchLTABusArrivals(
+          currentRoute.serviceNo,
+          selectedStop.code,
+          refreshCount * 30
+        );
+        if (!isCancelled) {
+          setDataSource(result.source);
+          setArrivals({
+            serviceNo: currentRoute.serviceNo,
+            operator: currentRoute.operator,
+            stopCode: selectedStop.code,
+            stopName: selectedStop.name,
+            roadName: selectedStop.road,
+            destination: routeDir.destination,
+            direction,
+            nextBus: result.nextBus,
+            nextBus2: result.nextBus2,
+            nextBus3: result.nextBus3,
+            lastUpdated: new Date(),
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load arrivals:', err);
+      } finally {
+        if (!isCancelled) {
+          setIsRefreshing(false);
+        }
+      }
+    };
+
+    loadArrivals();
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentRoute, selectedStop, direction, refreshCount, routeDir]);
 
   const handleRefresh = useCallback(() => {
-    setIsRefreshing(true);
     setRefreshCount((c) => c + 1);
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 450);
   }, []);
 
   // NEA Weather state
@@ -314,6 +355,7 @@ export default function App() {
               activeStop={selectedStop}
               onRefresh={handleRefresh}
               isRefreshing={isRefreshing}
+              dataSource={dataSource}
             />
 
             {/* Split row: Map Preview & NEA Weather */}
@@ -392,6 +434,7 @@ export default function App() {
               activeStop={selectedStop}
               onRefresh={handleRefresh}
               isRefreshing={isRefreshing}
+              dataSource={dataSource}
             />
           </div>
         )}
@@ -414,6 +457,7 @@ export default function App() {
                 activeStop={selectedStop}
                 onRefresh={handleRefresh}
                 isRefreshing={isRefreshing}
+                dataSource={dataSource}
               />
             </div>
           </div>

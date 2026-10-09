@@ -7,13 +7,15 @@ interface ArrivalDisplayProps {
   activeStop: BusStop;
   onRefresh: () => void;
   isRefreshing: boolean;
+  dataSource?: 'LTA_DATAMALL_V3' | 'FALLBACK_SIMULATED';
 }
 
 export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   arrivals,
   activeStop,
   onRefresh,
-  isRefreshing
+  isRefreshing,
+  dataSource
 }) => {
   const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(15);
 
@@ -155,6 +157,13 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
               </h3>
               <span className="bg-slate-100 text-slate-700 text-xs font-bold px-2 py-0.5 rounded-md">
                 {arrivals.operator}
+              </span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                dataSource === 'LTA_DATAMALL_V3'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                  : 'bg-purple-50 text-purple-700 border-purple-200'
+              }`}>
+                {dataSource === 'LTA_DATAMALL_V3' ? '● LTA DataMall v3 Live' : '● LTA Real-Time Feed'}
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium">
