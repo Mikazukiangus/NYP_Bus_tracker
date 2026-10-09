@@ -35,12 +35,12 @@ import { Heart, Compass, Bus, AlertCircle, ArrowUpRight } from 'lucide-react';
 const FAVORITES_STORAGE_KEY = 'sbs_transit_favorites_v1';
 
 export default function App() {
-  // User Location (Default: Orchard Road)
+  // User Location (Default: Nanyang Polytechnic)
   const [userLocation, setUserLocation] = useState<UserLocation>(SINGAPORE_LOCATIONS[0]);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 
-  // Active Bus Service & Route
-  const [busNumber, setBusNumber] = useState<string>('14');
+  // Active Bus Service & Route (Default: 72 NYP / Tampines)
+  const [busNumber, setBusNumber] = useState<string>('72');
   const [direction, setDirection] = useState<number>(1);
   const currentRoute = useMemo(() => getOrCreateBusRoute(busNumber), [busNumber]);
 
@@ -183,16 +183,16 @@ export default function App() {
     } catch {
       // ignore
     }
-    // Seed default favorite (Bus 14 at Opp Mandarin Orchard)
+    // Seed default favorite (Bus 72 at Nanyang Poly)
     return [
       {
-        id: 'fav-14-09037',
-        serviceNo: '14',
-        stopCode: '09037',
-        stopName: 'Opp Mandarin Orchard',
-        roadName: 'Orchard Rd',
+        id: 'fav-72-55189',
+        serviceNo: '72',
+        stopCode: '55189',
+        stopName: 'Nanyang Poly (Main Gate)',
+        roadName: 'Ang Mo Kio Ave 8',
         direction: 1,
-        destination: 'Clementi Bus Interchange',
+        destination: 'Tampines Bus Interchange',
         savedAt: Date.now(),
       },
     ];

@@ -19,6 +19,24 @@ export function calculateDistanceMeters(lat1: number, lon1: number, lat2: number
 // Preset locations across Singapore for commuters & location switcher
 export const SINGAPORE_LOCATIONS: UserLocation[] = [
   {
+    name: 'Nanyang Polytechnic (NYP Campus / AMK Ave 8)',
+    lat: 1.3800,
+    lng: 103.8489,
+    isSimulated: true,
+  },
+  {
+    name: 'Yio Chu Kang MRT & Interchange (Beside NYP)',
+    lat: 1.3818,
+    lng: 103.8448,
+    isSimulated: true,
+  },
+  {
+    name: 'Ang Mo Kio Hub & Bus Interchange',
+    lat: 1.3698,
+    lng: 103.8496,
+    isSimulated: true,
+  },
+  {
     name: 'Orchard Rd (Mandarin Gallery / 313@Somerset)',
     lat: 1.3018,
     lng: 103.8362,
@@ -90,10 +108,79 @@ export const SINGAPORE_LOCATIONS: UserLocation[] = [
     lng: 103.7865,
     isSimulated: true,
   },
+  {
+    name: 'Singapore Polytechnic (SP / Dover Rd)',
+    lat: 1.3100,
+    lng: 103.7780,
+    isSimulated: true,
+  },
+  {
+    name: 'Temasek Polytechnic (TP / Tampines Ave 1)',
+    lat: 1.3458,
+    lng: 103.9310,
+    isSimulated: true,
+  },
+  {
+    name: 'Ngee Ann Polytechnic (NP / Clementi Rd)',
+    lat: 1.3330,
+    lng: 103.7750,
+    isSimulated: true,
+  },
+  {
+    name: 'Republic Polytechnic (RP / Woodlands Ave 9)',
+    lat: 1.4440,
+    lng: 103.7870,
+    isSimulated: true,
+  },
+  {
+    name: 'NUS Kent Ridge Campus (Central Library)',
+    lat: 1.2950,
+    lng: 103.7740,
+    isSimulated: true,
+  },
 ];
 
 // Rich Curated Singapore Routes with authentic SBS Transit routes
 export const POPULAR_ROUTES: Record<string, BusRoute> = {
+  '72': {
+    serviceNo: '72',
+    operator: 'SBST',
+    category: 'Trunk',
+    direction1: {
+      origin: 'Yio Chu Kang Bus Interchange',
+      destination: 'Tampines Bus Interchange',
+      stops: [
+        { code: '55171', name: 'Yio Chu Kang Interchange', road: 'Ang Mo Kio Ave 8', lat: 1.3818, lng: 103.8448, sheltered: true },
+        { code: '55189', name: 'Nanyang Poly (Main Gate)', road: 'Ang Mo Kio Ave 8', lat: 1.3800, lng: 103.8489, sheltered: true },
+        { code: '55181', name: 'Opp Nanyang Poly', road: 'Ang Mo Kio Ave 8', lat: 1.3792, lng: 103.8495, sheltered: true },
+        { code: '55209', name: 'Blk 502', road: 'Ang Mo Kio Ave 5', lat: 1.3765, lng: 103.8560, sheltered: true },
+        { code: '55219', name: 'Blk 522', road: 'Ang Mo Kio Ave 5', lat: 1.3768, lng: 103.8615, sheltered: true },
+        { code: '64109', name: 'Hougang Stn Exit B', road: 'Upper Serangoon Rd', lat: 1.3695, lng: 103.8890, sheltered: true },
+        { code: '64009', name: 'Hougang Central Int', road: 'Hougang Ctrl', lat: 1.3712, lng: 103.8925, sheltered: true },
+        { code: '75009', name: 'Tampines Interchange', road: 'Tampines Ctrl 1', lat: 1.3533, lng: 103.9450, sheltered: true },
+      ],
+      path: [
+        [1.3818, 103.8448], [1.3800, 103.8489], [1.3792, 103.8495], [1.3765, 103.8560],
+        [1.3768, 103.8615], [1.3695, 103.8890], [1.3712, 103.8925], [1.3533, 103.9450]
+      ]
+    },
+    direction2: {
+      origin: 'Tampines Bus Interchange',
+      destination: 'Yio Chu Kang Bus Interchange',
+      stops: [
+        { code: '75009', name: 'Tampines Interchange', road: 'Tampines Ctrl 1', lat: 1.3533, lng: 103.9450, sheltered: true },
+        { code: '64009', name: 'Hougang Central Int', road: 'Hougang Ctrl', lat: 1.3712, lng: 103.8925, sheltered: true },
+        { code: '55211', name: 'Opp Blk 522', road: 'Ang Mo Kio Ave 5', lat: 1.3769, lng: 103.8612, sheltered: true },
+        { code: '55181', name: 'Opp Nanyang Poly', road: 'Ang Mo Kio Ave 8', lat: 1.3792, lng: 103.8495, sheltered: true },
+        { code: '55189', name: 'Nanyang Poly (Main Gate)', road: 'Ang Mo Kio Ave 8', lat: 1.3800, lng: 103.8489, sheltered: true },
+        { code: '55171', name: 'Yio Chu Kang Interchange', road: 'Ang Mo Kio Ave 8', lat: 1.3818, lng: 103.8448, sheltered: true },
+      ],
+      path: [
+        [1.3533, 103.9450], [1.3712, 103.8925], [1.3769, 103.8612], [1.3792, 103.8495],
+        [1.3800, 103.8489], [1.3818, 103.8448]
+      ]
+    }
+  },
   '14': {
     serviceNo: '14',
     operator: 'SBST',

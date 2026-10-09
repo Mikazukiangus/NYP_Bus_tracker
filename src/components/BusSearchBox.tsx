@@ -12,7 +12,7 @@ interface BusSearchBoxProps {
   setDirection: (dir: number) => void;
 }
 
-const POPULAR_NUMBERS = ['14', '65', '147', '190', '7', '10', '174', '857'];
+const POPULAR_NUMBERS = ['72', '159', '76', '14', '65', '147', '190', '857'];
 
 export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
   busNumber,
