@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Accessibility, Layers, Info, CheckCircle2, Clock } from 'lucide-react';
 import { BusArrivalInfo, BusLoad, BusServiceArrivals, BusStop } from '../types/bus';
 
@@ -18,12 +18,16 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   dataSource
 }) => {
   const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(15);
+  const onRefreshRef = useRef(onRefresh);
+
+  useEffect(() => {
+    onRefreshRef.current = onRefresh;
+  }, [onRefresh]);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setSecondsUntilRefresh((prev) => {
         if (prev <= 1) {
-          onRefresh();
           return 15;
         }
         return prev - 1;
@@ -31,7 +35,20 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [onRefresh]);
+  }, []);
+
+  const prevSecRef = useRef(secondsUntilRefresh);
+  useEffect(() => {
+    if (prevSecRef.current === 1 && secondsUntilRefresh === 15) {
+      onRefreshRef.current();
+    }
+    prevSecRef.current = secondsUntilRefresh;
+  }, [secondsUntilRefresh]);
+
+  const handleManualRefresh = () => {
+    setSecondsUntilRefresh(15);
+    onRefresh();
+  };
 
   const renderLoadBadge = (load: BusLoad) => {
     switch (load) {
@@ -180,7 +197,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
           </div>
 
           <button
-            onClick={onRefresh}
+            onClick={handleManualRefresh}
             disabled={isRefreshing}
             className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 hover:bg-purple-100 text-[#602a85] font-semibold text-xs rounded-xl transition-all border border-purple-200"
             title="Refresh bus arrivals now"
