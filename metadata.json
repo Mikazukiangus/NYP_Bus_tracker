@@ -1,0 +1,6 @@
+{
+  "name": "SBS Transit Bus Arrival & Live Tracker",
+  "description": "Real-time Singapore bus arrivals at nearest stops, live bus positions on map, NEA weather integration, and favorites.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

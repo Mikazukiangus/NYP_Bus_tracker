@@ -1,0 +1,172 @@
+import React, { useState } from 'react';
+import { Search, ArrowRightLeft, Sparkles, X } from 'lucide-react';
+import { BusRoute } from '../types/bus';
+import { POPULAR_ROUTES } from '../data/singaporeBuses';
+
+interface BusSearchBoxProps {
+  busNumber: string;
+  setBusNumber: (val: string) => void;
+  onSearch: (busNo: string) => void;
+  currentRoute: BusRoute;
+  direction: number;
+  setDirection: (dir: number) => void;
+}
+
+const POPULAR_NUMBERS = ['14', '65', '147', '190', '7', '10', '174', '857'];
+
+export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
+  busNumber,
+  setBusNumber,
+  onSearch,
+  currentRoute,
+  direction,
+  setDirection
+}) => {
+  const [inputVal, setInputVal] = useState(busNumber);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputVal.trim()) {
+      onSearch(inputVal.trim());
+    }
+  };
+
+  const handleSelectQuick = (num: string) => {
+    setInputVal(num);
+    setBusNumber(num);
+    onSearch(num);
+  };
+
+  const dir1 = currentRoute.direction1;
+  const dir2 = currentRoute.direction2;
+
+  const currentDirData = direction === 2 && dir2 ? dir2 : dir1;
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 sm:p-5">
+      {/* Search Input Bar */}
+      <form onSubmit={handleSubmit} className="relative">
+        <label htmlFor="bus-search-input" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+          Find Bus Service
+        </label>
+        <div className="relative flex items-center">
+          <div className="absolute left-3.5 text-slate-400 pointer-events-none flex items-center">
+            <Search className="w-5 h-5" />
+          </div>
+          <input
+            id="bus-search-input"
+            type="text"
+            value={inputVal}
+            onChange={(e) => setInputVal(e.target.value)}
+            placeholder="Enter bus service number (e.g. 14, 65, 147, 190, 7)..."
+            className="w-full pl-11 pr-24 py-3 sm:py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base sm:text-lg font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#602a85] focus:border-transparent transition-all"
+            autoComplete="off"
+          />
+
+          {inputVal && (
+            <button
+              type="button"
+              onClick={() => {
+                setInputVal('');
+              }}
+              className="absolute right-20 text-slate-400 hover:text-slate-600 p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+
+          <button
+            type="submit"
+            className="absolute right-1.5 px-4 py-2 bg-[#602a85] hover:bg-[#502170] text-white rounded-lg text-sm font-semibold transition-all shadow-xs"
+          >
+            Track
+          </button>
+        </div>
+      </form>
+
+      {/* Popular Chips */}
+      <div className="mt-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+        <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1 shrink-0 mr-1">
+          <Sparkles className="w-3 h-3 text-amber-500" />
+          Popular:
+        </span>
+        {POPULAR_NUMBERS.map((num) => {
+          const isActive = currentRoute.serviceNo === num;
+          return (
+            <button
+              key={num}
+              type="button"
+              onClick={() => handleSelectQuick(num)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                isActive
+                  ? 'bg-[#602a85] text-white shadow-xs scale-105'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              }`}
+            >
+              {num}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Route Direction Switcher */}
+      <div className="mt-4 pt-3.5 border-t border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2">
+            <span className="bg-[#602a85] text-white font-extrabold text-sm px-2.5 py-1 rounded-lg shadow-2xs">
+              Bus {currentRoute.serviceNo}
+            </span>
+            <div className="text-xs">
+              <span className="text-slate-400">Operator: </span>
+              <span className="font-semibold text-slate-800">{currentRoute.operator}</span>
+              <span className="text-slate-300 mx-1.5">•</span>
+              <span className="text-slate-500 font-medium">{currentRoute.category} Service</span>
+            </div>
+          </div>
+
+          {dir2 && (
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setDirection(1)}
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                  direction === 1
+                    ? 'bg-white text-[#602a85] shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>To {dir1.destination.replace(' Bus Interchange', '').replace(' Interchange', '')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDirection(2)}
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                  direction === 2
+                    ? 'bg-white text-[#602a85] shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ArrowRightLeft className="w-3 h-3 opacity-60" />
+                <span>To {dir2.destination.replace(' Bus Interchange', '').replace(' Interchange', '')}</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Current Destination banner */}
+        <div className="mt-2 text-xs text-slate-600 bg-purple-50/50 border border-purple-100 rounded-lg px-3 py-1.5 flex items-center justify-between">
+          <div className="truncate">
+            <span className="text-purple-900 font-medium">Origin: </span>
+            <span className="text-slate-700">{currentDirData.origin}</span>
+            <span className="mx-2 text-purple-400">➔</span>
+            <span className="text-purple-900 font-medium">Destination: </span>
+            <span className="text-slate-900 font-semibold">{currentDirData.destination}</span>
+          </div>
+          <span className="text-[11px] text-purple-700 font-medium shrink-0 ml-2">
+            {currentDirData.stops.length} stops
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};

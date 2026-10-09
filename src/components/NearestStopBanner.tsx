@@ -1,0 +1,156 @@
+import React from 'react';
+import { MapPin, Navigation, Heart, ShieldCheck, Map as MapIcon, ChevronRight } from 'lucide-react';
+import { BusStop, UserLocation } from '../types/bus';
+
+interface NearestStopBannerProps {
+  nearestStop: BusStop;
+  selectedStop: BusStop;
+  onSelectStop: (stop: BusStop) => void;
+  distanceMeters: number;
+  userLocation: UserLocation;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  onViewOnMap: () => void;
+  onOpenStopsList: () => void;
+}
+
+export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
+  nearestStop,
+  selectedStop,
+  onSelectStop,
+  distanceMeters,
+  userLocation,
+  isFavorite,
+  onToggleFavorite,
+  onViewOnMap,
+  onOpenStopsList
+}) => {
+  const isCurrentlySelected = selectedStop.code === nearestStop.code;
+
+  // Estimate walking time (approx 80m per min)
+  const walkingMin = Math.max(1, Math.round(distanceMeters / 80));
+
+  const formatDistance = (meters: number) => {
+    if (meters < 1000) {
+      return `${meters}m`;
+    }
+    return `${(meters / 1000).toFixed(1)}km`;
+  };
+
+  return (
+    <div className="bg-gradient-to-r from-purple-900 via-[#602a85] to-[#7832a8] rounded-2xl text-white p-4 sm:p-5 shadow-md relative overflow-hidden">
+      {/* Decorative background subtle circle */}
+      <div className="absolute -right-8 -bottom-8 w-48 h-48 rounded-full bg-white/5 pointer-events-none blur-2xl" />
+
+      <div className="relative z-10">
+        {/* Top badge row */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+          <div className="flex items-center gap-2">
+            <span className="bg-emerald-400 text-slate-950 text-[11px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-900 animate-ping inline-block" />
+              Nearest Bus Stop
+            </span>
+            <span className="text-purple-200 text-xs font-medium">
+              to {userLocation.name.split('(')[0].trim()}
+            </span>
+          </div>
+
+          <button
+            onClick={onToggleFavorite}
+            className={`p-2 rounded-xl transition-all flex items-center gap-1.5 text-xs font-semibold ${
+              isFavorite
+                ? 'bg-red-500 text-white shadow-xs'
+                : 'bg-white/10 hover:bg-white/20 text-white'
+            }`}
+            title={isFavorite ? 'Remove from favourites' : 'Save to favourites'}
+          >
+            <Heart className={`w-4 h-4 ${isFavorite ? 'fill-white text-white' : ''}`} />
+            <span className="hidden sm:inline">
+              {isFavorite ? 'Favourited' : 'Add to Favs'}
+            </span>
+          </button>
+        </div>
+
+        {/* Stop details */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                {nearestStop.name}
+              </h2>
+              <span className="bg-white/20 text-purple-100 font-mono font-bold text-xs px-2 py-0.5 rounded-md">
+                {nearestStop.code}
+              </span>
+            </div>
+            <p className="text-purple-200 text-sm mt-0.5 font-medium flex items-center gap-1.5">
+              <span>Along {nearestStop.road}</span>
+              {nearestStop.sheltered && (
+                <>
+                  <span className="opacity-40">•</span>
+                  <span className="text-emerald-300 flex items-center gap-1 text-xs">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Sheltered Linkway
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
+
+          {/* Distance & Walk pill */}
+          <div className="flex items-center gap-3">
+            <div className="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl px-3.5 py-2 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-400/20 text-emerald-300 flex items-center justify-center shrink-0">
+                <Navigation className="w-4 h-4 text-emerald-300" />
+              </div>
+              <div>
+                <div className="text-lg font-black text-white leading-none">
+                  {formatDistance(distanceMeters)}
+                </div>
+                <div className="text-[11px] text-purple-200 font-medium">
+                  ~{walkingMin} min walk
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={onViewOnMap}
+              className="bg-white text-purple-950 hover:bg-purple-50 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-xs shrink-0"
+            >
+              <MapIcon className="w-3.5 h-3.5 text-[#602a85]" />
+              <span>Map View</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Selected stop indicator if user clicked another stop */}
+        {!isCurrentlySelected && (
+          <div className="mt-3.5 pt-3 border-t border-white/15 flex items-center justify-between text-xs bg-black/15 -mx-4 -mb-4 px-4 py-2.5 rounded-b-2xl">
+            <span className="text-amber-200">
+              Viewing other stop: <strong>{selectedStop.name} ({selectedStop.code})</strong>
+            </span>
+            <button
+              onClick={() => onSelectStop(nearestStop)}
+              className="text-white underline font-semibold hover:text-emerald-300"
+            >
+              Switch back to nearest stop
+            </button>
+          </div>
+        )}
+
+        {/* Route stops browsing hint */}
+        <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between text-xs text-purple-200">
+          <div className="flex items-center gap-1">
+            <MapPin className="w-3.5 h-3.5 text-purple-300" />
+            <span>Looking for another stop along this bus route?</span>
+          </div>
+          <button
+            onClick={onOpenStopsList}
+            className="text-white hover:text-emerald-300 font-semibold flex items-center gap-0.5"
+          >
+            <span>Browse all stops</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
