@@ -5,7 +5,7 @@ export default async function handler(req: Request | any, res: Response | any) {
 
   const healthData = {
     status: 'ok',
-    service: 'SBS Transit / NYP Bus Tracker API',
+    service: 'BusTrackerSG - A member of NYP Bus API',
     timestamp: new Date().toISOString(),
     uptimeSeconds: Math.floor(process.uptime()),
     environment: {

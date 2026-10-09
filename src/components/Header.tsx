@@ -47,8 +47,8 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Top corporate bar */}
       <div className="bg-[#5a247e] text-white text-xs px-4 py-1.5 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="font-semibold tracking-wide">SBS Transit</span>
-          <span className="text-purple-200 text-[11px] hidden sm:inline">| A member of ComfortDelGro</span>
+          <span className="font-semibold tracking-wide">BusTrackerSG</span>
+          <span className="text-purple-200 text-[11px] hidden sm:inline">| A member of NYP Bus</span>
         </div>
         <div className="flex items-center gap-4 text-[11px]">
           <div className="flex items-center gap-1.5 text-emerald-300">
@@ -73,7 +73,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div>
             <div className="flex items-center gap-1.5">
               <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight leading-none">
-                SBS Transit
+                BusTrackerSG
               </h1>
               <span className="bg-[#e60028] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
                 Live

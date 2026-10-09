@@ -497,14 +497,14 @@ export default function App() {
         )}
       </main>
 
-      {/* SBS Transit Corporate Footer */}
+      {/* Corporate Footer */}
       <footer className="mt-12 bg-white border-t border-slate-200 py-6 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-[#602a85] flex items-center justify-center text-white font-bold text-xs">
-              SBS
+            <div className="w-6 h-6 rounded-md bg-[#602a85] flex items-center justify-center text-white font-bold text-[10px]">
+              NYP
             </div>
-            <span>SBS Transit Ltd • A member of ComfortDelGro</span>
+            <span className="font-semibold text-slate-700">BusTrackerSG • A member of NYP Bus</span>
           </div>
           <div className="flex flex-wrap items-center gap-4 text-slate-400">
             <span>Data: LTA DataMall & National Environment Agency (NEA)</span>
