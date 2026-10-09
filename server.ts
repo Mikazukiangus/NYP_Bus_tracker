@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import busArrivalHandler from './api/bus-arrival.ts';
 import healthHandler from './api/health.ts';
+import weatherHandler from './api/weather.ts';
 
 dotenv.config();
 
@@ -18,6 +19,10 @@ app.use(express.json());
 // API Routes
 app.all('/api/health', (req, res) => {
   return healthHandler(req, res);
+});
+
+app.all('/api/weather', (req, res) => {
+  return weatherHandler(req, res);
 });
 
 app.all('/api/bus-arrival', (req, res) => {

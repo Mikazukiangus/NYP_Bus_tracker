@@ -1,137 +1,189 @@
 import { NEAWeather } from '../types/bus';
 
-// Map Singapore coordinates to nearest NEA forecast area
-export function getSingaporeAreaName(lat: number, lng: number): { area: string; region: NEAWeather['region'] } {
-  // Rough geographic bounding in Singapore
-  if (lat > 1.39) {
-    return { area: 'Woodlands / Yishun', region: 'North' };
-  }
-  if (lng > 103.90) {
-    return { area: 'Tampines / Bedok', region: 'East' };
-  }
-  if (lng < 103.78) {
-    return { area: 'Jurong / Clementi', region: 'West' };
-  }
-  if (lat < 1.28) {
-    return { area: 'HarbourFront / Marina', region: 'South' };
-  }
-  return { area: 'City / Orchard / Central', region: 'Central' };
+interface NEAAreaMetadata {
+  name: string;
+  label_location: {
+    latitude: number;
+    longitude: number;
+  };
 }
 
-export async function fetchNEAWeatherData(userLat: number, userLng: number): Promise<NEAWeather> {
-  const { area, region } = getSingaporeAreaName(userLat, userLng);
+interface NEAForecastItem {
+  area: string;
+  forecast: string;
+}
 
-  try {
-    // Attempt official Data.gov.sg NEA 2-hour forecast endpoint with 3s timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+interface NEAResponse {
+  code: number;
+  data: {
+    area_metadata: NEAAreaMetadata[];
+    items: {
+      update_timestamp: string;
+      timestamp: string;
+      valid_period: {
+        start: string;
+        end: string;
+        text: string;
+      };
+      forecasts: NEAForecastItem[];
+    }[];
+  };
+}
 
-    const res = await fetch('https://api-open.data.gov.sg/v2/real-time/api/two-hr-forecast', {
-      signal: controller.signal,
-      headers: {
-        'Accept': 'application/json'
+// Find closest NEA official area by calculating distance
+function findClosestNEAArea(
+  userLat: number,
+  userLng: number,
+  areas: NEAAreaMetadata[]
+): NEAAreaMetadata | null {
+  if (!areas || areas.length === 0) return null;
+
+  let closest: NEAAreaMetadata = areas[0];
+  let minDistance = Infinity;
+
+  for (const area of areas) {
+    const lat = area.label_location?.latitude;
+    const lng = area.label_location?.longitude;
+    if (typeof lat === 'number' && typeof lng === 'number') {
+      const dist = Math.hypot(lat - userLat, lng - userLng);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closest = area;
       }
-    });
-    clearTimeout(timeoutId);
-
-    if (res.ok) {
-      const data = await res.json();
-      const forecasts = data?.data?.items?.[0]?.forecasts || [];
-      // Look for matched area or fallback to City
-      const matched = forecasts.find((f: { area: string; forecast: string }) => 
-        area.toLowerCase().includes(f.area.toLowerCase()) || 
-        f.area.toLowerCase().includes('city') ||
-        f.area.toLowerCase().includes('orchard') ||
-        f.area.toLowerCase().includes('tanglin')
-      );
-
-      const forecastText = matched ? matched.forecast : (forecasts[0]?.forecast || 'Partly Cloudy');
-      return parseForecastToWeather(forecastText, area, region);
     }
-  } catch {
-    // Graceful fallback to real-time Singapore diurnal weather model
   }
 
-  // Realistic fallback based on Singapore tropical diurnal pattern
-  return generateDiurnalSingaporeWeather(area, region);
+  return closest;
 }
 
-function parseForecastToWeather(forecastText: string, area: string, region: NEAWeather['region']): NEAWeather {
+function getRegionForArea(areaName: string): NEAWeather['region'] {
+  const north = ['Ang Mo Kio', 'Woodlands', 'Yishun', 'Sembawang', 'Mandai', 'Seletar', 'Sungei Kadut', 'Lim Chu Kang'];
+  const east = ['Bedok', 'Tampines', 'Pasir Ris', 'Changi', 'Paya Lebar', 'Pulau Ubin', 'Pulau Tekong'];
+  const west = ['Clementi', 'Jurong East', 'Jurong West', 'Boon Lay', 'Pioneer', 'Tuas', 'Bukit Batok', 'Choa Chu Kang', 'Bukit Panjang', 'Tengah', 'Western Water Catchment'];
+  const south = ['Sentosa', 'Southern Islands', 'Bukit Merah', 'Queenstown', 'City'];
+
+  if (north.includes(areaName)) return 'North';
+  if (east.includes(areaName)) return 'East';
+  if (west.includes(areaName)) return 'West';
+  if (south.includes(areaName)) return 'South';
+  return 'Central';
+}
+
+function parseForecastToWeather(
+  forecastText: string,
+  areaName: string,
+  validPeriodText?: string,
+  updateTimestamp?: string
+): NEAWeather {
   const lower = forecastText.toLowerCase();
   const isRaining = lower.includes('shower') || lower.includes('rain') || lower.includes('thunder');
-  
+
   let iconType: NEAWeather['iconType'] = 'cloudy';
-  let rainProb = 20;
+  let rainProb = 15;
+  let temp = 31;
+  let humidity = 75;
 
   if (lower.includes('thunder')) {
     iconType = 'thunder';
-    rainProb = 85;
+    rainProb = 90;
+    temp = 26;
+    humidity = 92;
   } else if (lower.includes('heavy')) {
     iconType = 'heavy-rain';
-    rainProb = 90;
+    rainProb = 85;
+    temp = 27;
+    humidity = 90;
   } else if (lower.includes('shower') || lower.includes('rain')) {
     iconType = 'rain';
     rainProb = 70;
+    temp = 28;
+    humidity = 86;
   } else if (lower.includes('fair') || lower.includes('sunny')) {
     iconType = 'fair';
     rainProb = 10;
+    temp = 32;
+    humidity = 68;
+  } else {
+    // Cloudy / Partly cloudy
+    iconType = 'cloudy';
+    rainProb = 25;
+    temp = 31;
+    humidity = 74;
   }
 
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' });
+  // Format Singapore Time from timestamp or now
+  const updateDate = updateTimestamp ? new Date(updateTimestamp) : new Date();
+  const timeFormatted = updateDate.toLocaleTimeString('en-SG', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const periodLabel = validPeriodText ? ` (${validPeriodText})` : '';
 
   return {
-    area,
-    region,
+    area: areaName,
+    region: getRegionForArea(areaName),
     forecast: forecastText,
-    temperatureC: isRaining ? 27 : 31,
-    humidityPercent: isRaining ? 88 : 74,
+    temperatureC: temp,
+    humidityPercent: humidity,
     rainProbabilityPercent: rainProb,
     isRaining,
-    windSpeedKmh: isRaining ? 22 : 14,
-    updateTime: `NEA Updated at ${timeStr} SGT`,
+    windSpeedKmh: isRaining ? 24 : 14,
+    updateTime: `NEA 2-Hr Forecast: ${timeFormatted} SGT${periodLabel}`,
     iconType,
     commuterAdvice: isRaining
-      ? 'Rain expected at bus stops. Boarding sheltered linkway recommended.'
-      : 'Good commuting conditions. Normal walking conditions to bus stops.'
+      ? `Showers detected around ${areaName}. Carry an umbrella and use sheltered bus stop bays.`
+      : `Good commuting weather around ${areaName}. Clear walking conditions to your bus stop.`,
   };
 }
 
-function generateDiurnalSingaporeWeather(area: string, region: NEAWeather['region']): NEAWeather {
-  const now = new Date();
-  const hours = now.getHours();
-  const timeStr = now.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' });
+export async function fetchNEAWeatherData(userLat: number, userLng: number): Promise<NEAWeather> {
+  // Strategy: Try /api/weather proxy first, fallback to direct keyless endpoint
+  const urls = [
+    '/api/weather',
+    'https://api-open.data.gov.sg/v2/real-time/api/two-hr-forecast',
+  ];
 
-  // Afternoon showers are typical in Singapore (between 14:00 and 17:00)
-  const isAfternoonShower = hours >= 14 && hours <= 17;
+  for (const url of urls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4500);
 
-  if (isAfternoonShower) {
-    return {
-      area,
-      region,
-      forecast: 'Passing Showers',
-      temperatureC: 28,
-      humidityPercent: 84,
-      rainProbabilityPercent: 65,
-      isRaining: true,
-      windSpeedKmh: 18,
-      updateTime: `NEA Live 2-Hr Forecast (${timeStr} SGT)`,
-      iconType: 'rain',
-      commuterAdvice: 'Light passing showers detected. Use sheltered bus stop bays where available.'
-    };
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { Accept: 'application/json' },
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const json: NEAResponse = await res.json();
+        const areaMetadata = json?.data?.area_metadata || [];
+        const item = json?.data?.items?.[0];
+        const forecasts = item?.forecasts || [];
+
+        if (forecasts.length > 0) {
+          // Find closest NEA area to user's coordinates
+          const closestArea = findClosestNEAArea(userLat, userLng, areaMetadata);
+          const areaName = closestArea?.name || 'Ang Mo Kio';
+
+          // Look up matching forecast for this area
+          const matched = forecasts.find(
+            (f) => f.area.toLowerCase() === areaName.toLowerCase()
+          ) || forecasts[0];
+
+          return parseForecastToWeather(
+            matched.forecast,
+            areaName,
+            item?.valid_period?.text,
+            item?.update_timestamp
+          );
+        }
+      }
+    } catch {
+      // Try next url
+    }
   }
 
-  return {
-    area,
-    region,
-    forecast: 'Partly Cloudy',
-    temperatureC: 31,
-    humidityPercent: 72,
-    rainProbabilityPercent: 15,
-    isRaining: false,
-    windSpeedKmh: 12,
-    updateTime: `NEA Live 2-Hr Forecast (${timeStr} SGT)`,
-    iconType: 'cloudy',
-    commuterAdvice: 'Fair weather. Good conditions for walking to your bus stop.'
-  };
+  // Graceful fallback if offline
+  return parseForecastToWeather('Partly Cloudy (Day)', 'Ang Mo Kio');
 }

@@ -20,6 +20,7 @@ export default async function handler(req: Request | any, res: Response | any) {
     },
     endpoints: {
       health: '/api/health',
+      weather: '/api/weather',
       busArrival: '/api/bus-arrival?BusStopCode=:code&ServiceNo=:service'
     }
   };
