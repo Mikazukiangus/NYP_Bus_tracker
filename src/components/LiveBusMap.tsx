@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { BusRoute, BusStop, IncomingBus, JourneyOverlay, TrafficIncident, UserLocation } from '../types/bus';
+import { AlightHint, BusRoute, BusStop, IncomingBus, JourneyOverlay, TrafficIncident, UserLocation } from '../types/bus';
 import { Navigation, Locate, Maximize2, TriangleAlert, Route } from 'lucide-react';
 
 interface LiveBusMapProps {
@@ -13,6 +13,7 @@ interface LiveBusMapProps {
   incomingBuses: IncomingBus[];
   incidents: TrafficIncident[]; // LTA traffic incidents near this route
   journey?: JourneyOverlay | null; // a planned trip to draw over the route
+  alight?: AlightHint | null; // where to get off the tracked bus for the destination
 }
 
 // OneMap: Singapore Land Authority's free official basemap (no key; attribution required)
@@ -28,15 +29,18 @@ const SINGAPORE_BOUNDS = L.latLngBounds([1.144, 103.535], [1.494, 104.502]);
 
 // Keep a framed trip clear of the legend in the top-left corner
 const TRIP_FIT: L.FitBoundsOptions = { paddingTopLeft: [40, 150], paddingBottomRight: [40, 30], maxZoom: 17 };
+// The stop to get off at is a marker on its own, so give it more room from the edge
+const ALIGHT_FIT: L.FitBoundsOptions = { paddingTopLeft: [50, 150], paddingBottomRight: [50, 60], maxZoom: 16 };
 
 const ORDINAL_LABEL = { 1: '1st', 2: '2nd', 3: '3rd' } as const;
 const LOAD_LABEL = { SEA: 'Seats available', SDA: 'Standing available', LSD: 'Limited standing' } as const;
 const LOAD_COLOR = { SEA: 'var(--color-green-blue)', SDA: '#f59e0b', LSD: '#ef4444' } as const;
 const TYPE_LABEL = { SD: 'Single deck', DD: 'Double deck', BD: 'Bendy' } as const;
 
-// Lucide "flag" icon, for the destination marker
-const FLAG_SVG =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>';
+// Lucide "flag" icon, for the destination and get-off markers
+const flagSvg = (size: number) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>`;
+const FLAG_SVG = flagSvg(14);
 
 const escapeHtml = (text: string) =>
   text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -51,6 +55,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
   incomingBuses,
   incidents,
   journey = null,
+  alight = null,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -69,6 +74,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
   const routeDir = direction === 2 && route.direction2 ? route.direction2 : route.direction1;
   const followsRoads = routeDir.pathSource === 'OPENSTREETMAP';
   const hasJourney = !!journey;
+  const alightStop = alight?.status === 'alight' ? alight : null;
   useEffect(() => setShowStops(!hasJourney), [hasJourney]);
 
   // Initialize Leaflet Map
@@ -150,17 +156,18 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
     }
   }, [routeDir, followsRoads, hasJourney]);
 
-  // Frame the user and their nearest stop whenever the route, direction or location changes
-  // (a planned trip is framed by its own effect instead)
+  // Frame the user and their nearest stop (and the stop to get off at, if any) whenever the route, direction
+  // or location changes (a planned trip is framed by its own effect instead)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || journey) return;
     const bounds = L.latLngBounds([
       [userLocation.lat, userLocation.lng],
       [nearestStop.lat, nearestStop.lng],
+      ...(alightStop ? [[alightStop.stop.lat, alightStop.stop.lng] as [number, number]] : []),
     ]);
-    map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
-  }, [route.serviceNo, direction, nearestStop.code, userLocation.lat, userLocation.lng, journey?.id]);
+    map.fitBounds(bounds, alightStop ? ALIGHT_FIT : { padding: [60, 60], maxZoom: 16 });
+  }, [route.serviceNo, direction, nearestStop.code, userLocation.lat, userLocation.lng, journey?.id, alightStop?.stop.code]);
 
   // Planned trip: walking legs (dashed), bus legs (lemon line with a Helvetia casing), boarding,
   // alighting and destination markers (drawn above live buses so the plan stays readable)
@@ -302,11 +309,15 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
     routeDir.stops.forEach((stop) => {
       const isNearest = stop.code === nearestStop.code;
       const isSelected = stop.code === selectedStop.code;
+      const isAlight = stop.code === alightStop?.stop.code;
 
       let iconHtml: string;
       let size: number;
 
-      if (isNearest) {
+      if (isAlight) {
+        size = 28;
+        iconHtml = `<div class="w-6 h-6 m-[2px] rounded-full bg-lemon border-[3px] border-helvetia-950 text-helvetia-950 shadow-md flex items-center justify-center">${flagSvg(11)}</div>`;
+      } else if (isNearest) {
         size = 28;
         iconHtml = `
           <div class="relative flex items-center justify-center w-7 h-7">
@@ -324,14 +335,14 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
       }
 
       const marker = L.marker([stop.lat, stop.lng], {
-        title: `${isNearest ? 'Nearest stop: ' : ''}${stop.name} (${stop.code})`,
+        title: `${isAlight ? 'Get off here: ' : isNearest ? 'Nearest stop: ' : ''}${stop.name} (${stop.code})`,
         icon: L.divIcon({
           html: iconHtml,
           className: 'bus-stop-marker',
           iconSize: [size, size],
           iconAnchor: [size / 2, size / 2],
         }),
-        zIndexOffset: isNearest || isSelected ? 300 : 0,
+        zIndexOffset: isAlight ? 400 : isNearest || isSelected ? 300 : 0,
       });
 
       marker.bindPopup(
@@ -339,6 +350,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
           <div class="font-black text-helvetia-950 text-sm">${escapeHtml(stop.name)}</div>
           <div class="text-warm-500 text-[11px] font-mono mb-1">Stop ${stop.code} • ${escapeHtml(stop.road)}</div>
           ${isNearest ? '<span class="bg-lemon-soft text-helvetia-950 text-[10px] font-bold px-1.5 py-0.5 rounded">Nearest Stop to You</span><br/>' : ''}
+          ${isAlight && alightStop ? `<span class="bg-helvetia-950 text-lemon text-[10px] font-bold px-1.5 py-0.5 rounded">${escapeHtml(alightStop.change ? `Get off to change to Bus ${alightStop.change.serviceNo}` : `Get off here for ${alightStop.destinationName}`)}</span><br/>` : ''}
           <div class="mt-2 text-right">
             <button id="select-stop-${stop.code}" class="bg-helvetia text-white text-xs font-bold px-3 py-1.5 rounded-md">View Arrivals</button>
           </div>
@@ -357,7 +369,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
 
       stopsGroup.addLayer(marker);
     });
-  }, [routeDir, nearestStop, selectedStop, showStops, onSelectStop]);
+  }, [routeDir, nearestStop, selectedStop, showStops, onSelectStop, alightStop]);
 
   // Update incoming bus markers from real LTA GPS positions
   useEffect(() => {
@@ -531,6 +543,12 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
             <span className="w-3.5 h-3.5 rounded-full bg-lemon text-helvetia-950 ring-1 ring-helvetia flex items-center justify-center text-[8px] font-bold shrink-0">★</span>
             <span className="text-warm-700 font-medium truncate">Nearest stop ({nearestStop.code})</span>
           </div>
+          {alightStop && (
+            <div className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 rounded-full bg-lemon border-2 border-helvetia-950 inline-block shrink-0" />
+              <span className="text-warm-700 font-medium truncate">Get off ({alightStop.stop.code})</span>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-md bg-helvetia inline-block shadow-2xs shrink-0" />
             <span className="text-warm-700">Bus (live GPS)</span>

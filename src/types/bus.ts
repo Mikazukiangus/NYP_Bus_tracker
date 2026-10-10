@@ -113,6 +113,26 @@ export interface JourneyOverlay {
   }[];
 }
 
+// Where to get off the tracked bus for the destination set in "Where to?"
+export type AlightHint =
+  | {
+      status: 'alight';
+      stop: Pick<BusStop, 'code' | 'name' | 'road' | 'lat' | 'lng'>;
+      stopCount: number;
+      rideMin: number;
+      walkM: number; // straight line from the stop to the destination, or to the next bus
+      walkMin: number;
+      destinationName: string;
+      change?: { serviceNo: string; stopCode: string; stopName: string }; // part of a trip with a change here
+    }
+  | {
+      // The bus never comes within walking distance of the destination after this stop
+      status: 'not-near';
+      stop: Pick<BusStop, 'code' | 'name' | 'road' | 'lat' | 'lng'>; // its closest stop
+      distanceM: number;
+      destinationName: string;
+    };
+
 export interface FavoriteItem {
   id: string;
   serviceNo: string;

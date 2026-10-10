@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import type { NetworkFile } from '../src/types/network';
 import type { StopServiceArrivals } from '../src/types/bus';
 import { buildBusNetwork, nearestStops, searchStops } from '../src/services/busNetwork';
-import { expectedTotalMin, liveDeparture, planTrips } from '../src/services/tripPlanner';
+import { alightFor, expectedTotalMin, liveDeparture, planTrips } from '../src/services/tripPlanner';
 import { addRecentPlace, loadRecentPlaces, parseOneMapResults, titleCase } from '../src/services/placeSearch';
 
 // A small made-up network: an east-west line A-F along lat 1.30 (~550 m apart) served by 10 and 10A,
@@ -74,6 +74,25 @@ test('a change of bus is found when no single bus goes there', () => {
   assert.equal(best.legs[0].alight.code, '10004');
   assert.equal(best.legs[1].board.code, '10004');
   assert.equal(best.transferWalkM, 0);
+});
+
+test('the stop to get off a tracked bus is the one nearest the destination in riding + walking time', () => {
+  const advice = alightFor(net, '10', 1, '10001', { lat: LAT + 0.001, lng: lng(3) }); // ~110 m from Stop D
+  assert.equal(advice?.status, 'alight');
+  if (advice?.status !== 'alight') return;
+  assert.equal(advice.leg.alight.code, '10004');
+  assert.equal(advice.leg.stopCount, 3);
+  assert.ok(advice.walkEndM > 100 && advice.walkEndM < 120);
+
+  // Bus 10 never comes within walking distance of Stop J: its closest stop is reported instead
+  const far = alightFor(net, '10', 1, '10001', at('20003'));
+  assert.equal(far?.status, 'not-near');
+  if (far?.status === 'not-near') assert.equal(far.closest.code, '10004');
+
+  // Nothing to suggest when walking from the boarding stop is as quick, or for an unknown bus or stop
+  assert.equal(alightFor(net, '10', 1, '10001', { lat: LAT, lng: lng(0) + 0.0027 }), null);
+  assert.equal(alightFor(net, '99', 1, '10001', at('10004')), null);
+  assert.equal(alightFor(net, '10A', 1, '10004', at('10001')), null); // 10A ends at D
 });
 
 test('short trips suggest walking instead of a bus', () => {

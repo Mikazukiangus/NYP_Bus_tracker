@@ -371,3 +371,24 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
 - **Validation**: TypeScript and 22 tests pass (the nearby test now checks stop order, per-stop services and the terminus rule). Browser checks with the local LTA stub at desktop and 375 px: NYP lists Nanyang Poly 55329 (72, 72A, 72B), Opp Nanyang Poly 55321 (72) and Nanyang Poly 54351 (45, 50, 72, 72A, 72B, 159, 159B); 72A at 54351 tracks from 54351; changing the location to stop 54259 refreshes and collapses the list; no horizontal overflow.
 
 ---
+
+### Turn 23: Highlight the Stop to Get Off (11 October 2026)
+- **User Prompt**:
+  > *"When the bus service is selected for a location to travel to is indicated in "Where to?", highlight the bus stop to alight as well."*
+- **Where it shows** (only while a destination is set):
+  - **Arrivals card** (`ArrivalDisplay.tsx`, on all three tabs): a lemon strip under the header, e.g. "Get off for AMK Hub at **Ang Mo Kio Int** 54009 · 3 stops · ~4 min ride, then walk ~1 min (40 m) to AMK Hub". On the first bus of a trip with a change it reads "Get off to change buses at … then Bus 167 from the same stop" (or "walk ~2 min to … for Bus 167"). If the bus never gets within walking distance of the destination after this stop, an amber note says so (naming its closest stop when that is within 2 km, otherwise pointing to the trip options).
+  - **Route Stops** (`RouteStopsList.tsx`): the stop to get off at has a lemon row, a flag in place of its number, a "Get off here" badge and "For AMK Hub · walk ~1 min" (or "Change to Bus 167 here"). The stops ridden in between get blue numbers. A "Get off at … (stop 29, 3 stops after boarding)" link above the list scrolls the list (not the page) to that stop.
+  - **Map** (`LiveBusMap.tsx`): the route's stop markers show the stop to get off at as a lemon flag marker with a "Get off here for …" popup, plus a "Get off (code)" legend entry. Without a drawn trip, the map frames you, your nearest stop and that stop together. A selected trip still draws its own get-off markers as before.
+- **How the stop is chosen** (`alightHint` in `App.tsx`):
+  1. If a suggested trip uses the tracked bus from the tracked stop, its stop is used: the selected trip first, then direct trips, then trips with a change. That way the first bus of a trip with a change stops at the change stop.
+  2. Otherwise `alightFor()` in `tripPlanner.ts` picks the later stop on that bus with the least riding + walking time, within the planner's walking reach (500 m, then 800 m). It returns nothing when walking from the boarding stop is as quick, and returns "not near" with the closest stop when no later stop is within 800 m.
+  This covers buses chosen from the nearest stops list, a bus number search, favourites or "Live times" on a trip step.
+- **Also**: the Route Stops list now keys rows by position, so loop services that pass a stop twice no longer share a React key.
+- **Validation**: TypeScript, app build and 23 tests (new: `alightFor` picks the nearest stop by time, reports "not near", and returns nothing for walkable, unknown or terminating cases). Browser checks with the local LTA stub, NYP → AMK Hub:
+  - The auto-selected trip on 265 highlights Ang Mo Kio Int 54009 in the strip, the stop list (stop 29) and the trip map.
+  - 668 from Opp Grandeur 8, which is not a suggested trip, gets Blk 522 54401 (2 stops, 530 m walk) highlighted on the route map.
+  - 72 from Nanyang Poly shows the "not near" note (closest stop 810 m away).
+  - NYP → ION Orchard on 852 → 167 shows the change at Opp St. Theresa's Hme, and tracking 167 shows Orchard Stn/Tang Plaza.
+  - At 375 px nothing overflows the page width and numbers stay with their units.
+
+---

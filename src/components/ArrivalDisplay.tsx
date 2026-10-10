@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { RefreshCw, Accessibility, Layers, Info, Clock, CalendarClock, ChevronDown, Satellite } from 'lucide-react';
-import { ArrivalDataSource, BusArrivalInfo, BusLoad, BusServiceArrivals, BusStop, FirstLastTimes } from '../types/bus';
+import { RefreshCw, Accessibility, Layers, Info, Clock, CalendarClock, ChevronDown, Satellite, Flag } from 'lucide-react';
+import { AlightHint, ArrivalDataSource, BusArrivalInfo, BusLoad, BusServiceArrivals, BusStop, FirstLastTimes } from '../types/bus';
 import { TrackingBadge } from './ArrivalBits';
 
 interface ArrivalDisplayProps {
@@ -10,6 +10,7 @@ interface ArrivalDisplayProps {
   isRefreshing: boolean;
   dataSource: ArrivalDataSource;
   secondsUntilRefresh: number;
+  alight?: AlightHint | null; // where to get off for the destination in "Where to?"
 }
 
 const BUS_TYPE_LABEL = { SD: 'Single Deck', DD: 'Double Deck', BD: 'Bendy Bus' } as const;
@@ -33,6 +34,51 @@ function todaysDayType(): 'weekday' | 'saturday' | 'sunday' {
 
 const DAY_LABEL = { weekday: 'Weekdays', saturday: 'Saturdays', sunday: 'Sundays & PH' } as const;
 
+const minutes = (min: number) => Math.max(1, Math.round(min));
+// Non-breaking spaces keep each number with its unit when the text wraps
+const formatMetres = (m: number) => (m < 1000 ? `${Math.round(m / 10) * 10}\u00a0m` : `${(m / 1000).toFixed(1)}\u00a0km`);
+
+// The stop to get off at for the destination, or a note that this bus doesn't go near it
+const AlightStrip: React.FC<{ alight: AlightHint; serviceNo: string }> = ({ alight, serviceNo }) => {
+  if (alight.status === 'not-near') {
+    return (
+      <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 flex items-start gap-2.5 text-xs text-amber-900">
+        <Flag className="w-4 h-4 shrink-0 mt-0.5" />
+        <p>
+          Bus {serviceNo} doesn't stop within walking distance of <strong>{alight.destinationName}</strong> after this
+          stop.{' '}
+          {alight.distanceM <= 2000
+            ? `Its closest stop is ${alight.stop.name} (${alight.stop.code}), ${formatMetres(alight.distanceM)} away.`
+            : `See "Buses to ${alight.destinationName}" for ones that do.`}
+        </p>
+      </div>
+    );
+  }
+  const { stop, change } = alight;
+  return (
+    <div className="mt-3 rounded-xl border border-lemon bg-lemon-soft px-3 py-2.5 flex items-start gap-2.5">
+      <span className="w-7 h-7 rounded-full bg-helvetia-950 text-lemon flex items-center justify-center shrink-0" aria-hidden="true">
+        <Flag className="w-3.5 h-3.5" />
+      </span>
+      <div className="min-w-0 text-xs text-warm-700">
+        <p className="text-sm text-warm-900">
+          {change ? 'Get off to change buses at ' : `Get off for ${alight.destinationName} at `}
+          <strong className="font-black">{stop.name}</strong>{' '}
+          <span className="font-mono text-[11px] font-semibold text-warm-600">{stop.code}</span>
+        </p>
+        <p className="mt-0.5">
+          {alight.stopCount}&nbsp;stop{alight.stopCount === 1 ? '' : 's'} · ~{minutes(alight.rideMin)}&nbsp;min ride, then{' '}
+          {change
+            ? alight.walkM > 0
+              ? `walk ~${minutes(alight.walkMin)}\u00a0min to ${change.stopName} (${change.stopCode}) for Bus\u00a0${change.serviceNo}`
+              : `Bus\u00a0${change.serviceNo} from the same stop`
+            : `walk ~${minutes(alight.walkMin)}\u00a0min (${formatMetres(alight.walkM)}) to ${alight.destinationName}`}
+        </p>
+      </div>
+    </div>
+  );
+};
+
 export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   arrivals,
   activeStop,
@@ -40,6 +86,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   isRefreshing,
   dataSource,
   secondsUntilRefresh,
+  alight = null,
 }) => {
   const [showAllDays, setShowAllDays] = useState(false);
   const isLive = dataSource === 'LTA_DATAMALL_V3';
@@ -235,6 +282,8 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
           </button>
         </div>
       </div>
+
+      {alight && <AlightStrip alight={alight} serviceNo={arrivals.serviceNo} />}
 
       {/* Grid of 3 Arrival timings */}
       <div className="grid grid-cols-3 gap-2 @2xl:gap-3.5 mt-3 @2xl:mt-4">

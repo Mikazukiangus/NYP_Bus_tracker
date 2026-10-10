@@ -296,6 +296,51 @@ export function planTrips(net: BusNetwork, from: Point, to: Point): TripPlan {
   return { options: [], straightDistanceM, walkOnlyMin, accessRadiusM };
 }
 
+export type AlightAdvice =
+  | { status: 'alight'; leg: TripLeg; walkEndM: number; walkEndMin: number }
+  | { status: 'not-near'; closest: NetStop; distanceM: number }; // no later stop within walking distance
+
+// Where to get off one bus (service, direction, boarding stop) for a destination: the later stop with the
+// least riding + walking, within the planner's walking reach. null when the bus or stop isn't in the
+// network, or when walking from the boarding stop would be just as quick.
+export function alightFor(net: BusNetwork, serviceNo: string, direction: number, boardCode: string, to: Point): AlightAdvice | null {
+  const board = net.byCode.get(boardCode);
+  if (!board) return null;
+  const svc = serviceNo.toUpperCase();
+  const served = net.patternsAtStop[board.index].map((i) => net.patterns[i]).filter((p) => p.serviceNo.toUpperCase() === svc);
+  const p = served.find((x) => x.direction === direction) ?? served[0];
+  const boardPos = p ? p.stops.indexOf(board.index) : -1;
+  if (!p || boardPos < 0 || boardPos >= p.stops.length - 1) return null;
+
+  const later: { pos: number; distanceM: number }[] = [];
+  for (let k = boardPos + 1; k < p.stops.length; k++) {
+    if (p.stops[k] === board.index) continue; // a loop back to where you got on
+    const s = net.stops[p.stops[k]];
+    later.push({ pos: k, distanceM: calculateDistanceMeters(s.lat, s.lng, to.lat, to.lng) });
+  }
+  if (!later.length) return null;
+
+  for (const radius of ACCESS_RADII_M) {
+    let best: { pos: number; distanceM: number; time: number } | null = null;
+    for (const { pos, distanceM } of later) {
+      if (distanceM > radius) continue;
+      const time = cumRide(p, pos) - cumRide(p, boardPos) + walkMinutesFor(distanceM);
+      if (!best || time < best.time) best = { pos, distanceM, time };
+    }
+    if (!best) continue;
+    const walkFromBoard = walkMinutesFor(calculateDistanceMeters(board.lat, board.lng, to.lat, to.lng));
+    if (walkFromBoard <= best.time) return null;
+    return {
+      status: 'alight',
+      leg: makeLeg(net, p, boardPos, best.pos),
+      walkEndM: best.distanceM,
+      walkEndMin: walkMinutesFor(best.distanceM),
+    };
+  }
+  const closest = later.reduce((a, b) => (b.distanceM < a.distanceM ? b : a));
+  return { status: 'not-near', closest: net.stops[p.stops[closest.pos]], distanceM: closest.distanceM };
+}
+
 // Live departure for an option's first bus, from LTA BusArrival at its boarding stop
 export type LiveDeparture =
   | { status: 'loading' }

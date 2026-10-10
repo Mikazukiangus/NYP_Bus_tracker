@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
+  AlightHint,
   BusRoute,
   BusStop,
   BusServiceArrivals,
@@ -24,7 +25,7 @@ import {
 } from './services/busTrackerService';
 import { applyRouteShapes, distanceToPathMeters, fetchRouteShapes, legPath } from './services/routeShape';
 import { BusNetwork, NearbyStop, StopService, loadBusNetwork, nearestStops } from './services/busNetwork';
-import { TripLeg, TripOption, liveDeparture, planTrips, tripScore } from './services/tripPlanner';
+import { TripLeg, TripOption, alightFor, liveDeparture, planTrips, tripScore } from './services/tripPlanner';
 import { PlaceResult, addRecentPlace, loadRecentPlaces } from './services/placeSearch';
 import { useStopsArrivals } from './services/useStopsArrivals';
 import { fetchWeatherSnapshot, summarizeWeather } from './services/neaWeather';
@@ -326,6 +327,63 @@ export default function App() {
       }),
     };
   }, [selectedTrip, tripPlan, network, destination, tripRoadPaths, userLocation]);
+
+  // Where to get off the bus being tracked, when a destination is set
+  const alightHint = useMemo<AlightHint | null>(() => {
+    if (!network || !destination) return null;
+    const svc = currentRoute.serviceNo.toUpperCase();
+    const boardIndex = routeDir.stops.findIndex((s) => s.code === selectedStop.code);
+    const isLaterStop = (code: string) => routeDir.stops.some((s, i) => i > boardIndex && s.code === code);
+    const pick = ({ code, name, road, lat, lng }: TripLeg['alight']) => ({ code, name, road, lat, lng });
+
+    // A suggested trip on this bus from this stop knows where to get off, including where to change buses
+    // (the chosen trip first, then direct trips before ones with a change)
+    const suggested = tripPlan?.options ?? [];
+    const options = [
+      ...(selectedTrip ? [selectedTrip] : []),
+      ...suggested.filter((o) => o.legs.length === 1),
+      ...suggested.filter((o) => o.legs.length > 1),
+    ];
+    for (const option of options) {
+      const i = option.legs.findIndex(
+        (leg) =>
+          leg.board.code === selectedStop.code &&
+          [leg.serviceNo, ...leg.alsoServiceNos].some((s) => s.toUpperCase() === svc) &&
+          isLaterStop(leg.alight.code)
+      );
+      if (i < 0) continue;
+      const leg = option.legs[i];
+      const next = option.legs[i + 1];
+      return {
+        status: 'alight',
+        stop: pick(leg.alight),
+        stopCount: leg.stopCount,
+        rideMin: leg.rideMin,
+        walkM: next ? option.transferWalkM : option.walkEndM,
+        walkMin: next ? option.transferWalkMin : option.walkEndMin,
+        destinationName: destination.name,
+        ...(next ? { change: { serviceNo: next.serviceNo, stopCode: next.board.code, stopName: next.board.name } } : {}),
+      };
+    }
+
+    // Otherwise the stop on this bus that gets closest to the destination
+    const advice = alightFor(network, currentRoute.serviceNo, direction, selectedStop.code, destination);
+    if (advice?.status === 'alight' && isLaterStop(advice.leg.alight.code)) {
+      return {
+        status: 'alight',
+        stop: pick(advice.leg.alight),
+        stopCount: advice.leg.stopCount,
+        rideMin: advice.leg.rideMin,
+        walkM: advice.walkEndM,
+        walkMin: advice.walkEndMin,
+        destinationName: destination.name,
+      };
+    }
+    if (advice?.status === 'not-near') {
+      return { status: 'not-near', stop: pick(advice.closest), distanceM: advice.distanceM, destinationName: destination.name };
+    }
+    return null;
+  }, [network, destination, currentRoute.serviceNo, direction, routeDir, selectedStop.code, selectedTrip, tripPlan]);
 
   const showTripOnMap = useCallback(() => {
     setActiveTab('map');
@@ -642,6 +700,7 @@ export default function App() {
               isRefreshing={isRefreshing}
               dataSource={dataSource}
               secondsUntilRefresh={secondsUntilRefresh}
+              alight={alightHint}
             />
 
             <StopServicesBoard
@@ -665,6 +724,7 @@ export default function App() {
                   incomingBuses={incomingBuses}
                   incidents={incidentsOnRoute}
                   journey={journey}
+                  alight={alightHint}
                 />
               </div>
               <div className="lg:col-span-5 space-y-6">
@@ -730,6 +790,7 @@ export default function App() {
               incomingBuses={incomingBuses}
               incidents={incidentsOnRoute}
               journey={journey}
+              alight={alightHint}
             />
             {tripCard}
             {/* Quick arrival summary card below the map */}
@@ -740,6 +801,7 @@ export default function App() {
               isRefreshing={isRefreshing}
               dataSource={dataSource}
               secondsUntilRefresh={secondsUntilRefresh}
+              alight={alightHint}
             />
           </div>
         )}
@@ -754,6 +816,7 @@ export default function App() {
                 selectedStop={selectedStop}
                 onSelectStop={handleSelectStop}
                 stopsWithDistance={stopsWithDistance}
+                alight={alightHint}
               />
             </div>
             <div className="lg:col-span-5 space-y-4">
@@ -764,6 +827,7 @@ export default function App() {
                 isRefreshing={isRefreshing}
                 dataSource={dataSource}
                 secondsUntilRefresh={secondsUntilRefresh}
+                alight={alightHint}
               />
               <StopServicesBoard
                 stop={selectedStop}
