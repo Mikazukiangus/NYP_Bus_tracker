@@ -353,3 +353,12 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
 - **Validation**: TypeScript, production build and 22 tests (8 new: nearby services, stop search, direct/merged options, one change, walk-only, live catchable bus, OneMap parsing/ranking, recent places). Browser checks with the local LTA stub (real BusArrival via the deployed API) at desktop and 375 px: destination search → options with live times → auto-selected trip on the map; postal code 560123 as start (re-plans to "walk ~7 min"); stop-code search; recent places; no horizontal overflow or console errors.
 
 ---
+
+### Turn 21: Search Ranking for Travel Destinations (10 October 2026)
+- **User Prompt**:
+  > *"Yes rank results with postal code above things like flyovers and exits as the focus is places that people take public transport to reach."*
+- **Change** (`parseOneMapResults` in `src/services/placeSearch.ts`): OneMap results with a postal code (buildings, stations, malls, terminals) now come before those without (flyovers, MRT exits, pumping stations), then exact → prefix → word matches of the name, then OneMap's order. Results without a postal code are still listed, just lower. Bus stops still follow the OneMap results.
+- **Result**: "Changi Airport" now lists Changi Airport MRT Station (CG2) and Terminals 1–4 first instead of "Changi Airport Aircraft Flyover". "Jurong Point" and "Bishan" lead with the mall and with Bishan 8 / Bishan Bus Interchange.
+- **Validation**: new regression case in `tests/trip-planner.test.ts`; 22 tests and TypeScript pass; checked against live OneMap results.
+
+---

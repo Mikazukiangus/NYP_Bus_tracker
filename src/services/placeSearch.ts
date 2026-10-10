@@ -57,7 +57,7 @@ const present = (value?: string) => (value && value !== 'NIL' ? value.trim() : '
 
 export function parseOneMapResults(results: OneMapResult[], query: string): PlaceResult[] {
   const seen = new Set<string>();
-  const places: PlaceResult[] = [];
+  const places: { place: PlaceResult; hasPostal: boolean }[] = [];
   for (const r of results) {
     const lat = Number(r.LATITUDE);
     const lng = Number(r.LONGITUDE);
@@ -76,15 +76,20 @@ export function parseOneMapResults(results: OneMapResult[], query: string): Plac
     if (seen.has(key)) continue;
     seen.add(key);
     places.push({
-      id: `onemap:${key}`,
-      kind: isPostalCode(query) ? 'postal' : isAddressOnly ? 'address' : 'place',
-      name,
-      subtitle: subtitle || undefined,
-      lat,
-      lng,
+      place: {
+        id: `onemap:${key}`,
+        kind: isPostalCode(query) ? 'postal' : isAddressOnly ? 'address' : 'place',
+        name,
+        subtitle: subtitle || undefined,
+        lat,
+        lng,
+      },
+      hasPostal: postal !== '',
     });
   }
-  // OneMap's order is loose (e.g. "Jurong Point" lists a clinic first): put exact and prefix name matches first
+  // OneMap's order is loose, so re-rank for places people travel to:
+  // 1. results with a postal code (buildings, stations, malls) before flyovers, exits and pumping stations
+  // 2. exact, then prefix, then word matches of the name (e.g. "Jurong Point" before a clinic inside it)
   const q = query.trim().toLowerCase();
   const rank = (p: PlaceResult) => {
     const name = p.name.toLowerCase();
@@ -93,7 +98,10 @@ export function parseOneMapResults(results: OneMapResult[], query: string): Plac
     if (new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(name)) return 2;
     return 3;
   };
-  return places.map((p, i) => ({ p, i, r: rank(p) })).sort((a, b) => a.r - b.r || a.i - b.i).map(({ p }) => p);
+  return places
+    .map(({ place, hasPostal }, i) => ({ place, i, postal: hasPostal ? 0 : 1, match: rank(place) }))
+    .sort((a, b) => a.postal - b.postal || a.match - b.match || a.i - b.i)
+    .map(({ place }) => place);
 }
 
 // null when OneMap can't be reached or rate-limits us

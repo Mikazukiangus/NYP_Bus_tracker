@@ -119,6 +119,25 @@ test('OneMap names are title-cased, de-duplicated and ranked by how well they ma
   assert.equal(results[0].subtitle, '1 Jurong West Central 2, Singapore 648886');
   assert.equal(results[0].kind, 'place');
 
+  // Places with a postal code come before flyovers and exits, even when those match the name better
+  const changi = parseOneMapResults(
+    [
+      { SEARCHVAL: 'CHANGI AIRPORT AIRCRAFT FLYOVER', LATITUDE: '1.3540', LONGITUDE: '103.9800' },
+      { SEARCHVAL: 'CHANGI AIRPORT LIFT PUMPING STATION', ROAD_NAME: 'AIRPORT BOULEVARD', LATITUDE: '1.3550', LONGITUDE: '103.9810' },
+      { SEARCHVAL: 'CHANGI AIRPORT MRT STATION (CG2)', BLK_NO: '70', ROAD_NAME: 'AIRPORT BOULEVARD', POSTAL: '819661', LATITUDE: '1.3573', LONGITUDE: '103.9886' },
+      { SEARCHVAL: 'CHANGI AIRPORT MRT STATION EXIT A', LATITUDE: '1.3574', LONGITUDE: '103.9887' },
+      { SEARCHVAL: 'JEWEL CHANGI AIRPORT', BLK_NO: '78', ROAD_NAME: 'AIRPORT BOULEVARD', POSTAL: '819666', LATITUDE: '1.3602', LONGITUDE: '103.9898' },
+    ],
+    'changi airport'
+  );
+  assert.deepEqual(changi.map((r) => r.name), [
+    'Changi Airport MRT Station (CG2)',
+    'Jewel Changi Airport',
+    'Changi Airport Aircraft Flyover',
+    'Changi Airport Lift Pumping Station',
+    'Changi Airport MRT Station Exit A',
+  ]);
+
   const [postal] = parseOneMapResults(
     [{ SEARCHVAL: '123 ANG MO KIO AVENUE 6 SINGAPORE 560123', BLK_NO: '123', ROAD_NAME: 'ANG MO KIO AVENUE 6', BUILDING: 'NIL', POSTAL: '560123', LATITUDE: '1.37048', LONGITUDE: '103.84481' }],
     '560123'
