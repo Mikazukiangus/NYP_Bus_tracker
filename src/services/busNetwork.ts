@@ -94,42 +94,50 @@ export function stopsWithin(net: BusNetwork, lat: number, lng: number, radiusM: 
   return found.sort((a, b) => a.distanceM - b.distanceM);
 }
 
-export interface NearbyService {
+export interface StopService {
   serviceNo: string;
   direction: number;
-  stop: NetStop; // nearest stop where this service can be boarded
+  towards: string; // last stop of this direction
+}
+
+export interface NearbyStop {
+  stop: NetStop;
   distanceM: number;
+  services: StopService[]; // services that can be boarded here, in number order
 }
 
-export interface NearbyServicesResult {
-  services: NearbyService[];
-  radiusM: number;
-  stopCount: number;
-}
+const NEARBY_STOP_RADII_M = [500, 1000, 2000]; // widened only when there are fewer stops than asked for
 
-const NEARBY_RADII_M = [500, 800, 1500]; // the first matches the trip planner's walking radius
-
-// Services that can be boarded at stops around a point, ordered by how close their nearest stop is.
-// Widens the search when nothing runs within 500 m.
-export function servicesNear(net: BusNetwork, lat: number, lng: number): NearbyServicesResult {
-  for (const radiusM of NEARBY_RADII_M) {
-    const stops = stopsWithin(net, lat, lng, radiusM);
-    const seen = new Set<string>();
-    const services: NearbyService[] = [];
-    for (const { stop, distanceM } of stops) {
+// The bus stops nearest a point, each with every service that can be boarded there.
+// Returns up to `max` stops (nearest first); stops where buses only terminate are skipped.
+export function nearestStops(net: BusNetwork, lat: number, lng: number, max = 8): NearbyStop[] {
+  let found: NearbyStop[] = [];
+  for (const radiusM of NEARBY_STOP_RADII_M) {
+    found = [];
+    for (const { stop, distanceM } of stopsWithin(net, lat, lng, radiusM)) {
+      const seen = new Set<string>();
+      const services: StopService[] = [];
       for (const p of net.patternsAtStop[stop.index]) {
         const pattern = net.patterns[p];
-        // Can't board at the last stop of a direction (buses terminate there)
+        // Can't board at the last stop of a direction (buses terminate there; loop services start there too)
         if (pattern.stops.indexOf(stop.index) === pattern.stops.length - 1) continue;
         const key = pattern.serviceNo.toUpperCase();
         if (seen.has(key)) continue;
         seen.add(key);
-        services.push({ serviceNo: pattern.serviceNo, direction: pattern.direction, stop, distanceM });
+        services.push({
+          serviceNo: pattern.serviceNo,
+          direction: pattern.direction,
+          towards: net.stops[pattern.stops[pattern.stops.length - 1]].name,
+        });
       }
+      if (!services.length) continue;
+      services.sort((a, b) => a.serviceNo.localeCompare(b.serviceNo, 'en', { numeric: true }));
+      found.push({ stop, distanceM, services });
+      if (found.length >= max) return found;
     }
-    if (services.length) return { services, radiusM, stopCount: stops.length };
+    if (found.length >= Math.min(3, max)) return found;
   }
-  return { services: [], radiusM: NEARBY_RADII_M[NEARBY_RADII_M.length - 1], stopCount: 0 };
+  return found;
 }
 
 // Bus stops matching a 5-digit code (prefix) or a name/road search

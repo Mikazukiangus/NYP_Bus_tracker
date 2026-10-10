@@ -301,7 +301,7 @@ This application is a real-time Singapore public bus tracking web app inspired b
 | `/api/traffic-incidents` | GET | Live traffic incidents across Singapore (the client shows those near the route) | LTA DataMall TrafficIncidents |
 | `/api/bus-route` | GET | Real stop sequence (both directions) for a service; fallback when static files are missing | LTA DataMall BusRoutes + BusStops + BusServices |
 | `/bus-routes/<SERVICE>.json`, `/bus-routes/index.json` | GET (static) | Real stop sequences with first/last bus times, and the service list, generated at build time | LTA DataMall, via `scripts/build-bus-routes.ts` |
-| `/bus-routes/network.json` | GET (static) | Every stop (code, name, road, position) and every service direction (stop order + road distances), for stop names, buses near you, stop search and trip planning in the browser (~135 KB gzipped) | LTA DataMall, via `scripts/build-bus-routes.ts` |
+| `/bus-routes/network.json` | GET (static) | Every stop (code, name, road, position) and every service direction (stop order + road distances), for stop names, nearest bus stops, stop search and trip planning in the browser (~135 KB gzipped) | LTA DataMall, via `scripts/build-bus-routes.ts` |
 | `/route-shapes/<SERVICE>.json` | GET (static) | Road-following route geometry for a service | OpenStreetMap (ODbL), pre-built by `npm run shapes` |
 | `/api/weather` | GET | Singapore-wide snapshot of 12 NEA datasets (forecasts, station readings, PSI/PM2.5, UV, lightning, WBGT); the client picks the nearest station/region | NEA via data.gov.sg v2 real-time API |
 
@@ -360,5 +360,14 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
 - **Change** (`parseOneMapResults` in `src/services/placeSearch.ts`): OneMap results with a postal code (buildings, stations, malls, terminals) now come before those without (flyovers, MRT exits, pumping stations), then exact → prefix → word matches of the name, then OneMap's order. Results without a postal code are still listed, just lower. Bus stops still follow the OneMap results.
 - **Result**: "Changi Airport" now lists Changi Airport MRT Station (CG2) and Terminals 1–4 first instead of "Changi Airport Aircraft Flyover". "Jurong Point" and "Bishan" lead with the mall and with Bishan 8 / Bishan Bus Interchange.
 - **Validation**: new regression case in `tests/trip-planner.test.ts`; 22 tests and TypeScript pass; checked against live OneMap results.
+
+---
+
+### Turn 22: Nearest Bus Stops Replace Popular Services (11 October 2026)
+- **User Prompt**:
+  > *"Instead of showing the popular bus services, show the bus services servicing the nearest bus-stops to the location that you set."*
+- **Change** (`BusSearchBox.tsx`): the "Near you" / "Popular" chip row under **Find Bus Service** is now **Nearest bus stops to <location>**, a list with one row per stop: stop name, code and distance, then a chip for every service that can be boarded there. The 3 nearest stops are shown, with "Show N more nearby stops" (up to 8). The list collapses again when the location changes. Tapping a chip tracks that bus from that stop (direction set from the stop), and a chip is only highlighted at the stop being tracked. The hard-coded Popular list is gone: while the network loads the list shows placeholders, and if it can't load a short note points to the bus number search.
+- **Implementation**: `nearestStops(network, lat, lng, max = 8)` in `src/services/busNetwork.ts` replaces `servicesNear`. It searches 500 m, then 1 km, then 2 km, keeps stops in distance order, lists each service once per stop (sorted by number, with "towards" its last stop) and skips stops where buses only terminate. `App.tsx` passes the tracked stop code so the right chip is highlighted.
+- **Validation**: TypeScript and 22 tests pass (the nearby test now checks stop order, per-stop services and the terminus rule). Browser checks with the local LTA stub at desktop and 375 px: NYP lists Nanyang Poly 55329 (72, 72A, 72B), Opp Nanyang Poly 55321 (72) and Nanyang Poly 54351 (45, 50, 72, 72A, 72B, 159, 159B); 72A at 54351 tracks from 54351; changing the location to stop 54259 refreshes and collapses the list; no horizontal overflow.
 
 ---

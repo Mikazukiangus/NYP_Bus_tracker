@@ -23,7 +23,7 @@ import {
   pickNearestDirection,
 } from './services/busTrackerService';
 import { applyRouteShapes, distanceToPathMeters, fetchRouteShapes, legPath } from './services/routeShape';
-import { BusNetwork, NearbyService, loadBusNetwork, servicesNear } from './services/busNetwork';
+import { BusNetwork, NearbyStop, StopService, loadBusNetwork, nearestStops } from './services/busNetwork';
 import { TripLeg, TripOption, liveDeparture, planTrips, tripScore } from './services/tripPlanner';
 import { PlaceResult, addRecentPlace, loadRecentPlaces } from './services/placeSearch';
 import { useStopsArrivals } from './services/useStopsArrivals';
@@ -173,10 +173,10 @@ export default function App() {
     };
   }, []);
 
-  // Services at stops around the user (null while loading, undefined if the network is unavailable)
-  const nearbyServices = useMemo(
+  // Bus stops nearest the user, with their services (null while loading, undefined if the network is unavailable)
+  const nearbyStops = useMemo(
     () =>
-      network ? servicesNear(network, userLocation.lat, userLocation.lng) : networkStatus === 'loading' ? null : undefined,
+      network ? nearestStops(network, userLocation.lat, userLocation.lng) : networkStatus === 'loading' ? null : undefined,
     [network, networkStatus, userLocation.lat, userLocation.lng]
   );
 
@@ -520,8 +520,8 @@ export default function App() {
     trackService(num);
   };
 
-  const handleSelectNearby = (svc: NearbyService) => {
-    trackService(svc.serviceNo, { direction: svc.direction, stopCode: svc.stop.code });
+  const handleSelectStopService = (nearby: NearbyStop, svc: StopService) => {
+    trackService(svc.serviceNo, { direction: svc.direction, stopCode: nearby.stop.code });
   };
 
   const tripCard = destination && (
@@ -585,14 +585,14 @@ export default function App() {
         {/* Bus Search Box & Direction Selector */}
         <BusSearchBox
           busNumber={busNumber}
-          setBusNumber={setBusNumber}
           onSearch={handleSearchBus}
           currentRoute={currentRoute}
           direction={direction}
           setDirection={handleSetDirection}
-          nearby={nearbyServices}
+          nearbyStops={nearbyStops}
           locationName={userLocation.name.split('(')[0].trim()}
-          onSelectNearby={handleSelectNearby}
+          trackedStopCode={selectedStop.code}
+          onSelectStopService={handleSelectStopService}
           network={network}
           destination={destination}
           onSetDestination={handleSetDestination}

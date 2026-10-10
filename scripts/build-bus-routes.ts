@@ -51,7 +51,7 @@ async function main() {
   await writeFile(path.join(OUT_DIR, 'index.json'), JSON.stringify({ generatedAt, services }));
 
   // Every stop and service direction in one compact file: stop names for the "all buses at this stop" board,
-  // plus "buses near you", stop search and trip planning in the browser
+  // plus nearest bus stops, stop search and trip planning in the browser
   const network = buildNetwork(data, generatedAt);
   const networkBody = JSON.stringify(network);
   await writeFile(path.join(OUT_DIR, 'network.json'), networkBody);

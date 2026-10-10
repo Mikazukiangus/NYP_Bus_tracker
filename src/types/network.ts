@@ -1,5 +1,5 @@
 // public/bus-routes/network.json, built at deploy time by scripts/build-bus-routes.ts from LTA DataMall.
-// A compact copy of every stop and every service direction, for "buses near you", stop search and trip planning.
+// A compact copy of every stop and every service direction, for nearest bus stops, stop search and trip planning.
 
 export type NetworkStopRow = [code: string, name: string, road: string, lat: number, lng: number];
 

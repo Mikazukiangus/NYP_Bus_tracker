@@ -1,21 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Search, ArrowRightLeft, Sparkles, X, MapPinned, Flag } from 'lucide-react';
+import { Search, ArrowRightLeft, X, MapPinned, Flag, ChevronDown } from 'lucide-react';
 import { BusRoute } from '../types/bus';
-import type { BusNetwork, NearbyService, NearbyServicesResult } from '../services/busNetwork';
+import type { BusNetwork, NearbyStop, StopService } from '../services/busNetwork';
 import type { PlaceResult } from '../services/placeSearch';
 import { PlaceSearch } from './PlaceSearch';
 
 interface BusSearchBoxProps {
   busNumber: string;
-  setBusNumber: (val: string) => void;
   onSearch: (busNo: string) => void;
   currentRoute: BusRoute;
   direction: number;
   setDirection: (dir: number) => void;
-  // Services at stops around the user's location; null while the bus network loads, undefined if unavailable
-  nearby: NearbyServicesResult | null | undefined;
+  // Bus stops nearest the user's location with their services; null while loading, undefined if unavailable
+  nearbyStops: NearbyStop[] | null | undefined;
   locationName: string;
-  onSelectNearby: (service: NearbyService) => void;
+  trackedStopCode: string;
+  onSelectStopService: (stop: NearbyStop, service: StopService) => void;
   network: BusNetwork | null;
   destination: PlaceResult | null;
   onSetDestination: (place: PlaceResult) => void;
@@ -23,21 +23,21 @@ interface BusSearchBoxProps {
   recentPlaces: PlaceResult[];
 }
 
-// Shown only if the bus network data can't be loaded: 72, 45, 50 and 159 serve Nanyang Poly stops
-const POPULAR_NUMBERS = ['72', '45', '50', '159', '14', '65', '147', '190', '857'];
+// Nearest stops shown before "Show more"
+const COLLAPSED_STOPS = 3;
 
 const formatMetres = (m: number) => (m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`);
 
 export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
   busNumber,
-  setBusNumber,
   onSearch,
   currentRoute,
   direction,
   setDirection,
-  nearby,
+  nearbyStops,
   locationName,
-  onSelectNearby,
+  trackedStopCode,
+  onSelectStopService,
   network,
   destination,
   onSetDestination,
@@ -45,6 +45,10 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
   recentPlaces,
 }) => {
   const [inputVal, setInputVal] = useState(busNumber);
+  const [showAllStops, setShowAllStops] = useState(false);
+
+  // A new location starts with just the nearest few stops again
+  useEffect(() => setShowAllStops(false), [nearbyStops?.[0]?.stop.code]);
 
   // Keep the input in sync when the service changes elsewhere (e.g. a favourite is opened)
   useEffect(() => {
@@ -58,11 +62,7 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
     }
   };
 
-  const handleSelectQuick = (num: string) => {
-    setInputVal(num);
-    setBusNumber(num);
-    onSearch(num);
-  };
+  const shownStops = nearbyStops ? (showAllStops ? nearbyStops : nearbyStops.slice(0, COLLAPSED_STOPS)) : [];
 
   const dir1 = currentRoute.direction1;
   const dir2 = currentRoute.direction2;
@@ -132,71 +132,79 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
         </div>
       </div>
 
-      {/* Services at stops around the user */}
-      <div className="mt-2.5 sm:mt-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
-        {nearby === null ? (
-          <>
-            <span className="text-[11px] font-medium text-warm-500 flex items-center gap-1 shrink-0 mr-1">
-              <MapPinned className="w-3 h-3 text-green-blue" />
-              Buses near you:
-            </span>
-            {[0, 1, 2, 3, 4].map((i) => (
-              <span key={i} className="w-10 h-7 rounded-lg bg-warm-100 animate-pulse shrink-0" />
+      {/* Bus stops nearest the user's location, with the services that stop there */}
+      <section className="mt-3 sm:mt-4" aria-label={`Nearest bus stops to ${locationName}`}>
+        <h3 className="text-[11px] font-semibold text-warm-600 flex items-center gap-1 mb-1.5 min-w-0">
+          <MapPinned className="w-3.5 h-3.5 text-green-blue-ink shrink-0" />
+          <span className="shrink-0">Nearest bus stops</span>{' '}
+          <span className="font-normal text-warm-500 truncate">to {locationName}</span>
+        </h3>
+
+        {nearbyStops === null ? (
+          <div className="rounded-xl border border-warm-200 divide-y divide-warm-100 animate-pulse" aria-label="Loading nearby bus stops">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="px-3 py-2.5 flex items-center gap-3">
+                <span className="h-4 w-40 rounded bg-warm-100" />
+                <span className="h-6 w-24 rounded-lg bg-warm-100" />
+              </div>
             ))}
-          </>
-        ) : nearby && nearby.services.length > 0 ? (
-          <>
-            <span
-              className="text-[11px] font-medium text-warm-500 flex items-center gap-1 shrink-0 mr-1"
-              title={`Services at the ${nearby.stopCount} bus stops within ${formatMetres(nearby.radiusM)} of ${locationName}`}
-            >
-              <MapPinned className="w-3 h-3 text-green-blue" />
-              <span>
-                Near you<span className="hidden sm:inline"> (within {formatMetres(nearby.radiusM)})</span>:
-              </span>
-            </span>
-            {nearby.services.map((svc) => {
-              const isActive = currentRoute.serviceNo.toUpperCase() === svc.serviceNo.toUpperCase();
-              return (
-                <button
-                  key={svc.serviceNo}
-                  type="button"
-                  onClick={() => onSelectNearby(svc)}
-                  title={`Bus ${svc.serviceNo} from ${svc.stop.name} (${svc.stop.code}), ${formatMetres(svc.distanceM)} away`}
-                  aria-label={`Bus ${svc.serviceNo}, from ${svc.stop.name}, ${formatMetres(svc.distanceM)} away`}
-                  className={`px-3 py-1.5 sm:px-2.5 sm:py-1 rounded-lg text-xs font-bold transition-all shrink-0 ${
-                    isActive ? 'bg-helvetia text-white shadow-xs' : 'bg-warm-100 hover:bg-warm-200 text-warm-700'
-                  }`}
-                >
-                  {svc.serviceNo}
-                </button>
-              );
-            })}
-          </>
+          </div>
+        ) : nearbyStops === undefined ? (
+          <p className="text-xs text-warm-600">
+            Nearby bus stops can't be loaded right now. You can still track a bus by its number.
+          </p>
+        ) : nearbyStops.length === 0 ? (
+          <p className="text-xs text-warm-600">No bus stops found within 2 km of this location.</p>
         ) : (
           <>
-            <span className="text-[11px] font-medium text-warm-500 flex items-center gap-1 shrink-0 mr-1">
-              <Sparkles className="w-3 h-3 text-green-blue" />
-              Popular:
-            </span>
-            {POPULAR_NUMBERS.map((num) => {
-              const isActive = currentRoute.serviceNo === num;
-              return (
-                <button
-                  key={num}
-                  type="button"
-                  onClick={() => handleSelectQuick(num)}
-                  className={`px-3 py-1.5 sm:px-2.5 sm:py-1 rounded-lg text-xs font-bold transition-all shrink-0 ${
-                    isActive ? 'bg-helvetia text-white shadow-xs' : 'bg-warm-100 hover:bg-warm-200 text-warm-700'
-                  }`}
-                >
-                  {num}
-                </button>
-              );
-            })}
+            <ul className="rounded-xl border border-warm-200 divide-y divide-warm-100">
+              {shownStops.map((nearby) => {
+                const { stop, distanceM, services } = nearby;
+                return (
+                  <li key={stop.code} className="px-3 py-2 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+                    <div className="flex items-baseline gap-1.5 min-w-0 sm:w-60 sm:shrink-0">
+                      <span className="text-sm font-semibold text-warm-900 truncate">{stop.name}</span>
+                      <span className="font-mono text-[11px] text-warm-500 shrink-0">{stop.code}</span>
+                      <span className="text-[11px] text-warm-500 shrink-0">· {formatMetres(distanceM)}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {services.map((svc) => {
+                        const isActive =
+                          currentRoute.serviceNo.toUpperCase() === svc.serviceNo.toUpperCase() && trackedStopCode === stop.code;
+                        return (
+                          <button
+                            key={svc.serviceNo}
+                            type="button"
+                            onClick={() => onSelectStopService(nearby, svc)}
+                            title={`Bus ${svc.serviceNo} towards ${svc.towards}`}
+                            aria-label={`Bus ${svc.serviceNo} from ${stop.name}, towards ${svc.towards}`}
+                            aria-pressed={isActive}
+                            className={`min-w-[2.75rem] px-2.5 py-1.5 sm:py-1 rounded-lg text-xs font-bold transition-all ${
+                              isActive ? 'bg-helvetia text-white shadow-xs' : 'bg-warm-100 hover:bg-warm-200 text-warm-700'
+                            }`}
+                          >
+                            {svc.serviceNo}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            {nearbyStops.length > COLLAPSED_STOPS && (
+              <button
+                type="button"
+                onClick={() => setShowAllStops((v) => !v)}
+                className="mt-1.5 text-xs font-semibold text-helvetia hover:underline flex items-center gap-1"
+              >
+                {showAllStops ? 'Show fewer stops' : `Show ${nearbyStops.length - COLLAPSED_STOPS} more nearby stops`}
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAllStops ? 'rotate-180' : ''}`} />
+              </button>
+            )}
           </>
         )}
-      </div>
+      </section>
 
       {/* Route Direction Switcher */}
       <div className="mt-2.5 pt-3 sm:mt-4 sm:pt-3.5 border-t border-warm-100">

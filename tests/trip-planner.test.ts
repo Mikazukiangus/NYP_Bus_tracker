@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { NetworkFile } from '../src/types/network';
 import type { StopServiceArrivals } from '../src/types/bus';
-import { buildBusNetwork, searchStops, servicesNear } from '../src/services/busNetwork';
+import { buildBusNetwork, nearestStops, searchStops } from '../src/services/busNetwork';
 import { expectedTotalMin, liveDeparture, planTrips } from '../src/services/tripPlanner';
 import { addRecentPlace, loadRecentPlaces, parseOneMapResults, titleCase } from '../src/services/placeSearch';
 
@@ -34,14 +34,17 @@ const at = (code: string) => {
   return { lat: s.lat, lng: s.lng };
 };
 
-test('buses near a point list each service once, from its nearest stop, and skip termini', () => {
-  const near = servicesNear(net, LAT, lng(3));
+test('nearest stops list every service that can be boarded there, nearest stop first', () => {
+  const near = nearestStops(net, LAT + 0.0005, lng(3), 3);
   assert.deepEqual(
-    near.services.map((s) => `${s.serviceNo}@${s.stop.code}`),
-    ['10@10004', '20@10004']
+    near.map((n) => `${n.stop.code}:${n.services.map((s) => s.serviceNo).join(',')}`),
+    // D: 10 continues to E, 20 starts there; 10A ends at D so it can't be boarded there
+    ['10004:10,20', '20001:20', '10003:10,10A']
   );
-  // 10A ends at D, so it can't be boarded there
-  assert.ok(!near.services.some((s) => s.serviceNo === '10A'));
+  assert.equal(near[0].services[0].towards, 'Stop E');
+  assert.ok(near[0].distanceM < near[1].distanceM && near[1].distanceM < near[2].distanceM);
+  // Terminus-only stops (J) are skipped
+  assert.ok(!nearestStops(net, 1.315, lng(3), 8).some((n) => n.stop.code === '20003'));
 });
 
 test('stop search matches 5-digit codes and names', () => {
