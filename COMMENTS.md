@@ -274,6 +274,7 @@ This application is a real-time Singapore public bus tracking web app inspired b
   - Darkened secondary text, added consistent keyboard focus, accessible marker/control names and a wheelchair-icon role; route-stop rows are now keyboard-operable buttons.
 - **Validation**: TypeScript, all 10 regression tests and production build passed. Chrome checks at 1440 px and 375 px confirmed the four exact tokens, focus styling, map stroke, keyboard stop selection and no horizontal overflow/browser errors. Axe reported zero WCAG A/AA violations across Arrivals, Map (including the stop popup), Stops, Weather, Favourites and Location at both widths, using live-derived route/weather fixtures and controlled arrival fixtures.
 - **Publication**: continue the user's existing commit-and-live-deploy direction through the linked `nypbus-tracker` Vercel project; confirm the exact commit and deployed palette before reporting completion.
+- **Production check**: the first deployed weather cold start exposed low contrast in the small missing/stale-readings message; darkened that warning and added an incomplete-weather browser audit at both widths before the follow-up deploy.
 
 ---
 

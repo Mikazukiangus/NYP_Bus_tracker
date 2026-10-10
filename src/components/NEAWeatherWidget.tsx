@@ -348,7 +348,7 @@ export const NEAWeatherWidget: React.FC<NEAWeatherWidgetProps> = ({
           Source: NEA via data.gov.sg{latestUpdate ? ` · readings ${formatSgTime(latestUpdate)}` : ''}
         </span>
         {(w.missing.length > 0 || w.stale.length > 0) && (
-          <span className="text-amber-600">
+          <span className="text-amber-800">
             {w.missing.length > 0 ? 'Some readings still loading or unavailable' : 'Some readings may be out of date'}
           </span>
         )}
