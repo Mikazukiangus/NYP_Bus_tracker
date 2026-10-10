@@ -10,6 +10,8 @@ interface ArrivalDisplayProps {
   dataSource?: 'LTA_DATAMALL_V3' | 'FALLBACK_SIMULATED';
 }
 
+const BUS_TYPE_LABEL = { SD: 'Single Deck', DD: 'Double Deck', BD: 'Bendy Bus' } as const;
+
 export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   arrivals,
   activeStop,
@@ -50,43 +52,38 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
     onRefresh();
   };
 
+  const LOAD_BADGE: Record<BusLoad, { full: string; short: string; className: string; dot: string }> = {
+    SEA: { full: 'SEA • Seats Avail', short: 'Seats', className: 'bg-emerald-100 text-emerald-800 border-emerald-300', dot: 'bg-emerald-600' },
+    SDA: { full: 'SDA • Standing Avail', short: 'Standing', className: 'bg-amber-100 text-amber-800 border-amber-300', dot: 'bg-amber-600' },
+    LSD: { full: 'LSD • Limited Standing', short: 'Limited', className: 'bg-rose-100 text-rose-800 border-rose-300', dot: 'bg-rose-600' },
+  };
+
   const renderLoadBadge = (load: BusLoad) => {
-    switch (load) {
-      case 'SEA':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block" />
-            SEA • Seats Avail
-          </span>
-        );
-      case 'SDA':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-600 inline-block" />
-            SDA • Standing Avail
-          </span>
-        );
-      case 'LSD':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-600 inline-block" />
-            LSD • Limited Standing
-          </span>
-        );
-    }
+    const badge = LOAD_BADGE[load];
+    return (
+      <span className={`inline-flex items-center gap-1 px-1.5 @2xl:px-2 py-0.5 rounded-md text-[11px] @2xl:text-xs font-bold border ${badge.className}`}>
+        <span className={`w-1.5 h-1.5 rounded-full inline-block shrink-0 ${badge.dot}`} />
+        <span className="@2xl:hidden">{badge.short}</span>
+        <span className="hidden @2xl:inline">{badge.full}</span>
+      </span>
+    );
   };
 
   const renderSingleBusCard = (
     bus: BusArrivalInfo | null,
     label: string,
+    shortLabel: string,
     isPrimary: boolean = false
   ) => {
     if (!bus) {
       return (
-        <div className="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center text-slate-400 min-h-[140px]">
+        <div className="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-2.5 @2xl:p-4 flex flex-col items-center justify-center text-center text-slate-400 min-h-[120px] @2xl:min-h-[140px]">
           <Clock className="w-5 h-5 mb-1 opacity-50" />
-          <span className="text-xs font-medium">{label}</span>
-          <span className="text-sm font-semibold text-slate-500 mt-1">Not in service</span>
+          <span className="text-xs font-medium">
+            <span className="@2xl:hidden">{shortLabel}</span>
+            <span className="hidden @2xl:inline">{label}</span>
+          </span>
+          <span className="text-xs @2xl:text-sm font-semibold text-slate-500 mt-1">No estimate</span>
         </div>
       );
     }
@@ -95,80 +92,78 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
 
     return (
       <div
-        className={`rounded-2xl p-4 sm:p-5 transition-all relative ${
+        className={`rounded-xl @2xl:rounded-2xl p-2.5 @2xl:p-5 transition-all relative min-w-0 ${
           isPrimary
             ? 'bg-gradient-to-b from-purple-50/70 to-white border-2 border-[#602a85]/30 shadow-sm'
             : 'bg-white border border-slate-200 shadow-2xs'
         }`}
       >
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            {label}
+        <div className="flex items-center justify-between gap-1 mb-1 @2xl:mb-2">
+          <span className="text-[11px] @2xl:text-xs font-bold uppercase tracking-wider text-slate-500 truncate">
+            <span className="@2xl:hidden">{shortLabel}</span>
+            <span className="hidden @2xl:inline">{label}</span>
           </span>
           {bus.feature === 'WAB' && (
             <span
-              className="text-blue-600 bg-blue-50 border border-blue-200 p-1 rounded-md text-[11px] flex items-center gap-0.5 font-medium"
+              className="text-blue-600 bg-blue-50 border border-blue-200 p-0.5 @2xl:p-1 rounded-md text-[11px] flex items-center gap-0.5 font-medium shrink-0"
               title="Wheelchair Accessible Bus"
+              aria-label="Wheelchair accessible bus"
             >
               <Accessibility className="w-3.5 h-3.5" />
-              <span className="text-[10px] font-bold">WAB</span>
+              <span className="text-[10px] font-bold hidden @2xl:inline">WAB</span>
             </span>
           )}
         </div>
 
         {/* Arrival Time Big Display */}
-        <div className="my-2 flex items-baseline gap-2">
+        <div className="my-1 @2xl:my-2 flex items-baseline gap-2">
           {isArr ? (
             <div className="flex items-center gap-1.5">
-              <span className="text-3xl sm:text-4xl font-black text-emerald-600 tracking-tight animate-pulse">
+              <span className="text-3xl @2xl:text-4xl font-black text-emerald-600 tracking-tight animate-pulse">
                 Arr
               </span>
-              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+              <span className="hidden @2xl:inline text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                 Arriving Now
               </span>
             </div>
           ) : (
             <div className="flex items-baseline gap-1">
-              <span className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+              <span className="text-3xl @2xl:text-4xl font-black text-slate-900 tracking-tight">
                 {bus.estimatedMinutes}
               </span>
-              <span className="text-sm sm:text-base font-bold text-slate-500">min</span>
+              <span className="text-sm @2xl:text-base font-bold text-slate-500">min</span>
             </div>
           )}
         </div>
 
         {/* Load badge */}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-2 @2xl:mt-3 flex flex-wrap items-center gap-1.5 @2xl:gap-2">
           {renderLoadBadge(bus.load)}
 
           {/* Bus Type */}
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+          <span
+            className="inline-flex items-center gap-1 text-[11px] font-bold px-1.5 @2xl:px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200"
+            title={BUS_TYPE_LABEL[bus.type]}
+          >
             <Layers className="w-3 h-3 text-slate-500" />
-            {bus.type === 'DD' ? 'Double Deck' : bus.type === 'BD' ? 'Bendy Bus' : 'Single Deck'}
+            <span className="@2xl:hidden">{bus.type}</span>
+            <span className="hidden @2xl:inline">{BUS_TYPE_LABEL[bus.type]}</span>
           </span>
         </div>
-
-        {/* Fleet metadata */}
-        {bus.busReg && (
-          <div className="mt-3 pt-2.5 border-t border-slate-100 text-[11px] text-slate-400 flex items-center justify-between font-mono">
-            <span>Reg: {bus.busReg}</span>
-            {bus.speedKmH && <span>Speed: {bus.speedKmH} km/h</span>}
-          </div>
-        )}
       </div>
     );
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
+    <div className="@container bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 sm:p-6">
       {/* Header bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-[#602a85] text-white flex items-center justify-center font-black text-xl shadow-xs shrink-0">
+      <div className="flex flex-col @xl:flex-row @xl:items-center justify-between gap-3 pb-3 @2xl:pb-4 border-b border-slate-100">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-11 h-11 @2xl:w-12 @2xl:h-12 rounded-xl bg-[#602a85] text-white flex items-center justify-center font-black text-xl shadow-xs shrink-0">
             {arrivals.serviceNo}
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
                 Bus {arrivals.serviceNo} Arrivals
               </h3>
@@ -178,9 +173,9 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
                 dataSource === 'LTA_DATAMALL_V3'
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                  : 'bg-purple-50 text-purple-700 border-purple-200'
+                  : 'bg-amber-50 text-amber-800 border-amber-300'
               }`}>
-                {dataSource === 'LTA_DATAMALL_V3' ? '● LTA DataMall v3 Live' : '● LTA Real-Time Feed'}
+                {dataSource === 'LTA_DATAMALL_V3' ? '● LTA DataMall v3 Live' : '● Simulated (live feed unavailable)'}
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium">
@@ -190,7 +185,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         </div>
 
         {/* Refresh timer & button */}
-        <div className="flex items-center gap-3 self-end sm:self-center">
+        <div className="flex items-center gap-3 self-end @xl:self-center shrink-0">
           <div className="text-right text-xs">
             <div className="text-slate-400 text-[11px]">Auto-refresh in</div>
             <div className="font-mono font-bold text-purple-900">{secondsUntilRefresh}s</div>
@@ -209,17 +204,17 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
       </div>
 
       {/* Grid of 3 Arrival timings */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 mt-4">
-        {renderSingleBusCard(arrivals.nextBus, 'Next Bus', true)}
-        {renderSingleBusCard(arrivals.nextBus2, 'Subsequent Bus (2nd)', false)}
-        {renderSingleBusCard(arrivals.nextBus3, 'Following Bus (3rd)', false)}
+      <div className="grid grid-cols-3 gap-2 @2xl:gap-3.5 mt-3 @2xl:mt-4">
+        {renderSingleBusCard(arrivals.nextBus, 'Next Bus', 'Next', true)}
+        {renderSingleBusCard(arrivals.nextBus2, '2nd Bus', '2nd', false)}
+        {renderSingleBusCard(arrivals.nextBus3, '3rd Bus', '3rd', false)}
       </div>
 
       {/* Official Singapore LTA / SBS Transit Load legend */}
-      <div className="mt-5 p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-slate-600 gap-2">
+      <div className="mt-3 @2xl:mt-5 p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-slate-600 gap-2">
         <div className="flex items-center gap-1 font-semibold text-slate-700">
           <Info className="w-3.5 h-3.5 text-purple-700 shrink-0" />
-          <span>SBS Transit Capacity Guide:</span>
+          <span>Bus Capacity Guide:</span>
         </div>
         <div className="flex flex-wrap items-center gap-3 font-medium">
           <span className="flex items-center gap-1">

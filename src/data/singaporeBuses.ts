@@ -1,4 +1,4 @@
-import { BusRoute, BusStop, UserLocation } from '../types/bus';
+import { BusRoute, BusStop, RouteDirection, UserLocation } from '../types/bus';
 
 // Haversine distance calculator in meters
 export function calculateDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -559,7 +559,7 @@ export function getOrCreateBusRoute(serviceNo: string): BusRoute {
   const cleanNo = serviceNo.trim().toUpperCase();
   const curated = POPULAR_ROUTES[cleanNo];
   if (curated) {
-    const withPath = (dir: BusRoute['direction1']) =>
+    const withPath = (dir: RouteDirection) =>
       dir.path.length ? dir : { ...dir, path: dir.stops.map((s): [number, number] => [s.lat, s.lng]) };
     return {
       ...curated,

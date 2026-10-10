@@ -38,7 +38,7 @@ export const NEAWeatherWidget: React.FC<NEAWeatherWidgetProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 overflow-hidden">
+    <div className="@container bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 overflow-hidden">
       {/* Top row */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
         <div className="flex items-center gap-2">
@@ -72,9 +72,9 @@ export const NEAWeatherWidget: React.FC<NEAWeatherWidgetProps> = ({
       </div>
 
       {/* Main weather banner */}
-      <div className="mt-3.5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="mt-3.5 grid grid-cols-1 @xl:grid-cols-3 gap-3">
         {/* Forecast & Temp */}
-        <div className="sm:col-span-2 bg-gradient-to-br from-slate-50 to-blue-50/40 rounded-xl p-3.5 border border-slate-200 flex items-center justify-between">
+        <div className="@xl:col-span-2 bg-gradient-to-br from-slate-50 to-blue-50/40 rounded-xl p-3.5 border border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-3.5">
             <div className="p-2 bg-white rounded-xl shadow-2xs border border-slate-100">
               {renderWeatherIcon()}

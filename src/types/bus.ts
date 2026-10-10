@@ -21,6 +21,7 @@ export interface BusArrivalInfo {
   lat?: number;
   lng?: number;
   speedKmH?: number;
+  monitored?: boolean; // true when LTA has a live GPS fix (position is real), false when schedule-based
 }
 
 export interface BusServiceArrivals {
@@ -37,22 +38,25 @@ export interface BusServiceArrivals {
   lastUpdated: Date;
 }
 
-export interface LiveBus {
+// A real bus approaching the selected stop, positioned from LTA BusArrival GPS data
+export interface IncomingBus {
   id: string;
   serviceNo: string;
-  operator: BusOperator;
+  ordinal: 1 | 2 | 3; // 1st, 2nd or 3rd bus due at the stop
   lat: number;
   lng: number;
-  heading: number;
-  speedKmH: number;
+  etaMinutes: number;
   load: BusLoad;
   type: BusType;
-  busReg: string;
-  direction: number;
-  currentStopIndex: number;
-  nextStopName: string;
-  nextStopCode: string;
-  etaMinutesToNextStop: number;
+  feature: 'WAB' | '';
+}
+
+export interface RouteDirection {
+  origin: string;
+  destination: string;
+  stops: BusStop[];
+  path: [number, number][];
+  pathSource?: 'OPENSTREETMAP'; // set when path follows real roads; otherwise straight stop-to-stop lines
 }
 
 export interface BusRoute {
@@ -60,18 +64,8 @@ export interface BusRoute {
   operator: BusOperator;
   category: 'Trunk' | 'Feeder' | 'Express';
   source?: 'LTA_DATAMALL' | 'OFFLINE';
-  direction1: {
-    origin: string;
-    destination: string;
-    stops: BusStop[];
-    path: [number, number][];
-  };
-  direction2?: {
-    origin: string;
-    destination: string;
-    stops: BusStop[];
-    path: [number, number][];
-  };
+  direction1: RouteDirection;
+  direction2?: RouteDirection;
 }
 
 export interface UserLocation {

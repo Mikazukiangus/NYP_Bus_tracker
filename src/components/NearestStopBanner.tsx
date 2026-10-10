@@ -44,25 +44,26 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
 
       <div className="relative z-10">
         {/* Top badge row */}
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
-          <div className="flex items-center gap-2">
-            <span className="bg-emerald-400 text-slate-950 text-[11px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs">
+        <div className="flex items-center justify-between gap-2 mb-2.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="bg-emerald-400 text-slate-950 text-[11px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs shrink-0">
               <span className="w-2 h-2 rounded-full bg-emerald-900 animate-ping inline-block" />
               Nearest Bus Stop
             </span>
-            <span className="text-purple-200 text-xs font-medium">
+            <span className="text-purple-200 text-xs font-medium truncate">
               to {userLocation.name.split('(')[0].trim()}
             </span>
           </div>
 
           <button
             onClick={onToggleFavorite}
-            className={`p-2 rounded-xl transition-all flex items-center gap-1.5 text-xs font-semibold ${
+            className={`p-2 rounded-xl transition-all flex items-center gap-1.5 text-xs font-semibold shrink-0 ${
               isFavorite
                 ? 'bg-red-500 text-white shadow-xs'
                 : 'bg-white/10 hover:bg-white/20 text-white'
             }`}
             title={isFavorite ? 'Remove from favourites' : 'Save to favourites'}
+            aria-label={isFavorite ? 'Remove from favourites' : 'Save to favourites'}
           >
             <Heart className={`w-4 h-4 ${isFavorite ? 'fill-white text-white' : ''}`} />
             <span className="hidden sm:inline">
@@ -82,7 +83,7 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
                 {nearestStop.code}
               </span>
             </div>
-            <p className="text-purple-200 text-sm mt-0.5 font-medium flex items-center gap-1.5">
+            <p className="text-purple-200 text-sm mt-0.5 font-medium flex flex-wrap items-center gap-x-1.5">
               <span>Along {nearestStop.road}</span>
               {nearestStop.sheltered && (
                 <>
@@ -123,7 +124,7 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
 
         {/* Selected stop indicator if user clicked another stop */}
         {!isCurrentlySelected && (
-          <div className="mt-3.5 pt-3 border-t border-white/15 flex items-center justify-between text-xs bg-black/15 -mx-4 -mb-4 px-4 py-2.5 rounded-b-2xl">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs bg-black/15 px-3 py-2 rounded-xl">
             <span className="text-amber-200">
               Viewing other stop: <strong>{selectedStop.name} ({selectedStop.code})</strong>
             </span>
@@ -138,13 +139,14 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
 
         {/* Route stops browsing hint */}
         <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between text-xs text-purple-200">
-          <div className="flex items-center gap-1">
-            <MapPin className="w-3.5 h-3.5 text-purple-300" />
-            <span>Looking for another stop along this bus route?</span>
+          <div className="flex items-center gap-1 min-w-0">
+            <MapPin className="w-3.5 h-3.5 text-purple-300 shrink-0" />
+            <span className="sm:hidden">Other stops on this route</span>
+            <span className="hidden sm:inline">Looking for another stop along this bus route?</span>
           </div>
           <button
             onClick={onOpenStopsList}
-            className="text-white hover:text-emerald-300 font-semibold flex items-center gap-0.5"
+            className="text-white hover:text-emerald-300 font-semibold flex items-center gap-0.5 shrink-0 py-1"
           >
             <span>Browse all stops</span>
             <ChevronRight className="w-3.5 h-3.5" />

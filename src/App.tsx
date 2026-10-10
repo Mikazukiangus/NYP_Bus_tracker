@@ -4,7 +4,7 @@ import {
   BusStop,
   BusServiceArrivals,
   FavoriteItem,
-  LiveBus,
+  IncomingBus,
   NEAWeather,
   UserLocation
 } from './types/bus';
@@ -18,9 +18,8 @@ import {
   fetchLTABusArrivals,
   fetchBusRoute,
   pickNearestDirection,
-  initLiveBuses,
-  stepLiveBuses
 } from './services/busTrackerService';
+import { applyRouteShapes, fetchRouteShapes } from './services/routeShape';
 import { fetchNEAWeatherData } from './services/neaWeather';
 import { Header } from './components/Header';
 import { BusSearchBox } from './components/BusSearchBox';
@@ -83,6 +82,12 @@ export default function App() {
       setBusNumber(route.serviceNo);
       setDirection(opts.direction ?? pickNearestDirection(route, loc.lat, loc.lng));
       setSelectedStopCode(opts.stopCode ?? null);
+
+      // Upgrade straight stop-to-stop lines to road-following OpenStreetMap geometry when it matches the stops
+      const shapes = await fetchRouteShapes(route.serviceNo);
+      if (requestId !== routeRequestId.current) return;
+      const shaped = applyRouteShapes(route, shapes);
+      if (shaped !== route) setCurrentRoute(shaped);
     },
     []
   );
@@ -124,25 +129,6 @@ export default function App() {
     setSelectedStopCode(null);
     setDirection(pickNearestDirection(currentRouteRef.current, loc.lat, loc.lng));
   }, []);
-
-  // Live Moving Buses on the map
-  const [liveBuses, setLiveBuses] = useState<LiveBus[]>(() =>
-    initLiveBuses(currentRoute, direction)
-  );
-
-  // Reset live buses when route or direction changes
-  useEffect(() => {
-    setLiveBuses(initLiveBuses(currentRoute, direction));
-  }, [currentRoute, direction]);
-
-  // Live micro-movement loop for buses on map
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveBuses((prevBuses) => stepLiveBuses(prevBuses, currentRoute, direction));
-    }, 2800);
-
-    return () => clearInterval(interval);
-  }, [currentRoute, direction]);
 
   // Real-time Bus Arrival Timings for active selected stop
   const [refreshCount, setRefreshCount] = useState(0);
@@ -210,6 +196,28 @@ export default function App() {
       isCancelled = true;
     };
   }, [currentRoute, selectedStop, direction, refreshCount, routeDir]);
+
+  // Real buses approaching the selected stop, plotted from LTA GPS positions (live data only)
+  const incomingBuses = useMemo<IncomingBus[]>(() => {
+    if (dataSource !== 'LTA_DATAMALL_V3' || arrivals.serviceNo !== currentRoute.serviceNo) return [];
+    return ([arrivals.nextBus, arrivals.nextBus2, arrivals.nextBus3] as const).flatMap((bus, i) =>
+      bus && bus.monitored && bus.lat && bus.lng && bus.lat > 1
+        ? [
+            {
+              id: `${arrivals.serviceNo}-${arrivals.stopCode}-${i + 1}`,
+              serviceNo: arrivals.serviceNo,
+              ordinal: (i + 1) as 1 | 2 | 3,
+              lat: bus.lat,
+              lng: bus.lng,
+              etaMinutes: bus.estimatedMinutes,
+              load: bus.load,
+              type: bus.type,
+              feature: bus.feature,
+            },
+          ]
+        : []
+    );
+  }, [arrivals, dataSource, currentRoute.serviceNo]);
 
   const handleRefresh = useCallback(() => {
     setRefreshCount((c) => c + 1);
@@ -354,21 +362,21 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Quick Location & Commuter Bar */}
-        <div className="bg-purple-900/5 border border-purple-100 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2">
+        <div className="bg-purple-900/5 border border-purple-100 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2 min-w-0">
             <Compass className="w-4 h-4 text-[#602a85] shrink-0" />
-            <span className="text-slate-600">Your Current Commute Location:</span>
-            <strong className="text-slate-900">{userLocation.name}</strong>
+            <span className="text-slate-600 hidden sm:inline shrink-0">Your Current Commute Location:</span>
+            <strong className="text-slate-900 truncate">{userLocation.name}</strong>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => setIsLocationModalOpen(true)}
-              className="text-[#602a85] hover:text-[#502170] font-bold underline"
+              className="text-[#602a85] hover:text-[#502170] font-bold underline py-1"
             >
-              Change Location / Use GPS
+              Change<span className="hidden sm:inline"> Location / Use GPS</span>
             </button>
-            <span className="text-slate-300">•</span>
-            <span className="text-slate-500">
+            <span className="text-slate-300 hidden lg:inline">•</span>
+            <span className="text-slate-500 hidden lg:inline">
               Singapore Bus Interchanges & Stops Live Feed
             </span>
           </div>
@@ -398,17 +406,19 @@ export default function App() {
         )}
 
         {/* Nearest Bus Stop Highlight Banner */}
-        <NearestStopBanner
-          nearestStop={nearestStop}
-          selectedStop={selectedStop}
-          onSelectStop={handleSelectStop}
-          distanceMeters={distanceMeters}
-          userLocation={userLocation}
-          isFavorite={isCurrentFavorite}
-          onToggleFavorite={handleToggleFavorite}
-          onViewOnMap={() => setActiveTab('map')}
-          onOpenStopsList={() => setActiveTab('stops')}
-        />
+        {(activeTab === 'arrivals' || activeTab === 'stops') && (
+          <NearestStopBanner
+            nearestStop={nearestStop}
+            selectedStop={selectedStop}
+            onSelectStop={handleSelectStop}
+            distanceMeters={distanceMeters}
+            userLocation={userLocation}
+            isFavorite={isCurrentFavorite}
+            onToggleFavorite={handleToggleFavorite}
+            onViewOnMap={() => setActiveTab('map')}
+            onOpenStopsList={() => setActiveTab('stops')}
+          />
+        )}
 
         {/* Dynamic Tab Views */}
         {activeTab === 'arrivals' && (
@@ -432,7 +442,7 @@ export default function App() {
                   selectedStop={selectedStop}
                   onSelectStop={handleSelectStop}
                   userLocation={userLocation}
-                  liveBuses={liveBuses}
+                  incomingBuses={incomingBuses}
                 />
               </div>
               <div className="lg:col-span-5 space-y-6">
@@ -490,7 +500,7 @@ export default function App() {
               selectedStop={selectedStop}
               onSelectStop={handleSelectStop}
               userLocation={userLocation}
-              liveBuses={liveBuses}
+              incomingBuses={incomingBuses}
             />
             {/* Quick arrival summary card below the map */}
             <ArrivalDisplay

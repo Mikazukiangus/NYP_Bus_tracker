@@ -156,6 +156,25 @@ This application is a real-time Singapore public bus tracking web app inspired b
 
 ---
 
+### Turn 10: Free Map Data (OneMap + OpenStreetMap), Real Bus Positions, Mobile/Desktop Optimisation
+- **User Prompt**:
+  > *"Can we also figure how to pull some free map data for the map? Also ensure the site is mobile optimized and desktop optimized."*
+- **Free map data sources evaluated**:
+  - **OneMap basemap tiles** (Singapore Land Authority) – `https://www.onemap.gov.sg/maps/tiles/{Default|Grey|Night}/{z}/{x}/{y}.png`. Free, no API key, CORS-enabled, zoom 11–19, Singapore only. Attribution (logo + "OneMap © contributors | Singapore Land Authority") is required and shown.
+  - **OpenStreetMap bus route relations** via the public Overpass API – OSM has `type=route, route=bus, ref=<service>` relations for Singapore services (e.g. Svc 72 both directions, Go-Ahead). Free under ODbL with attribution. Public Overpass instances are flaky (504/500s seen), so results are cached hard.
+  - (Considered: `data.busrouter.sg` route polylines – fast, but third-party with unclear licensing, so not used.)
+- **Action & Implementation**:
+  - New `/api/route-shape?ServiceNo=72` – queries Overpass (kumi.systems → overpass-api.de → mail.ru fallbacks, Singapore bbox), stitches each relation's ordered ways into one line (handles reversed ways and roundabout rings), simplifies with Douglas–Peucker (~3 m), and caches 30 days at the CDN. `maxDuration: 60` in `vercel.json`.
+  - `src/services/routeShape.ts` matches each OSM line to the LTA direction by origin/destination proximity (≤1 km) and requires ≥90% of LTA stops within 100 m of the line; otherwise the map keeps dotted stop-to-stop lines (guards against outdated OSM routes).
+  - `LiveBusMap.tsx`: OneMap basemap with Standard/Grey/Night switcher, Singapore max bounds, road-following route line (solid) vs. stop-to-stop (dotted), auto-framing of user + nearest stop on route/direction/location change.
+  - **Simulated moving buses removed.** The map now plots the real 1st/2nd/3rd buses due at the selected stop using GPS coordinates from the LTA BusArrival response (only when `Monitored=1` and data is live), with ETA labels and load/deck/WAB popups.
+  - **Mobile**: fixed horizontal overflow at 375 px (header was 467 px wide); compact sticky header (corporate bar and duplicate location pill hidden on phones), full-width tabs with short labels, one-line location bar, compact search box, icon-only map controls, map height 60vh, arrival cards in a 3-up compact grid via container queries, larger touch targets.
+  - **Desktop/tablet**: container queries so the arrival cards, map header and weather widget adapt to their column width (e.g. compact cards in the Route Stops side column), shorter card labels, no clipped toolbars at 1280 px.
+  - Arrival badge now says "Simulated (live feed unavailable)" instead of "LTA Real-Time Feed" when falling back; made-up registration/speed lines removed from arrival cards.
+- **Still simulated**: favourites-modal arrival previews; NEA widget temperature/humidity/wind (the 2-hour forecast API only provides the forecast text).
+
+---
+
 ## 3. Architecture & API Endpoints Summary
 
 ### Serverless & Proxy Endpoints
@@ -164,13 +183,16 @@ This application is a real-time Singapore public bus tracking web app inspired b
 | `/api/health` | GET | System and API health monitor | Self-test + Environment check |
 | `/api/bus-arrival` | GET | Live bus arrival times, load, and telemetry | Singapore LTA DataMall v3 |
 | `/api/bus-route` | GET | Real stop sequence (both directions) for a service | LTA DataMall BusRoutes + BusStops + BusServices |
+| `/api/route-shape` | GET | Road-following route geometry for a service | OpenStreetMap via Overpass API (ODbL) |
+
+Map basemap tiles are loaded directly by the browser from OneMap (Singapore Land Authority); no proxy or key needed.
 | `/api/weather` | GET | Live 2-hour regional weather forecast | Singapore NEA Open Data v2 |
 
 ### Query Parameters for `/api/bus-arrival`
 - `BusStopCode` (Required): 5-digit bus stop code (e.g. `83139`, `55329`, `09037`).
 - `ServiceNo` (Optional): Specific service number (e.g. `15`, `72`, `14`).
 
-### Query Parameters for `/api/bus-route`
+### Query Parameters for `/api/bus-route` and `/api/route-shape`
 - `ServiceNo` (Required): Bus service number (e.g. `72`, `45`, `851e`).
 
 ---

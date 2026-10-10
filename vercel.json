@@ -4,6 +4,9 @@
   "functions": {
     "api/bus-route.ts": {
       "maxDuration": 60
+    },
+    "api/route-shape.ts": {
+      "maxDuration": 60
     }
   },
   "rewrites": [

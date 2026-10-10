@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import busArrivalHandler from './api/bus-arrival.ts';
 import busRouteHandler from './api/bus-route.ts';
+import routeShapeHandler from './api/route-shape.ts';
 import healthHandler from './api/health.ts';
 import weatherHandler from './api/weather.ts';
 
@@ -32,6 +33,10 @@ app.all('/api/bus-arrival', (req, res) => {
 
 app.all('/api/bus-route', (req, res) => {
   return busRouteHandler(req, res);
+});
+
+app.all('/api/route-shape', (req, res) => {
+  return routeShapeHandler(req, res);
 });
 
 // Also support case-insensitive BusArrival

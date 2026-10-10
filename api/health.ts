@@ -22,7 +22,8 @@ export default async function handler(req: Request | any, res: Response | any) {
       health: '/api/health',
       weather: '/api/weather',
       busArrival: '/api/bus-arrival?BusStopCode=:code&ServiceNo=:service',
-      busRoute: '/api/bus-route?ServiceNo=:service'
+      busRoute: '/api/bus-route?ServiceNo=:service',
+      routeShape: '/api/route-shape?ServiceNo=:service'
     }
   };
 

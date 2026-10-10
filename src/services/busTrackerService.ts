@@ -1,4 +1,4 @@
-import { BusArrivalInfo, BusLoad, BusRoute, BusStop, BusType, LiveBus } from '../types/bus';
+import { BusArrivalInfo, BusLoad, BusRoute, BusStop, BusType } from '../types/bus';
 import { calculateDistanceMeters } from '../data/singaporeBuses';
 
 // Generate consistent bus registration numbers matching Singapore standard
@@ -149,6 +149,7 @@ export async function fetchLTABusArrivals(
             lat: busRaw.Latitude ? parseFloat(busRaw.Latitude) : undefined,
             lng: busRaw.Longitude ? parseFloat(busRaw.Longitude) : undefined,
             speedKmH: 30 + (index * 4),
+            monitored: busRaw.Monitored === 1,
           };
         };
 
@@ -204,116 +205,4 @@ export function pickNearestDirection(route: BusRoute, userLat: number, userLng: 
   const d1 = findNearestBusStop(route, 1, userLat, userLng).distanceMeters;
   const d2 = findNearestBusStop(route, 2, userLat, userLng).distanceMeters;
   return d2 < d1 ? 2 : 1;
-}
-
-// Generate live moving buses along the route coordinates
-export function initLiveBuses(route: BusRoute, direction: number): LiveBus[] {
-  const routeDir = direction === 2 && route.direction2 ? route.direction2 : route.direction1;
-  const path = routeDir.path;
-  const stops = routeDir.stops;
-
-  if (path.length === 0) return [];
-
-  const busCount = Math.max(3, Math.min(5, Math.floor(stops.length / 3)));
-  const buses: LiveBus[] = [];
-
-  for (let i = 0; i < busCount; i++) {
-    // Distribute buses along the path
-    const fraction = (i / busCount) + 0.1;
-    const pathIdx = Math.floor(fraction * (path.length - 1)) % path.length;
-    const currentCoord = path[pathIdx];
-    const nextIdx = Math.min(pathIdx + 1, path.length - 1);
-    const nextCoord = path[nextIdx];
-
-    // Compute heading in degrees
-    const dy = nextCoord[0] - currentCoord[0];
-    const dx = nextCoord[1] - currentCoord[1];
-    let heading = Math.round((Math.atan2(dx, dy) * 180) / Math.PI);
-    if (heading < 0) heading += 360;
-
-    const stopIdx = Math.min(Math.floor(fraction * stops.length), stops.length - 1);
-    const nextStop = stops[Math.min(stopIdx + 1, stops.length - 1)];
-
-    const loads: BusLoad[] = ['SEA', 'SDA', 'SEA', 'LSD', 'SEA'];
-    const types: BusType[] = ['DD', 'DD', 'SD', 'DD', 'SD'];
-
-    buses.push({
-      id: `bus-${route.serviceNo}-${direction}-${i}`,
-      serviceNo: route.serviceNo,
-      operator: route.operator,
-      lat: currentCoord[0],
-      lng: currentCoord[1],
-      heading,
-      speedKmH: 30 + ((i * 7) % 18),
-      load: loads[i % loads.length],
-      type: types[i % types.length],
-      busReg: generateBusReg(route.serviceNo, i + 1),
-      direction,
-      currentStopIndex: stopIdx,
-      nextStopName: nextStop.name,
-      nextStopCode: nextStop.code,
-      etaMinutesToNextStop: Math.max(1, (i * 3 + 2) % 6)
-    });
-  }
-
-  return buses;
-}
-
-// Micro-step update live buses to simulate real movement along path
-export function stepLiveBuses(
-  buses: LiveBus[],
-  route: BusRoute,
-  direction: number
-): LiveBus[] {
-  const routeDir = direction === 2 && route.direction2 ? route.direction2 : route.direction1;
-  const path = routeDir.path;
-  const stops = routeDir.stops;
-
-  if (path.length < 2) return buses;
-
-  return buses.map(bus => {
-    // Find closest waypoint index
-    let bestIdx = 0;
-    let minD = Infinity;
-    for (let j = 0; j < path.length; j++) {
-      const d = Math.hypot(path[j][0] - bus.lat, path[j][1] - bus.lng);
-      if (d < minD) {
-        minD = d;
-        bestIdx = j;
-      }
-    }
-
-    // Move forward towards next index or loop
-    const targetIdx = (bestIdx + 1) % path.length;
-    const target = path[targetIdx];
-    const current = [bus.lat, bus.lng];
-
-    // Step size (sub-coordinate step)
-    const stepRatio = 0.08;
-    const newLat = current[0] + (target[0] - current[0]) * stepRatio;
-    const newLng = current[1] + (target[1] - current[1]) * stepRatio;
-
-    // Heading calculation
-    const dy = target[0] - newLat;
-    const dx = target[1] - newLng;
-    let heading = Math.round((Math.atan2(dx, dy) * 180) / Math.PI);
-    if (heading < 0) heading += 360;
-
-    // Fluctuate speed realistically (20 - 48 km/h)
-    const speedVariation = (Math.random() - 0.5) * 4;
-    const newSpeed = Math.round(Math.max(18, Math.min(52, bus.speedKmH + speedVariation)));
-
-    const stopIdx = Math.min(Math.floor((bestIdx / path.length) * stops.length), stops.length - 1);
-    const nextStop = stops[Math.min(stopIdx + 1, stops.length - 1)];
-
-    return {
-      ...bus,
-      lat: Number(newLat.toFixed(6)),
-      lng: Number(newLng.toFixed(6)),
-      heading,
-      speedKmH: newSpeed,
-      nextStopName: nextStop.name,
-      nextStopCode: nextStop.code
-    };
-  });
 }
