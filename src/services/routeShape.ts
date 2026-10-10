@@ -13,15 +13,14 @@ const MAX_ENDPOINT_OFFSET_M = 1000;
 const MAX_STOP_OFFSET_M = 100;
 const MIN_STOP_COVERAGE = 0.9;
 
+// Pre-built from OpenStreetMap by scripts/build-route-shapes.ts and served as static files
 export async function fetchRouteShapes(serviceNo: string): Promise<RouteShape[]> {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 45000);
-    const res = await fetch(`/api/route-shape?ServiceNo=${encodeURIComponent(serviceNo)}`, {
-      signal: controller.signal,
+    const res = await fetch(`/route-shapes/${encodeURIComponent(serviceNo.toUpperCase())}.json`, {
+      signal: AbortSignal.timeout(10000),
     });
-    clearTimeout(timeout);
-    if (!res.ok) return [];
+    // Unknown services fall through to the SPA's index.html, so check it's really JSON
+    if (!res.ok || !res.headers.get('content-type')?.includes('json')) return [];
     const data = await res.json();
     return Array.isArray(data?.shapes) ? data.shapes : [];
   } catch {

@@ -175,6 +175,21 @@ This application is a real-time Singapore public bus tracking web app inspired b
 
 ---
 
+### Turn 11: Live Verification & Static Route Shapes
+- **User Prompt**:
+  > *"yes push it and check the live site"*
+- **Live findings** (https://nypbus-tracker.vercel.app):
+  - OneMap basemap, LTA route loading (operator now correctly shows **GAS** – Go-Ahead runs Bus 72) and real bus GPS markers all work. Example: Bus 72 towards Yio Chu Kang at Opp Nanyang Poly (`55321`) showed 3 tracked buses at their LTA GPS positions.
+  - At Nanyang Poly (`55329`, 2nd stop out of Yio Chu Kang Int) the map correctly shows "No live GPS": the next buses are still at the interchange, so LTA returns `Monitored=0` and `0.0, 0.0` coordinates.
+  - `/api/route-shape` was unreliable in production: 45 and 14 failed after ~32 s and 159 hung, because public Overpass mirrors failed/timed out from Vercel's `sin1` region (logs: `AbortError`).
+  - `/api/bus-route` takes ~10 s on the first request after a deploy (Vercel clears the CDN cache per deployment and the function must page through all LTA route data); the offline route is shown meanwhile.
+- **Action & Implementation**:
+  - Replaced the runtime `/api/route-shape` endpoint with **pre-built static files**: `scripts/build-route-shapes.ts` (`npm run shapes`) makes one bulk Overpass query for every Singapore bus route (~54 MB, ~75 s), stitches + simplifies each relation and writes `public/route-shapes/<SERVICE>.json` (673 services, ~2.5 MB total, ~5–9 KB each). Served from Vercel's CDN, no runtime dependency on Overpass.
+  - Coverage: 595 of LTA's 602 services have an OSM shape; 780 of 798 route directions (97.7%) pass the stop-coverage check and draw road-following lines, the rest use dotted stop-to-stop lines.
+  - Re-run `npm run shapes` occasionally (e.g. monthly) and commit the output to pick up route changes.
+
+---
+
 ## 3. Architecture & API Endpoints Summary
 
 ### Serverless & Proxy Endpoints
@@ -183,7 +198,7 @@ This application is a real-time Singapore public bus tracking web app inspired b
 | `/api/health` | GET | System and API health monitor | Self-test + Environment check |
 | `/api/bus-arrival` | GET | Live bus arrival times, load, and telemetry | Singapore LTA DataMall v3 |
 | `/api/bus-route` | GET | Real stop sequence (both directions) for a service | LTA DataMall BusRoutes + BusStops + BusServices |
-| `/api/route-shape` | GET | Road-following route geometry for a service | OpenStreetMap via Overpass API (ODbL) |
+| `/route-shapes/<SERVICE>.json` | GET (static) | Road-following route geometry for a service | OpenStreetMap (ODbL), pre-built by `npm run shapes` |
 
 Map basemap tiles are loaded directly by the browser from OneMap (Singapore Land Authority); no proxy or key needed.
 | `/api/weather` | GET | Live 2-hour regional weather forecast | Singapore NEA Open Data v2 |
@@ -192,7 +207,7 @@ Map basemap tiles are loaded directly by the browser from OneMap (Singapore Land
 - `BusStopCode` (Required): 5-digit bus stop code (e.g. `83139`, `55329`, `09037`).
 - `ServiceNo` (Optional): Specific service number (e.g. `15`, `72`, `14`).
 
-### Query Parameters for `/api/bus-route` and `/api/route-shape`
+### Query Parameters for `/api/bus-route`
 - `ServiceNo` (Required): Bus service number (e.g. `72`, `45`, `851e`).
 
 ---
