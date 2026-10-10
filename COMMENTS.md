@@ -322,3 +322,14 @@ Map basemap tiles are loaded directly by the browser from OneMap (Singapore Land
 | `LTA_ACCOUNT_KEY` | Land Transport Authority DataMall API Key | Vercel Project Environment Variables |
 | `DATA_GOV_SG_API_KEY` | Optional data.gov.sg API key; raises the rate limit for `/api/weather` (keyless works) | Vercel Project Environment Variables |
 | `PORT` | Local server port (Default: 3000) | Development environment |
+
+### Turn 19: Refresh Workflow Test & Hardening (10 October 2026)
+- **User Prompt**:
+  > *"run the refresh workflow now to test it"* → *"yes, do both and push"*
+- **Manual test run**: the redeploy path worked (Deploy Hook → production deploy, `bus-routes/index.json` regenerated at 14:21 UTC with first/last bus times). The OSM rebuild failed because all three Overpass servers returned HTTP 504/500, but the job still showed green because that step is `continue-on-error`.
+- **Implementation**:
+  - `scripts/build-route-shapes.ts` now tries every Overpass instance in up to 3 rounds, pausing 1 min then 2 min between rounds, within a 25-minute overall deadline (inside the job's 30-minute limit).
+  - `.github/workflows/refresh-data.yml`: if the shapes step still fails, a follow-up step posts a "Route shapes not refreshed" warning annotation and a note in the run summary. Updated `actions/checkout` and `actions/setup-node` to v7 (Node.js 24 runtime) to clear GitHub's Node.js 20 deprecation warning.
+- **Validation**: the shapes script type-checks; a stubbed run with every Overpass call failing showed all three rounds and the final error without touching any route files.
+
+---

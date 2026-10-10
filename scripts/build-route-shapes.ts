@@ -12,7 +12,10 @@ const OVERPASS_INSTANCES = [
   'https://overpass.kumi.systems/api/interpreter',
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
-const USER_AGENT = 'BusTrackerSG/1.0 (https://nypbus-tracker.vercel.app)';
+const OVERPASS_ROUNDS = 3;
+const OVERPASS_RETRY_PAUSE_MS = 60_000; // 1 min after round 1, 2 min after round 2
+const OVERPASS_DEADLINE_MS = 25 * 60_000; // stay inside the workflow's 30-minute job limit
+const USER_AGENT ='BusTrackerSG/1.0 (https://nypbus-tracker.vercel.app)';
 // Singapore mainland bounding box (south, west, north, east); stops short of Johor Bahru
 const SG_BBOX = '1.15,103.6,1.475,104.1';
 const QUERY = `[out:json][timeout:300];relation["type"="route"]["route"="bus"](${SG_BBOX})->.routes;.routes out body;way(r.routes);out geom;`;
@@ -134,22 +137,33 @@ function simplify(points: LatLng[], tolerance: number): LatLng[] {
 }
 
 async function fetchOverpass(): Promise<{ elements: (OverpassWay | OverpassRelation)[] }> {
-  for (const url of OVERPASS_INSTANCES) {
-    try {
-      console.log(`Querying ${url} (this can take a minute or two)...`);
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': USER_AGENT },
-        body: new URLSearchParams({ data: QUERY }).toString(),
-        signal: AbortSignal.timeout(330_000),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    } catch (err) {
-      console.warn(`  failed: ${err instanceof Error ? err.message : err}`);
+  // Public Overpass servers often return 504/500 when busy, so try every instance in up to
+  // OVERPASS_ROUNDS rounds with a growing pause between them, within OVERPASS_DEADLINE_MS overall
+  const deadline = Date.now() + OVERPASS_DEADLINE_MS;
+  for (let round = 1; round <= OVERPASS_ROUNDS; round++) {
+    for (const url of OVERPASS_INSTANCES) {
+      const remaining = deadline - Date.now();
+      if (remaining < 30_000) break;
+      try {
+        console.log(`Round ${round}/${OVERPASS_ROUNDS}: querying ${url} (this can take a minute or two)...`);
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': USER_AGENT },
+          body: new URLSearchParams({ data: QUERY }).toString(),
+          signal: AbortSignal.timeout(Math.min(330_000, remaining)),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (err) {
+        console.warn(`  failed: ${err instanceof Error ? err.message : err}`);
+      }
     }
+    const pauseMs = OVERPASS_RETRY_PAUSE_MS * round;
+    if (round === OVERPASS_ROUNDS || Date.now() + pauseMs + 30_000 > deadline) break;
+    console.log(`All instances failed; retrying in ${pauseMs / 1000} s...`);
+    await new Promise((resolve) => setTimeout(resolve, pauseMs));
   }
-  throw new Error('All Overpass instances failed; try again later.');
+  throw new Error('All Overpass instances failed after retries; try again later.');
 }
 
 async function main() {

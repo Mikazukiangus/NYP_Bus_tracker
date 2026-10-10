@@ -23,9 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -35,9 +35,20 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Rebuild OpenStreetMap route shapes
-        # Public Overpass servers are sometimes down; still redeploy for fresh LTA data
+        id: shapes
+        # Public Overpass servers are sometimes down (the script retries); still redeploy for fresh LTA data
         continue-on-error: true
         run: npm run shapes
+
+      - name: Flag failed route shape rebuild
+        if: steps.shapes.outcome == 'failure'
+        run: |
+          echo "::warning title=Route shapes not refreshed::OpenStreetMap (Overpass) was unavailable, so the existing route lines were kept. Re-run this workflow later."
+          {
+            echo "### ⚠️ Route shapes not refreshed"
+            echo "OpenStreetMap (Overpass) was unavailable after retries, so the existing route lines were kept."
+            echo "LTA route data is still refreshed by the redeploy. Re-run this workflow later to refresh the shapes."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Commit changed shapes
         id: commit
