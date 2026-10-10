@@ -99,7 +99,7 @@ function parseLTAEstimatedMinutes(isoString?: string): number {
 }
 
 function parseBus(raw?: any): BusArrivalInfo | null {
-  if (!raw || !raw.EstimatedArrival) return null;
+  if (!raw || !raw.EstimatedArrival || !Number.isFinite(Date.parse(raw.EstimatedArrival))) return null;
   const lat = raw.Latitude ? parseFloat(raw.Latitude) : undefined;
   const lng = raw.Longitude ? parseFloat(raw.Longitude) : undefined;
   return {
@@ -122,7 +122,7 @@ export async function fetchStopArrivals(stopCode: string): Promise<StopServiceAr
     });
     if (!res.ok) return null;
     const data = await res.json();
-    if (data?.source !== 'LTA_DATAMALL_V3' || !Array.isArray(data.Services)) return null;
+    if (data?.source !== 'LTA_DATAMALL_V3' || data.BusStopCode !== stopCode || !Array.isArray(data.Services)) return null;
     return data.Services.map((svc: any) => ({
       serviceNo: String(svc.ServiceNo),
       operator: svc.Operator,

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { RefreshCw, Accessibility, Layers, Info, Clock, CalendarClock, ChevronDown, Satellite } from 'lucide-react';
-import { BusArrivalInfo, BusLoad, BusServiceArrivals, BusStop, FirstLastTimes } from '../types/bus';
+import { ArrivalDataSource, BusArrivalInfo, BusLoad, BusServiceArrivals, BusStop, FirstLastTimes } from '../types/bus';
 import { TrackingBadge } from './ArrivalBits';
 
 interface ArrivalDisplayProps {
@@ -8,7 +8,8 @@ interface ArrivalDisplayProps {
   activeStop: BusStop;
   onRefresh: () => void;
   isRefreshing: boolean;
-  dataSource?: 'LTA_DATAMALL_V3' | 'FALLBACK_SIMULATED';
+  dataSource: ArrivalDataSource;
+  secondsUntilRefresh: number;
 }
 
 const BUS_TYPE_LABEL = { SD: 'Single Deck', DD: 'Double Deck', BD: 'Bendy Bus' } as const;
@@ -37,44 +38,14 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   activeStop,
   onRefresh,
   isRefreshing,
-  dataSource
+  dataSource,
+  secondsUntilRefresh,
 }) => {
-  const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(15);
   const [showAllDays, setShowAllDays] = useState(false);
   const isLive = dataSource === 'LTA_DATAMALL_V3';
+  const isLoading = dataSource === 'LOADING';
   const firstLast = activeStop.firstLastBus;
   const dayType = todaysDayType();
-  const onRefreshRef = useRef(onRefresh);
-
-  useEffect(() => {
-    onRefreshRef.current = onRefresh;
-  }, [onRefresh]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setSecondsUntilRefresh((prev) => {
-        if (prev <= 1) {
-          return 15;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  const prevSecRef = useRef(secondsUntilRefresh);
-  useEffect(() => {
-    if (prevSecRef.current === 1 && secondsUntilRefresh === 15) {
-      onRefreshRef.current();
-    }
-    prevSecRef.current = secondsUntilRefresh;
-  }, [secondsUntilRefresh]);
-
-  const handleManualRefresh = () => {
-    setSecondsUntilRefresh(15);
-    onRefresh();
-  };
 
   const LOAD_BADGE: Record<BusLoad, { full: string; short: string; className: string; dot: string }> = {
     SEA: { full: 'SEA • Seats Avail', short: 'Seats', className: 'bg-emerald-100 text-emerald-800 border-emerald-300', dot: 'bg-emerald-600' },
@@ -107,7 +78,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
             <span className="@2xl:hidden">{shortLabel}</span>
             <span className="hidden @2xl:inline">{label}</span>
           </span>
-          <span className="text-xs @2xl:text-sm font-semibold text-slate-500 mt-1">No estimate</span>
+          <span className="text-xs @2xl:text-sm font-semibold text-slate-500 mt-1">{isLoading ? 'Loading...' : 'No estimate'}</span>
         </div>
       );
     }
@@ -196,11 +167,13 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
                 {arrivals.operator}
               </span>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                dataSource === 'LTA_DATAMALL_V3'
+                isLoading
+                  ? 'bg-slate-50 text-slate-600 border-slate-200'
+                  : isLive
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
                   : 'bg-amber-50 text-amber-800 border-amber-300'
               }`}>
-                {dataSource === 'LTA_DATAMALL_V3' ? '● LTA DataMall v3 Live' : '● Simulated (live feed unavailable)'}
+                {isLoading ? 'Loading live arrivals...' : isLive ? '● LTA DataMall v3 Live' : '● Simulated (live feed unavailable)'}
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium">
@@ -247,11 +220,11 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         <div className="flex items-center gap-3 self-end @xl:self-center shrink-0">
           <div className="text-right text-xs">
             <div className="text-slate-400 text-[11px]">Auto-refresh in</div>
-            <div className="font-mono font-bold text-purple-900">{secondsUntilRefresh}s</div>
+            <div className="font-mono font-bold text-purple-900">{isRefreshing ? 'Updating...' : `${secondsUntilRefresh}s`}</div>
           </div>
 
           <button
-            onClick={handleManualRefresh}
+            onClick={onRefresh}
             disabled={isRefreshing}
             className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 hover:bg-purple-100 text-[#602a85] font-semibold text-xs rounded-xl transition-all border border-purple-200"
             title="Refresh bus arrivals now"
@@ -268,6 +241,11 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         {renderSingleBusCard(arrivals.nextBus2, '2nd Bus', '2nd', false)}
         {renderSingleBusCard(arrivals.nextBus3, '3rd Bus', '3rd', false)}
       </div>
+      {isLive && arrivals.lastUpdated && (
+        <p className="mt-2 text-[11px] text-slate-500">
+          Updated {arrivals.lastUpdated.toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore', hour12: false })} SGT
+        </p>
+      )}
 
       {/* Official Singapore LTA / SBS Transit Load legend */}
       <div className="mt-3 @2xl:mt-5 p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-slate-600 gap-2">

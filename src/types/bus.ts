@@ -1,6 +1,7 @@
 export type BusLoad = 'SEA' | 'SDA' | 'LSD'; // Seats Available, Standing Available, Limited Standing
 export type BusType = 'SD' | 'DD' | 'BD'; // Single Deck, Double Deck, Bendy
 export type BusOperator = 'SBST' | 'SMRT' | 'TTS' | 'GAS';
+export type ArrivalDataSource = 'LOADING' | 'LTA_DATAMALL_V3' | 'FALLBACK_SIMULATED';
 
 // First and last bus of a service at a stop as "HHmm" (LTA BusRoutes); null when it doesn't run that day
 export type FirstLastTimes = [string, string] | null;
@@ -55,7 +56,7 @@ export interface BusServiceArrivals {
   nextBus: BusArrivalInfo | null;
   nextBus2: BusArrivalInfo | null;
   nextBus3: BusArrivalInfo | null;
-  lastUpdated: Date;
+  lastUpdated: Date | null;
 }
 
 // A real bus approaching the selected stop, positioned from LTA BusArrival GPS data

@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BusFront, ChevronDown, ChevronRight } from 'lucide-react';
-import { BusLoad, BusStop, StopServiceArrivals } from '../types/bus';
+import { ArrivalDataSource, BusLoad, BusStop, StopServiceArrivals } from '../types/bus';
 import { fetchStopNames } from '../services/busTrackerService';
 import { formatEta, TrackingBadge } from './ArrivalBits';
 
 interface StopServicesBoardProps {
   stop: BusStop;
   services: StopServiceArrivals[] | null; // null while loading or when the live feed is down
-  isLive: boolean;
+  dataSource: ArrivalDataSource;
   currentServiceNo: string;
   onSelectService: (serviceNo: string) => void;
 }
@@ -23,7 +23,7 @@ const LOAD_DOT: Record<BusLoad, { className: string; label: string }> = {
 export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
   stop,
   services,
-  isLive,
+  dataSource,
   currentServiceNo,
   onSelectService,
 }) => {
@@ -58,14 +58,14 @@ export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
         )}
       </div>
 
-      {!isLive ? (
-        <p className="mt-3 text-xs text-slate-500">Live arrivals for the other services here are unavailable right now.</p>
-      ) : !services ? (
+      {dataSource === 'LOADING' ? (
         <div className="mt-3 grid grid-cols-1 @2xl:grid-cols-2 gap-2 animate-pulse">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="h-11 bg-slate-100 rounded-xl" />
           ))}
         </div>
+      ) : dataSource !== 'LTA_DATAMALL_V3' || !services ? (
+        <p className="mt-3 text-xs text-slate-500">Live arrivals for the other services here are unavailable right now.</p>
       ) : services.length === 0 ? (
         <p className="mt-3 text-xs text-slate-500">
           No buses are due at this stop right now. Services may have ended for the day.

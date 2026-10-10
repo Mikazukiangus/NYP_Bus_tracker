@@ -231,12 +231,44 @@ This application is a real-time Singapore public bus tracking web app inspired b
 
 ---
 
+### Turn 15: Arrival Reliability, Upstream Health Checks & Refresh Schedule (10 October 2026)
+- **User Prompt**:
+  > *"continue the project ... read COMMENTS.md"* → *"Address problems found in the review"*.
+- **Review findings**:
+  - Initial generated arrival times were labelled as live until the first API response. Changing stops could briefly show the previous stop's times and GPS markers under the new stop's name.
+  - Arrival polling belonged to `ArrivalDisplay`, so it stopped while the Weather tab was open. Manual refresh near the countdown boundary could trigger two refreshes.
+  - `/api/health` always returned `ok` / HTTP 200 and treated a configured LTA key as proof of connectivity without checking the upstream.
+  - The monthly workflow used `0 19 1 * *` in UTC, which runs at 03:00 SGT on the **2nd**, despite its comment saying the 1st.
+- **Action & Implementation** (local branch `codex/arrival-reliability`):
+  - New `src/services/useStopArrivals.ts` owns the selected stop's snapshot, loading state, countdown, manual refresh and polling. A stop change immediately hides the old snapshot; late responses cannot replace the current stop's data. The next poll is scheduled 15 s after a request completes, preventing overlapping automatic requests. Polling continues across tabs and no longer refetches just because route geometry loads.
+  - The main board, all-services board and map derive their data from that snapshot. Initial/loading views show no invented times or GPS markers. The simulated fallback remains clearly labelled after a failed live request, and successful checks show their Singapore timestamp.
+  - Arrival parsing rejects responses for another stop and invalid arrival timestamps (which previously became a misleading 99-minute ETA).
+  - `/api/health` now probes LTA BusArrival at NYP stop `55329` and NEA's 2-hour forecast in parallel, with 5-second timeouts and response validation. Both must succeed for HTTP 200 / `ok`; missing credentials or a failed probe produce HTTP 503 / `degraded`. Each probe reports its HTTP status, latency and check time; failures expose a generic reason only. Responses use `Cache-Control: no-store`. These are representative LTA/NEA probes, not checks of every route or weather dataset.
+  - Monthly refresh now uses `0 3 1 * *` with `timezone: Asia/Singapore`, as supported by [GitHub's current workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onschedule).
+- **Validation**:
+  - `npm test`: 10 regression tests passed (healthy/degraded health responses, missing/rejected credentials, invalid NEA payloads, timeout handling, stop identity, simulated vs live data, invalid timestamps, and empty services).
+  - `npm run lint` and `npm run build` passed. The local build has no LTA key, so build-time route generation was skipped as designed.
+  - Chrome checks with controlled arrival responses passed at **1440 px** and **375 px**: initial loading, rapid direction/stop switching with delayed responses, polling while Weather is open, simulation/recovery, no horizontal overflow and no browser exceptions. Map tiles and weather datasets were stubbed for these arrival-focused checks.
+  - Existing deployed endpoints were checked before editing: NYP stop `55329` returned real LTA Bus 72 arrivals; `/api/weather` returned real NEA data with cold-start datasets still filling. The new local `/api/health` returned HTTP 503 for the missing local LTA key and confirmed the actual NEA upstream was reachable (HTTP 200).
+- **Delivery**: prepared on `codex/arrival-reliability`; the user subsequently authorized committing and deploying live (Turn 16). Publication uses `main`, and production verification is reported in the deployment response.
+
+---
+
+### Turn 16: Commit & Live Deployment (10 October 2026)
+- **User Prompt**:
+  > *"commit and deploy live"*.
+- **Publication target**: the existing `nypbus-tracker` Vercel project in `carbon-bc04`, linked to this GitHub repository. Publish the reviewed fixes through `main` to [https://nypbus-tracker.vercel.app](https://nypbus-tracker.vercel.app).
+- **Validation already completed**: 10 regression tests, TypeScript, production build, and desktop/mobile browser checks (see Turn 15).
+- **Production acceptance checks**: confirm Vercel deploys the new commit, then check the site, upstream-probing `/api/health`, NYP arrivals, route data, weather and incidents. The deployed runtime result is reported in chat after completion.
+
+---
+
 ## 3. Architecture & API Endpoints Summary
 
 ### Serverless & Proxy Endpoints
 | Endpoint | Method | Description | Data Source |
 |---|---|---|---|
-| `/api/health` | GET | System and API health monitor | Self-test + Environment check |
+| `/api/health` | GET | Runtime health monitor; 200 when both probes succeed, 503 when degraded | Live LTA BusArrival + NEA 2-hour forecast probes; environment check |
 | `/api/bus-arrival` | GET | Live arrivals for every service at a stop (or one service with `ServiceNo`): ETA, load, deck, GPS position / monitored flag | Singapore LTA DataMall v3 |
 | `/api/traffic-incidents` | GET | Live traffic incidents across Singapore (the client shows those near the route) | LTA DataMall TrafficIncidents |
 | `/api/bus-route` | GET | Real stop sequence (both directions) for a service; fallback when static files are missing | LTA DataMall BusRoutes + BusStops + BusServices |

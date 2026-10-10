@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
     "shapes": "tsx scripts/build-route-shapes.ts",
     "routes": "tsx scripts/build-bus-routes.ts"
   },

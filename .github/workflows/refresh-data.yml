@@ -7,7 +7,8 @@ name: Refresh route data
 
 on:
   schedule:
-    - cron: '0 19 1 * *' # 03:00 SGT on the 1st of every month
+    - cron: '0 3 1 * *' # 03:00 SGT on the 1st of every month
+      timezone: Asia/Singapore
   workflow_dispatch:
 
 permissions:

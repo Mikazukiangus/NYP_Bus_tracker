@@ -5,7 +5,6 @@ import {
   BusServiceArrivals,
   FavoriteItem,
   IncomingBus,
-  StopServiceArrivals,
   TrafficIncident,
   UserLocation
 } from './types/bus';
@@ -17,7 +16,6 @@ import {
 import {
   findNearestBusStop,
   generateArrivalTimings,
-  fetchStopArrivals,
   fetchBusRoute,
   fetchTrafficIncidents,
   pickDirectionForStop,
@@ -36,6 +34,7 @@ import { NEAWeatherWidget } from './components/NEAWeatherWidget';
 import { FavoritesModal, NextBusLabel } from './components/FavoritesModal';
 import { LocationPickerModal } from './components/LocationPickerModal';
 import { useFavoriteArrivals } from './services/favoriteArrivals';
+import { useStopArrivals } from './services/useStopArrivals';
 import { Heart, Compass, Bus, AlertCircle, ArrowUpRight } from 'lucide-react';
 
 const FAVORITES_STORAGE_KEY = 'sbs_transit_favorites_v1';
@@ -143,81 +142,27 @@ export default function App() {
   }, []);
 
   // Real-time Bus Arrival Timings for active selected stop
-  const [refreshCount, setRefreshCount] = useState(0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [dataSource, setDataSource] = useState<'LTA_DATAMALL_V3' | 'FALLBACK_SIMULATED'>('LTA_DATAMALL_V3');
+  const { services: stopServices, dataSource, lastUpdated, isRefreshing, secondsUntilRefresh, refresh: handleRefresh } =
+    useStopArrivals(selectedStop.code);
 
-  const [arrivals, setArrivals] = useState<BusServiceArrivals>(() => {
-    const { nextBus, nextBus2, nextBus3 } = generateArrivalTimings(
-      currentRoute.serviceNo,
-      selectedStop.code
-    );
+  // Route labels and arrival data always describe the current stop/service, including during loading.
+  const arrivals = useMemo<BusServiceArrivals>(() => {
+    const service = stopServices?.find((item) => item.serviceNo.toUpperCase() === currentRoute.serviceNo.toUpperCase());
+    const buses = dataSource === 'FALLBACK_SIMULATED'
+      ? generateArrivalTimings(currentRoute.serviceNo, selectedStop.code)
+      : { nextBus: service?.nextBus ?? null, nextBus2: service?.nextBus2 ?? null, nextBus3: service?.nextBus3 ?? null };
     return {
       serviceNo: currentRoute.serviceNo,
       operator: currentRoute.operator,
       stopCode: selectedStop.code,
       stopName: selectedStop.name,
       roadName: selectedStop.road,
-      destination: currentRoute.direction1.destination,
+      destination: routeDir.destination,
       direction,
-      nextBus,
-      nextBus2,
-      nextBus3,
-      lastUpdated: new Date(),
+      ...buses,
+      lastUpdated,
     };
-  });
-
-  // Every service at the selected stop (live only); the tracked service's times come from the same call
-  const [stopServices, setStopServices] = useState<{ stopCode: string; services: StopServiceArrivals[] } | null>(null);
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    const loadArrivals = async () => {
-      setIsRefreshing(true);
-      try {
-        const services = await fetchStopArrivals(selectedStop.code);
-        if (isCancelled) return;
-        const base = {
-          serviceNo: currentRoute.serviceNo,
-          operator: currentRoute.operator,
-          stopCode: selectedStop.code,
-          stopName: selectedStop.name,
-          roadName: selectedStop.road,
-          destination: routeDir.destination,
-          direction,
-          lastUpdated: new Date(),
-        };
-        if (services) {
-          const svc = services.find((s) => s.serviceNo.toUpperCase() === currentRoute.serviceNo.toUpperCase());
-          setDataSource('LTA_DATAMALL_V3');
-          setStopServices({ stopCode: selectedStop.code, services });
-          setArrivals({
-            ...base,
-            nextBus: svc?.nextBus ?? null,
-            nextBus2: svc?.nextBus2 ?? null,
-            nextBus3: svc?.nextBus3 ?? null,
-          });
-        } else {
-          // Live feed unreachable: placeholder times, clearly labelled "Simulated" in the UI
-          setDataSource('FALLBACK_SIMULATED');
-          setStopServices(null);
-          setArrivals({ ...base, ...generateArrivalTimings(currentRoute.serviceNo, selectedStop.code, refreshCount * 30) });
-        }
-      } catch (err) {
-        console.error('Failed to load arrivals:', err);
-      } finally {
-        if (!isCancelled) {
-          setIsRefreshing(false);
-        }
-      }
-    };
-
-    loadArrivals();
-    return () => {
-      isCancelled = true;
-    };
-  }, [currentRoute, selectedStop, direction, refreshCount, routeDir]);
+  }, [currentRoute.serviceNo, currentRoute.operator, selectedStop, routeDir.destination, direction, stopServices, dataSource, lastUpdated]);
 
   // Real buses approaching the selected stop, plotted from LTA GPS positions (live data only)
   const incomingBuses = useMemo<IncomingBus[]>(() => {
@@ -240,10 +185,6 @@ export default function App() {
         : []
     );
   }, [arrivals, dataSource, currentRoute.serviceNo]);
-
-  const handleRefresh = useCallback(() => {
-    setRefreshCount((c) => c + 1);
-  }, []);
 
   // LTA traffic incidents (accidents, roadworks, breakdowns...) near the route being viewed
   const [trafficIncidents, setTrafficIncidents] = useState<TrafficIncident[]>([]);
@@ -498,12 +439,13 @@ export default function App() {
               onRefresh={handleRefresh}
               isRefreshing={isRefreshing}
               dataSource={dataSource}
+              secondsUntilRefresh={secondsUntilRefresh}
             />
 
             <StopServicesBoard
               stop={selectedStop}
-              services={stopServices?.stopCode === selectedStop.code ? stopServices.services : null}
-              isLive={dataSource === 'LTA_DATAMALL_V3'}
+              services={stopServices}
+              dataSource={dataSource}
               currentServiceNo={currentRoute.serviceNo}
               onSelectService={(serviceNo) => loadRoute(serviceNo, { stopCode: selectedStop.code })}
             />
@@ -592,6 +534,7 @@ export default function App() {
               onRefresh={handleRefresh}
               isRefreshing={isRefreshing}
               dataSource={dataSource}
+              secondsUntilRefresh={secondsUntilRefresh}
             />
           </div>
         )}
@@ -615,11 +558,12 @@ export default function App() {
                 onRefresh={handleRefresh}
                 isRefreshing={isRefreshing}
                 dataSource={dataSource}
+                secondsUntilRefresh={secondsUntilRefresh}
               />
               <StopServicesBoard
                 stop={selectedStop}
-                services={stopServices?.stopCode === selectedStop.code ? stopServices.services : null}
-                isLive={dataSource === 'LTA_DATAMALL_V3'}
+                services={stopServices}
+                dataSource={dataSource}
                 currentServiceNo={currentRoute.serviceNo}
                 onSelectService={(serviceNo) => loadRoute(serviceNo, { stopCode: selectedStop.code })}
               />
