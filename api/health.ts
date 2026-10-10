@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 
 export default async function handler(req: Request | any, res: Response | any) {
   const hasLtaKey = Boolean(process.env.LTA_ACCOUNT_KEY && process.env.LTA_ACCOUNT_KEY.trim() !== '');
+  const hasDataGovKey = Boolean(process.env.DATA_GOV_SG_API_KEY && process.env.DATA_GOV_SG_API_KEY.trim() !== '');
 
   const healthData = {
     status: 'ok',
@@ -11,12 +12,17 @@ export default async function handler(req: Request | any, res: Response | any) {
     environment: {
       nodeEnv: process.env.NODE_ENV || 'development',
       ltaAccountKeyConfigured: hasLtaKey,
+      dataGovSgApiKeyConfigured: hasDataGovKey,
       vercel: Boolean(process.env.VERCEL)
     },
     ltaDataMall: {
       apiVersion: 'v3',
       endpoint: 'https://datamall2.mytransport.sg/ltaodataservice/v3/BusArrival',
       status: hasLtaKey ? 'READY (LTA_ACCOUNT_KEY provided)' : 'AWAITING_KEY (Running with fallback mode)'
+    },
+    neaWeather: {
+      source: 'https://api-open.data.gov.sg/v2/real-time/api',
+      rateLimit: hasDataGovKey ? 'API key (higher limit)' : 'Keyless (6 calls per 10 s; datasets fill in over ~25 s on a cold start)'
     },
     endpoints: {
       health: '/api/health',

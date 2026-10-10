@@ -5,9 +5,9 @@ import {
   BusServiceArrivals,
   FavoriteItem,
   IncomingBus,
-  NEAWeather,
   UserLocation
 } from './types/bus';
+import type { WeatherSnapshot } from './types/weather';
 import {
   SINGAPORE_LOCATIONS,
   getOrCreateBusRoute
@@ -20,7 +20,7 @@ import {
   pickNearestDirection,
 } from './services/busTrackerService';
 import { applyRouteShapes, fetchRouteShapes } from './services/routeShape';
-import { fetchNEAWeatherData } from './services/neaWeather';
+import { fetchWeatherSnapshot, summarizeWeather } from './services/neaWeather';
 import { Header } from './components/Header';
 import { BusSearchBox } from './components/BusSearchBox';
 import { NearestStopBanner } from './components/NearestStopBanner';
@@ -223,25 +223,50 @@ export default function App() {
     setRefreshCount((c) => c + 1);
   }, []);
 
-  // NEA Weather state
-  const [weather, setWeather] = useState<NEAWeather | null>(null);
+  // NEA weather: one Singapore-wide snapshot, summarised for wherever the user is
+  const [weatherSnapshot, setWeatherSnapshot] = useState<WeatherSnapshot | null>(null);
   const [isWeatherLoading, setIsWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState(false);
+  const weatherRetries = useRef(0);
 
-  const loadWeather = useCallback(async (lat: number, lng: number) => {
+  const loadWeather = useCallback(async () => {
     setIsWeatherLoading(true);
     try {
-      const data = await fetchNEAWeatherData(lat, lng);
-      setWeather(data);
+      setWeatherSnapshot(await fetchWeatherSnapshot());
+      setWeatherError(false);
     } catch {
-      // Fallback handled in service
+      setWeatherError(true);
     } finally {
       setIsWeatherLoading(false);
     }
   }, []);
 
+  // Refresh every 5 minutes (NEA updates readings every 1-5 min; the API caches for 1 min)
   useEffect(() => {
-    loadWeather(userLocation.lat, userLocation.lng);
-  }, [userLocation, loadWeather]);
+    loadWeather();
+    const timer = setInterval(loadWeather, 5 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [loadWeather]);
+
+  // A cold API instance fetches datasets in batches to respect data.gov.sg's rate limit,
+  // so if some are still missing, ask again shortly to fill the gaps
+  useEffect(() => {
+    if (!weatherSnapshot?.missing.length) {
+      weatherRetries.current = 0;
+      return;
+    }
+    if (weatherRetries.current >= 3) return;
+    const timer = setTimeout(() => {
+      weatherRetries.current += 1;
+      loadWeather();
+    }, 12000);
+    return () => clearTimeout(timer);
+  }, [weatherSnapshot, loadWeather]);
+
+  const weather = useMemo(
+    () => (weatherSnapshot ? summarizeWeather(weatherSnapshot, userLocation.lat, userLocation.lng) : null),
+    [weatherSnapshot, userLocation]
+  );
 
   // Favorites state
   const [favorites, setFavorites] = useState<FavoriteItem[]>(() => {
@@ -449,7 +474,12 @@ export default function App() {
                 <NEAWeatherWidget
                   weather={weather}
                   isLoading={isWeatherLoading}
-                  onRefreshWeather={() => loadWeather(userLocation.lat, userLocation.lng)}
+                  error={weatherError}
+                  onRefreshWeather={loadWeather}
+                  onShowAll={() => {
+                    setActiveTab('weather');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
                 />
 
                 {/* Quick Favorites Mini Card */}
@@ -538,36 +568,13 @@ export default function App() {
         )}
 
         {activeTab === 'weather' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <NEAWeatherWidget
-              weather={weather}
-              isLoading={isWeatherLoading}
-              onRefreshWeather={() => loadWeather(userLocation.lat, userLocation.lng)}
-            />
-            {/* Weather & Transit Advisory Card */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
-              <h3 className="font-bold text-slate-900 text-sm">
-                Commuter Transit & Rain Guide (Singapore NEA)
-              </h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Singapore's tropical weather can bring localized sudden rainstorms. SBS Transit stations and key bus stops are equipped with covered linkways and electronic arrival display panels (EADPs).
-              </p>
-              <div className="space-y-2 text-xs">
-                <div className="p-2.5 rounded-xl bg-purple-50 border border-purple-100 flex items-start gap-2">
-                  <div className="w-2 h-2 rounded-full bg-[#602a85] mt-1 shrink-0" />
-                  <span className="text-slate-700">
-                    <strong>Nearest Stop Linkway:</strong> {selectedStop.sheltered ? 'This stop has sheltered connection to nearby buildings.' : 'Open stop. Carry an umbrella during wet weather.'}
-                  </span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-100 flex items-start gap-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-600 mt-1 shrink-0" />
-                  <span className="text-slate-700">
-                    <strong>Wet Weather Driving Protocol:</strong> Bus speeds are automatically calibrated for road safety during rain (average 25-35 km/h).
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <NEAWeatherWidget
+            weather={weather}
+            isLoading={isWeatherLoading}
+            error={weatherError}
+            onRefreshWeather={loadWeather}
+            variant="full"
+          />
         )}
       </main>
 

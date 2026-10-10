@@ -92,6 +92,9 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
     mapInstanceRef.current = map;
 
     return () => {
+      // Leaflet ends a zoom animation on a 250 ms timer that crashes if the map was removed mid-animation
+      // (e.g. switching tabs while it is fitting bounds), so cancel the pending animation first
+      (map as unknown as { _animatingZoom: boolean })._animatingZoom = false;
       map.remove();
       mapInstanceRef.current = null;
     };

@@ -76,20 +76,6 @@ export interface UserLocation {
   accuracyMeters?: number;
 }
 
-export interface NEAWeather {
-  area: string;
-  region: 'Central' | 'East' | 'West' | 'North' | 'South';
-  forecast: string;
-  temperatureC: number;
-  humidityPercent: number;
-  rainProbabilityPercent: number;
-  isRaining: boolean;
-  windSpeedKmh: number;
-  updateTime: string;
-  iconType: 'fair' | 'cloudy' | 'rain' | 'thunder' | 'heavy-rain';
-  commuterAdvice: string;
-}
-
 export interface FavoriteItem {
   id: string;
   serviceNo: string;
