@@ -53,7 +53,7 @@ export interface BusRouteResponse {
   source: 'LTA_DATAMALL';
 }
 
-interface Datasets {
+export interface Datasets {
   stops: Map<string, LTABusStop>;
   routes: Map<string, LTABusRouteRow[]>; // keyed by upper-case ServiceNo
   services: Map<string, LTABusServiceRow>;
@@ -85,7 +85,7 @@ async function fetchAll<T>(dataset: string, accountKey: string): Promise<T[]> {
   }
 }
 
-async function loadDatasets(accountKey: string): Promise<Datasets> {
+export async function loadDatasets(accountKey: string): Promise<Datasets> {
   const [stopRows, routeRows, serviceRows] = await Promise.all([
     fetchAll<LTABusStop>('BusStops', accountKey),
     fetchAll<LTABusRouteRow>('BusRoutes', accountKey),
@@ -153,7 +153,7 @@ function buildDirection(rows: LTABusRouteRow[], stops: Map<string, LTABusStop>):
   };
 }
 
-function buildRoute(serviceNo: string, data: Datasets): BusRouteResponse | null {
+export function buildRoute(serviceNo: string, data: Datasets): BusRouteResponse | null {
   const key = serviceNo.toUpperCase();
   const rows = data.routes.get(key);
   if (!rows || rows.length === 0) return null;

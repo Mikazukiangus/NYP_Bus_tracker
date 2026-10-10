@@ -7,3 +7,5 @@ coverage/
 .env*
 !.env.example
 .claude/
+# Generated from LTA DataMall at build time (scripts/build-bus-routes.ts)
+public/bus-routes/

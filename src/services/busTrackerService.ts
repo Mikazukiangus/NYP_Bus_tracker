@@ -177,8 +177,33 @@ export type BusRouteLookup =
   | { status: 'not_found' }
   | { status: 'unavailable' };
 
-// Fetch the real stop sequence for a service from /api/bus-route (LTA DataMall BusRoutes + BusStops)
+// Fetch a static JSON file built at deploy time; null if it isn't there (the SPA rewrite serves index.html)
+async function fetchStaticJson<T>(url: string): Promise<T | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok || !res.headers.get('content-type')?.includes('json')) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+let staticRouteIndex: Promise<{ services: string[] } | null> | null = null;
+
+// Fetch the real stop sequence for a service (LTA DataMall BusRoutes + BusStops):
+// first from the static copy generated at build time (scripts/build-bus-routes.ts), else from /api/bus-route
 export async function fetchBusRoute(serviceNo: string): Promise<BusRouteLookup> {
+  const fileName = encodeURIComponent(serviceNo.trim().toUpperCase());
+  const staticRoute = await fetchStaticJson<BusRoute>(`/bus-routes/${fileName}.json`);
+  if (staticRoute?.direction1?.stops?.length) return { status: 'ok', route: staticRoute };
+
+  // If the build produced an index and the service isn't in it, it isn't an LTA service: answer instantly
+  staticRouteIndex ??= fetchStaticJson<{ services: string[] }>('/bus-routes/index.json');
+  const index = await staticRouteIndex;
+  if (index?.services?.length && !index.services.includes(serviceNo.trim().toUpperCase())) {
+    return { status: 'not_found' };
+  }
+
   try {
     const controller = new AbortController();
     // A cold serverless instance has to page through all LTA route data, so allow extra time

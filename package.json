@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "tsx server.ts",
-    "build": "vite build",
+    "build": "tsx scripts/build-bus-routes.ts && vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "shapes": "tsx scripts/build-route-shapes.ts"
+    "shapes": "tsx scripts/build-route-shapes.ts",
+    "routes": "tsx scripts/build-bus-routes.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

@@ -190,6 +190,17 @@ This application is a real-time Singapore public bus tracking web app inspired b
 
 ---
 
+### Turn 12: Static LTA Route Data Generated at Build Time
+- **User Prompt**:
+  > *"Yes"* (to building the LTA route data into static files to remove the ~10 s cold-start wait)
+- **Action & Implementation**:
+  - New `scripts/build-bus-routes.ts` runs before `vite build` (`"build": "tsx scripts/build-bus-routes.ts && vite build"`). On Vercel, where `LTA_ACCOUNT_KEY` is available at build time, it loads LTA DataMall `BusStops` / `BusRoutes` / `BusServices` once (reusing `loadDatasets` / `buildRoute` exported from `api/bus-route.ts`) and writes `public/bus-routes/<SERVICE>.json` for every service (~600 files, ~3 MB) plus `public/bus-routes/index.json` (`generatedAt` + service list).
+  - Without a key (local builds) or if LTA is unreachable, the script logs a warning and skips; the deploy still succeeds and the app uses `/api/bus-route` as before. `public/bus-routes/` is git-ignored because it is regenerated on every deploy. `npm run routes` runs it on its own.
+  - Client (`fetchBusRoute` in `src/services/busTrackerService.ts`): static file first → if missing and the index exists but doesn't list the service, show "not a current LTA bus service" instantly → otherwise fall back to `/api/bus-route`.
+  - **Freshness**: route data is as fresh as the last deploy. LTA amends routes from time to time, so redeploy periodically (e.g. a monthly Vercel Deploy Hook) to refresh it.
+
+---
+
 ## 3. Architecture & API Endpoints Summary
 
 ### Serverless & Proxy Endpoints
@@ -197,7 +208,8 @@ This application is a real-time Singapore public bus tracking web app inspired b
 |---|---|---|---|
 | `/api/health` | GET | System and API health monitor | Self-test + Environment check |
 | `/api/bus-arrival` | GET | Live bus arrival times, load, and telemetry | Singapore LTA DataMall v3 |
-| `/api/bus-route` | GET | Real stop sequence (both directions) for a service | LTA DataMall BusRoutes + BusStops + BusServices |
+| `/api/bus-route` | GET | Real stop sequence (both directions) for a service; fallback when static files are missing | LTA DataMall BusRoutes + BusStops + BusServices |
+| `/bus-routes/<SERVICE>.json`, `/bus-routes/index.json` | GET (static) | Real stop sequences generated at build time (primary source for routes) | LTA DataMall, via `scripts/build-bus-routes.ts` |
 | `/route-shapes/<SERVICE>.json` | GET (static) | Road-following route geometry for a service | OpenStreetMap (ODbL), pre-built by `npm run shapes` |
 
 Map basemap tiles are loaded directly by the browser from OneMap (Singapore Land Authority); no proxy or key needed.
