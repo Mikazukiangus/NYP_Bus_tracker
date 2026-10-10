@@ -312,8 +312,8 @@ function buildAlerts(s: WeatherSummary): WeatherSummary['alerts'] {
 const TONE_RANK: Record<Tone, number> = { good: 0, moderate: 1, warn: 2, bad: 3, severe: 4 };
 
 export const toneClasses: Record<Tone, { text: string; bg: string; border: string; dot: string }> = {
-  good: { text: 'text-emerald-800', bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-500' },
-  moderate: { text: 'text-sky-800', bg: 'bg-sky-50', border: 'border-sky-200', dot: 'bg-sky-500' },
+  good: { text: 'text-green-blue-ink', bg: 'bg-green-blue-soft', border: 'border-green-blue/30', dot: 'bg-green-blue' },
+  moderate: { text: 'text-helvetia-800', bg: 'bg-helvetia-50', border: 'border-helvetia-200', dot: 'bg-helvetia' },
   warn: { text: 'text-amber-900', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-500' },
   bad: { text: 'text-orange-900', bg: 'bg-orange-50', border: 'border-orange-200', dot: 'bg-orange-500' },
   severe: { text: 'text-red-900', bg: 'bg-red-50', border: 'border-red-200', dot: 'bg-red-600' },

@@ -355,7 +355,7 @@ export default function App() {
   }, [applyUserLocation]);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-warm-50 text-warm-900 flex flex-col font-sans">
       {/* SBS Transit Navigation Header */}
       <Header
         userLocation={userLocation}
@@ -371,21 +371,21 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Quick Location & Commuter Bar */}
-        <div className="bg-purple-900/5 border border-purple-100 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 text-xs">
+        <div className="bg-green-blue-soft border border-green-blue/25 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2 min-w-0">
-            <Compass className="w-4 h-4 text-[#602a85] shrink-0" />
-            <span className="text-slate-600 hidden sm:inline shrink-0">Your Current Commute Location:</span>
-            <strong className="text-slate-900 truncate">{userLocation.name}</strong>
+            <Compass className="w-4 h-4 text-helvetia shrink-0" />
+            <span className="text-warm-600 hidden sm:inline shrink-0">Your Current Commute Location:</span>
+            <strong className="text-warm-900 truncate">{userLocation.name}</strong>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => setIsLocationModalOpen(true)}
-              className="text-[#602a85] hover:text-[#502170] font-bold underline py-1"
+              className="text-helvetia hover:text-helvetia-700 font-bold underline py-1"
             >
               Change<span className="hidden sm:inline"> Location / Use GPS</span>
             </button>
-            <span className="text-slate-300 hidden lg:inline">•</span>
-            <span className="text-slate-500 hidden lg:inline">
+            <span className="text-warm-300 hidden lg:inline">•</span>
+            <span className="text-warm-500 hidden lg:inline">
               Singapore Bus Interchanges & Stops Live Feed
             </span>
           </div>
@@ -406,7 +406,7 @@ export default function App() {
             className={`rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs border ${
               routeNotice && !isRouteLoading
                 ? 'bg-amber-50 border-amber-200 text-amber-900'
-                : 'bg-slate-50 border-slate-200 text-slate-600'
+                : 'bg-warm-50 border-warm-200 text-warm-600'
             }`}
           >
             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -477,31 +477,31 @@ export default function App() {
                 />
 
                 {/* Quick Favorites Mini Card */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <Heart className="w-3.5 h-3.5 fill-red-500 text-red-500" />
+                <div className="bg-white rounded-2xl border border-warm-200 p-4 shadow-sm">
+                  <div className="flex items-center justify-between pb-2 border-b border-warm-100">
+                    <span className="text-xs font-bold text-warm-800 flex items-center gap-1.5">
+                      <Heart className="w-3.5 h-3.5 fill-helvetia text-helvetia" />
                       Saved Favourites ({favorites.length})
                     </span>
                     <button
                       onClick={() => setIsFavoritesModalOpen(true)}
-                      className="text-xs text-[#602a85] font-semibold hover:underline"
+                      className="text-xs text-helvetia font-semibold hover:underline"
                     >
                       View All
                     </button>
                   </div>
-                  <div className="mt-2 divide-y divide-slate-100">
+                  <div className="mt-2 divide-y divide-warm-100">
                     {favorites.slice(0, 3).map((f) => (
                       <div
                         key={f.id}
                         onClick={() => handleSelectFavorite(f)}
-                        className="py-2 flex items-center justify-between text-xs hover:bg-slate-50 cursor-pointer rounded-lg px-1"
+                        className="py-2 flex items-center justify-between text-xs hover:bg-warm-50 cursor-pointer rounded-lg px-1"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="bg-[#602a85] text-white font-extrabold text-[11px] px-1.5 py-0.5 rounded">
+                          <span className="bg-helvetia text-white font-extrabold text-[11px] px-1.5 py-0.5 rounded">
                             {f.serviceNo}
                           </span>
-                          <span className="text-slate-800 font-semibold truncate max-w-[140px]">
+                          <span className="text-warm-800 font-semibold truncate max-w-[140px]">
                             {f.stopName}
                           </span>
                         </div>
@@ -583,15 +583,15 @@ export default function App() {
       </main>
 
       {/* Corporate Footer */}
-      <footer className="mt-12 bg-white border-t border-slate-200 py-6 text-xs text-slate-500">
+      <footer className="mt-12 bg-white border-t border-warm-200 py-6 text-xs text-warm-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-[#602a85] flex items-center justify-center text-white font-bold text-[10px]">
+            <div className="w-6 h-6 rounded-md bg-helvetia flex items-center justify-center text-lemon font-bold text-[10px]">
               NYP
             </div>
-            <span className="font-semibold text-slate-700">BusTrackerSG • A member of NYP Bus</span>
+            <span className="font-semibold text-warm-700">BusTrackerSG • A member of NYP Bus</span>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-slate-400">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-warm-500">
             <span>Bus data: LTA DataMall</span>
             <span>•</span>
             <span>Weather: NEA via data.gov.sg</span>

@@ -16,7 +16,7 @@ interface LiveBusMapProps {
 
 // OneMap: Singapore Land Authority's free official basemap (no key; attribution required)
 const ONEMAP_ATTRIBUTION =
-  '<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" style="height:16px;width:16px;display:inline;vertical-align:-3px"/>&nbsp;' +
+  '<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" alt="" style="height:16px;width:16px;display:inline;vertical-align:-3px"/>&nbsp;' +
   '<a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a>&nbsp;&copy;&nbsp;contributors&nbsp;&#124;&nbsp;' +
   '<a href="https://www.sla.gov.sg/" target="_blank" rel="noopener noreferrer">Singapore Land Authority</a>';
 const OSM_ROUTE_ATTRIBUTION =
@@ -27,7 +27,7 @@ const SINGAPORE_BOUNDS = L.latLngBounds([1.144, 103.535], [1.494, 104.502]);
 
 const ORDINAL_LABEL = { 1: '1st', 2: '2nd', 3: '3rd' } as const;
 const LOAD_LABEL = { SEA: 'Seats available', SDA: 'Standing available', LSD: 'Limited standing' } as const;
-const LOAD_COLOR = { SEA: '#10b981', SDA: '#f59e0b', LSD: '#ef4444' } as const;
+const LOAD_COLOR = { SEA: 'var(--color-green-blue)', SDA: '#f59e0b', LSD: '#ef4444' } as const;
 const TYPE_LABEL = { SD: 'Single deck', DD: 'Double deck', BD: 'Bendy' } as const;
 
 const escapeHtml = (text: string) =>
@@ -116,7 +116,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
 
     if (routeDir.path.length > 0) {
       routeLayerRef.current = L.polyline(routeDir.path, {
-        color: '#602a85',
+        color: 'var(--color-helvetia)',
         weight: 5,
         opacity: 0.85,
         lineCap: 'round',
@@ -157,8 +157,8 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
     const userIcon = L.divIcon({
       html: `
         <div class="relative flex items-center justify-center w-8 h-8">
-          <div class="absolute w-8 h-8 rounded-full bg-blue-500/30 animate-ping"></div>
-          <div class="relative w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-md"></div>
+          <div class="absolute w-8 h-8 rounded-full bg-green-blue/30 animate-ping"></div>
+          <div class="relative w-4 h-4 rounded-full bg-green-blue border-2 border-white shadow-md"></div>
         </div>
       `,
       className: 'user-pulse-marker',
@@ -166,11 +166,15 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
       iconAnchor: [16, 16],
     });
 
-    userMarkerRef.current = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon, zIndexOffset: 500 })
+    userMarkerRef.current = L.marker([userLocation.lat, userLocation.lng], {
+      icon: userIcon,
+      title: `Your location: ${userLocation.name}`,
+      zIndexOffset: 500,
+    })
       .bindPopup(
         `<div class="font-sans text-xs">
-          <strong class="text-blue-900">Your Location</strong><br/>
-          <span class="text-slate-600">${escapeHtml(userLocation.name)}</span>
+          <strong class="text-helvetia-900">Your Location</strong><br/>
+          <span class="text-warm-600">${escapeHtml(userLocation.name)}</span>
         </div>`
       )
       .addTo(map);
@@ -197,20 +201,21 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
         size = 28;
         iconHtml = `
           <div class="relative flex items-center justify-center w-7 h-7">
-            <div class="absolute w-7 h-7 rounded-full bg-purple-500/40 animate-ping"></div>
-            <div class="w-5 h-5 rounded-full bg-[#602a85] border-2 border-white shadow-md flex items-center justify-center text-white text-[9px] font-black">★</div>
+            <div class="absolute w-7 h-7 rounded-full bg-lemon/40 animate-ping"></div>
+            <div class="w-5 h-5 rounded-full bg-lemon border-2 border-helvetia shadow-md flex items-center justify-center text-helvetia-950 text-[9px] font-black">★</div>
           </div>
         `;
       } else if (isSelected) {
         size = 22;
-        iconHtml = `<div class="w-4 h-4 m-[3px] rounded-full bg-red-600 border-2 border-white shadow-md"></div>`;
+        iconHtml = `<div class="w-4 h-4 m-[3px] rounded-full bg-helvetia border-2 border-white shadow-md"></div>`;
       } else {
         // Larger hit area than the visible dot so stops are easy to tap on phones
         size = 22;
-        iconHtml = `<div class="w-3 h-3 m-[5px] rounded-full bg-white border-[3px] border-[#602a85] shadow-xs"></div>`;
+        iconHtml = `<div class="w-3 h-3 m-[5px] rounded-full bg-white border-[3px] border-helvetia shadow-xs"></div>`;
       }
 
       const marker = L.marker([stop.lat, stop.lng], {
+        title: `${isNearest ? 'Nearest stop: ' : ''}${stop.name} (${stop.code})`,
         icon: L.divIcon({
           html: iconHtml,
           className: 'bus-stop-marker',
@@ -222,11 +227,11 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
 
       marker.bindPopup(
         `<div class="font-sans text-xs">
-          <div class="font-black text-purple-950 text-sm">${escapeHtml(stop.name)}</div>
-          <div class="text-slate-500 text-[11px] font-mono mb-1">Stop ${stop.code} • ${escapeHtml(stop.road)}</div>
-          ${isNearest ? '<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-1.5 py-0.5 rounded">Nearest Stop to You</span><br/>' : ''}
+          <div class="font-black text-helvetia-950 text-sm">${escapeHtml(stop.name)}</div>
+          <div class="text-warm-500 text-[11px] font-mono mb-1">Stop ${stop.code} • ${escapeHtml(stop.road)}</div>
+          ${isNearest ? '<span class="bg-lemon-soft text-helvetia-950 text-[10px] font-bold px-1.5 py-0.5 rounded">Nearest Stop to You</span><br/>' : ''}
           <div class="mt-2 text-right">
-            <button id="select-stop-${stop.code}" class="bg-[#602a85] text-white text-xs font-bold px-3 py-1.5 rounded-md">View Arrivals</button>
+            <button id="select-stop-${stop.code}" class="bg-helvetia text-white text-xs font-bold px-3 py-1.5 rounded-md">View Arrivals</button>
           </div>
         </div>`
       );
@@ -260,12 +265,12 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
       const busIcon = L.divIcon({
         html: `
           <div class="flex flex-col items-center">
-            <div class="w-9 h-9 rounded-xl bg-[#602a85] text-white flex flex-col items-center justify-center shadow-lg border-2 border-white ring-2 ring-purple-400/40 relative">
+            <div class="w-9 h-9 rounded-xl bg-helvetia text-white flex flex-col items-center justify-center shadow-lg border-2 border-white ring-2 ring-helvetia-400/40 relative">
               <span class="text-[10px] font-black leading-none">${escapeHtml(bus.serviceNo)}</span>
               <div class="w-4 h-1 rounded-full mt-0.5" style="background-color: ${LOAD_COLOR[bus.load]}"></div>
-              <span class="absolute -top-2 -right-2 bg-white text-[#602a85] border border-purple-200 text-[8px] font-black px-1 rounded-full">${bus.ordinal}</span>
+              <span class="absolute -top-2 -right-2 bg-white text-helvetia border border-helvetia-200 text-[8px] font-black px-1 rounded-full">${bus.ordinal}</span>
             </div>
-            <span class="mt-0.5 bg-slate-900/85 text-white text-[10px] font-bold px-1.5 rounded whitespace-nowrap">${eta}</span>
+            <span class="mt-0.5 bg-warm-900/85 text-white text-[10px] font-bold px-1.5 rounded whitespace-nowrap">${eta}</span>
           </div>
         `,
         className: 'live-bus-marker',
@@ -278,12 +283,12 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
       marker.bindPopup(
         `<div class="font-sans text-xs min-w-[190px]">
           <div class="flex items-center justify-between border-b pb-1 mb-1.5 gap-2">
-            <strong class="text-sm font-black text-purple-900">Bus ${escapeHtml(bus.serviceNo)}</strong>
-            <span class="text-[10px] font-bold bg-purple-50 text-purple-900 px-1.5 py-0.5 rounded">${ORDINAL_LABEL[bus.ordinal]} bus</span>
+            <strong class="text-sm font-black text-helvetia-900">Bus ${escapeHtml(bus.serviceNo)}</strong>
+            <span class="text-[10px] font-bold bg-helvetia-50 text-helvetia-900 px-1.5 py-0.5 rounded">${ORDINAL_LABEL[bus.ordinal]} bus</span>
           </div>
-          <div class="text-slate-700">Arriving at <strong>${escapeHtml(selectedStop.name)}</strong>: <strong>${eta}</strong></div>
-          <div class="text-[11px] text-slate-600 mt-1">${LOAD_LABEL[bus.load]} • ${TYPE_LABEL[bus.type]}${bus.feature === 'WAB' ? ' • Wheelchair accessible' : ''}</div>
-          <div class="text-[10px] text-slate-400 mt-1.5">GPS position from LTA DataMall</div>
+          <div class="text-warm-700">Arriving at <strong>${escapeHtml(selectedStop.name)}</strong>: <strong>${eta}</strong></div>
+          <div class="text-[11px] text-warm-600 mt-1">${LOAD_LABEL[bus.load]} • ${TYPE_LABEL[bus.type]}${bus.feature === 'WAB' ? ' • Wheelchair accessible' : ''}</div>
+          <div class="text-[10px] text-warm-500 mt-1.5">GPS position from LTA DataMall</div>
         </div>`
       );
 
@@ -299,7 +304,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
 
     incidents.forEach((incident) => {
       const icon = L.divIcon({
-        html: `<div class="w-6 h-6 rounded-full bg-amber-400 border-2 border-white shadow-md flex items-center justify-center text-slate-900 text-[13px] font-black leading-none">!</div>`,
+        html: `<div class="w-6 h-6 rounded-full bg-amber-400 border-2 border-white shadow-md flex items-center justify-center text-warm-900 text-[13px] font-black leading-none">!</div>`,
         className: 'traffic-incident-marker',
         iconSize: [24, 24],
         iconAnchor: [12, 12],
@@ -308,8 +313,8 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
         .bindPopup(
           `<div class="font-sans text-xs max-w-[240px]">
             <div class="font-black text-amber-800 text-sm">${escapeHtml(incident.type)}</div>
-            <div class="text-slate-700 mt-1">${escapeHtml(incident.message)}</div>
-            <div class="text-[10px] text-slate-400 mt-1.5">LTA traffic incident near this route</div>
+            <div class="text-warm-700 mt-1">${escapeHtml(incident.message)}</div>
+            <div class="text-[10px] text-warm-500 mt-1.5">LTA traffic incident near this route</div>
           </div>`
         )
         .addTo(group);
@@ -332,21 +337,21 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
 
   const toggleClass = (active: boolean) =>
     `shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-      active ? 'bg-purple-50 text-[#602a85] border-purple-200' : 'bg-white text-slate-500 border-slate-200'
+      active ? 'bg-helvetia-50 text-helvetia border-helvetia-200' : 'bg-white text-warm-500 border-warm-200'
     }`;
   const actionClass =
-    'shrink-0 px-2.5 sm:px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-800 rounded-lg text-xs font-semibold border border-slate-200 shadow-2xs flex items-center gap-1.5';
+    'shrink-0 px-2.5 sm:px-3 py-1.5 bg-white hover:bg-warm-100 text-warm-800 rounded-lg text-xs font-semibold border border-warm-200 shadow-2xs flex items-center gap-1.5';
 
   return (
-    <div className="@container bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm relative">
+    <div className="@container bg-white rounded-2xl border border-warm-200 overflow-hidden shadow-sm relative">
       {/* Map Header & Toolbar */}
-      <div className="px-3 sm:px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-col @3xl:flex-row @3xl:items-center justify-between gap-2.5">
+      <div className="px-3 sm:px-4 py-3 bg-warm-50 border-b border-warm-200 flex flex-col @3xl:flex-row @3xl:items-center justify-between gap-2.5">
         <div className="flex items-center gap-2 min-w-0">
           <span
-            className={`w-2.5 h-2.5 rounded-full shrink-0 ${incomingBuses.length ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}
+            className={`w-2.5 h-2.5 rounded-full shrink-0 ${incomingBuses.length ? 'bg-green-blue animate-pulse' : 'bg-warm-300'}`}
           />
-          <span className="font-bold text-sm text-slate-900 truncate">Bus {route.serviceNo} Live Map</span>
-          <span className="bg-purple-100 text-purple-900 text-[11px] font-bold px-2 py-0.5 rounded-md shrink-0">
+          <span className="font-bold text-sm text-warm-900 truncate">Bus {route.serviceNo} Live Map</span>
+          <span className="bg-helvetia-100 text-helvetia-900 text-[11px] font-bold px-2 py-0.5 rounded-md shrink-0">
             {incomingBuses.length
               ? `${incomingBuses.length} bus${incomingBuses.length > 1 ? 'es' : ''} tracked`
               : 'No live GPS'}
@@ -371,49 +376,49 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
             Stops ({routeDir.stops.length})
           </button>
           <button onClick={handleCenterNearest} className={actionClass} title="Focus nearest bus stop" aria-label="Focus nearest bus stop">
-            <Navigation className="w-3.5 h-3.5 text-[#602a85]" />
+            <Navigation className="w-3.5 h-3.5 text-helvetia" />
             <span className="hidden sm:inline">Nearest Stop</span>
           </button>
           <button onClick={handleCenterUser} className={actionClass} title="Center on my location" aria-label="Center on my location">
-            <Locate className="w-3.5 h-3.5 text-blue-600" />
+            <Locate className="w-3.5 h-3.5 text-green-blue" />
             <span className="hidden sm:inline">Me</span>
           </button>
           <button onClick={handleFitRoute} className={actionClass} title="Fit whole route" aria-label="Fit whole route">
-            <Maximize2 className="w-3.5 h-3.5 text-slate-600" />
+            <Maximize2 className="w-3.5 h-3.5 text-warm-600" />
             <span className="hidden sm:inline">Full Route</span>
           </button>
         </div>
       </div>
 
       {/* Map Canvas */}
-      <div className="relative w-full h-[60vh] min-h-[320px] max-h-[520px] sm:h-[460px] lg:h-[520px] bg-slate-100 z-10">
+      <div className="relative w-full h-[60vh] min-h-[320px] max-h-[520px] sm:h-[460px] lg:h-[520px] bg-warm-100 z-10">
         <div ref={mapContainerRef} className="w-full h-full" />
 
         {/* Legend Overlay (compact on phones) */}
-        <div className="absolute top-3 left-3 z-[1000] bg-white/95 backdrop-blur-md rounded-xl px-2.5 py-2 border border-slate-200/90 shadow-md text-[11px] space-y-1 max-w-[60%]">
+        <div className="absolute top-3 left-3 z-[1000] bg-white/95 backdrop-blur-md rounded-xl px-2.5 py-2 border border-warm-200/90 shadow-md text-[11px] space-y-1 max-w-[60%]">
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-blue-600 border border-white inline-block shadow-xs shrink-0" />
-            <span className="text-slate-700">You</span>
+            <span className="w-3 h-3 rounded-full bg-green-blue border border-white inline-block shadow-xs shrink-0" />
+            <span className="text-warm-700">You</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-3.5 h-3.5 rounded-full bg-[#602a85] text-white flex items-center justify-center text-[8px] font-bold shrink-0">★</span>
-            <span className="text-slate-700 font-medium truncate">Nearest stop ({nearestStop.code})</span>
+            <span className="w-3.5 h-3.5 rounded-full bg-lemon text-helvetia-950 ring-1 ring-helvetia flex items-center justify-center text-[8px] font-bold shrink-0">★</span>
+            <span className="text-warm-700 font-medium truncate">Nearest stop ({nearestStop.code})</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-md bg-[#602a85] inline-block shadow-2xs shrink-0" />
-            <span className="text-slate-700">Bus (live GPS)</span>
+            <span className="w-3 h-3 rounded-md bg-helvetia inline-block shadow-2xs shrink-0" />
+            <span className="text-warm-700">Bus (live GPS)</span>
           </div>
           {incidents.length > 0 && (
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-amber-400 text-[8px] font-black flex items-center justify-center shrink-0">!</span>
-              <span className="text-slate-700">Traffic incident</span>
+              <span className="text-warm-700">Traffic incident</span>
             </div>
           )}
           <div className="hidden sm:flex items-center gap-2">
             <span
-              className={`w-4 h-0 border-t-[3px] border-[#602a85] inline-block shrink-0 ${followsRoads ? '' : 'border-dotted'}`}
+              className={`w-4 h-0 border-t-[3px] border-helvetia inline-block shrink-0 ${followsRoads ? '' : 'border-dotted'}`}
             />
-            <span className="text-slate-700">{followsRoads ? 'Route (actual roads)' : 'Route (stop to stop)'}</span>
+            <span className="text-warm-700">{followsRoads ? 'Route (actual roads)' : 'Route (stop to stop)'}</span>
           </div>
         </div>
       </div>

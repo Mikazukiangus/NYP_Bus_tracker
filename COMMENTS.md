@@ -263,6 +263,20 @@ This application is a real-time Singapore public bus tracking web app inspired b
 
 ---
 
+### Turn 17: Wada Plate 259 Colour Scheme (10 October 2026)
+- **User Prompt**:
+  > *"i want to change the colour scheme to \"Lemon Yellow & Green Blue +2\", plate 259 from Sanzo Wada's 1933 dictionary of colour combinations - lemon yellow, green blue, helvetia blue, warm gray."*
+- **Palette**: Lemon Yellow `#F8ED43`, Green Blue `#099197`, Helvetia Blue `#005B8D`, Warm Gray `#A1A39A`; screen swatches verified against the [plate 259 archive](https://colorcombinations.org/palettes/wada-259-lemon-yellow-green-blue/).
+- **Implementation**:
+  - Central Tailwind theme tokens in `src/index.css`, with lighter and darker tones for readable small text and restrained surfaces.
+  - Lemon actions, selected directions, nearest-stop badges and first-arrival highlight; Helvetia branding, navigation, service badges and map route; Green Blue location/weather accents and live/available states; warm neutral backgrounds, dividers and text. Alert and capacity labels retain their explicit severity cues.
+  - Applied to all four tabs, both dialogs, Leaflet markers/popups/legend and browser `theme-color`.
+  - Darkened secondary text, added consistent keyboard focus, accessible marker/control names and a wheelchair-icon role; route-stop rows are now keyboard-operable buttons.
+- **Validation**: TypeScript, all 10 regression tests and production build passed. Chrome checks at 1440 px and 375 px confirmed the four exact tokens, focus styling, map stroke, keyboard stop selection and no horizontal overflow/browser errors. Axe reported zero WCAG A/AA violations across Arrivals, Map (including the stop popup), Stops, Weather, Favourites and Location at both widths, using live-derived route/weather fixtures and controlled arrival fixtures.
+- **Publication**: continue the user's existing commit-and-live-deploy direction through the linked `nypbus-tracker` Vercel project; confirm the exact commit and deployed palette before reporting completion.
+
+---
+
 ## 3. Architecture & API Endpoints Summary
 
 ### Serverless & Proxy Endpoints

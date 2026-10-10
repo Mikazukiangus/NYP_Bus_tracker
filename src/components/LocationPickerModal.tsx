@@ -113,19 +113,19 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     Math.abs(currentLocation.lng - nypLocation.lng) < 0.0005;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-warm-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-warm-200 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+        <div className="px-5 py-3.5 bg-warm-50 border-b border-warm-200 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#602a85] text-white flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-helvetia text-white flex items-center justify-center">
               <Navigation className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h2 className="text-base font-black text-slate-900 leading-tight">
+              <h2 className="text-base font-black text-helvetia leading-tight">
                 Select Commuter Location
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-warm-500">
                 Choose your Singapore starting point or campus
               </p>
             </div>
@@ -133,7 +133,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors"
+            aria-label="Close location picker"
+            className="p-1.5 rounded-lg text-warm-500 hover:text-warm-700 hover:bg-warm-200 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -149,13 +150,13 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             }}
             className={`cursor-pointer rounded-xl p-3.5 border transition-all flex items-center justify-between gap-3 ${
               isNypSelected
-                ? 'bg-purple-900 text-white border-purple-950 shadow-md ring-2 ring-purple-300'
-                : 'bg-gradient-to-r from-purple-50 via-purple-100/60 to-purple-50 hover:bg-purple-100/80 border-purple-200 text-purple-950'
+                ? 'bg-helvetia-900 text-white border-helvetia-950 shadow-md ring-2 ring-helvetia-300'
+                : 'bg-gradient-to-r from-helvetia-50 via-helvetia-100/60 to-helvetia-50 hover:bg-helvetia-100/80 border-helvetia-200 text-helvetia-950'
             }`}
           >
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                isNypSelected ? 'bg-white/20 text-white' : 'bg-[#602a85] text-white'
+                isNypSelected ? 'bg-white/20 text-white' : 'bg-helvetia text-white'
               }`}>
                 <GraduationCap className="w-5 h-5" />
               </div>
@@ -165,23 +166,23 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                     Nanyang Polytechnic (NYP)
                   </span>
                   <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded uppercase ${
-                    isNypSelected ? 'bg-emerald-400 text-slate-900' : 'bg-purple-200 text-purple-900'
+                    isNypSelected ? 'bg-lemon text-helvetia-950' : 'bg-lemon-soft text-helvetia-950'
                   }`}>
                     Featured
                   </span>
                 </div>
-                <p className={`text-xs mt-0.5 ${isNypSelected ? 'text-purple-200' : 'text-slate-600'}`}>
+                <p className={`text-xs mt-0.5 ${isNypSelected ? 'text-helvetia-200' : 'text-warm-600'}`}>
                   Ang Mo Kio Ave 8 • Next to Yio Chu Kang MRT
                 </p>
               </div>
             </div>
 
             {isNypSelected ? (
-              <span className="text-xs bg-emerald-400 text-slate-950 font-bold px-2 py-1 rounded-lg">
+              <span className="text-xs bg-lemon text-helvetia-950 font-bold px-2 py-1 rounded-lg">
                 Current
               </span>
             ) : (
-              <span className="text-xs bg-white text-[#602a85] font-bold px-2.5 py-1 rounded-lg border border-purple-200 shadow-2xs shrink-0">
+              <span className="text-xs bg-white text-helvetia font-bold px-2.5 py-1 rounded-lg border border-helvetia-200 shadow-2xs shrink-0">
                 Switch Here
               </span>
             )}
@@ -189,13 +190,13 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
           {/* Search bar */}
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+            <Search className="w-4 h-4 text-warm-500 absolute left-3.5 top-3 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search location (e.g. Nanyang Polytechnic, NYP, AMK, Orchard)..."
-              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 placeholder:text-slate-400 placeholder:font-normal focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#602a85]"
+              className="w-full pl-9 pr-3 py-2 bg-warm-50 border border-warm-200 rounded-xl text-xs font-semibold text-warm-900 placeholder:text-warm-500 placeholder:font-normal focus:bg-white focus:outline-none focus:ring-2 focus:ring-helvetia"
             />
           </div>
 
@@ -205,8 +206,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               onClick={() => setActiveCategory('all')}
               className={`px-2.5 py-1 rounded-lg transition-colors shrink-0 ${
                 activeCategory === 'all'
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-warm-900 text-white'
+                  : 'bg-warm-100 text-warm-600 hover:bg-warm-200'
               }`}
             >
               All Hubs ({SINGAPORE_LOCATIONS.length})
@@ -215,8 +216,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               onClick={() => setActiveCategory('campus')}
               className={`px-2.5 py-1 rounded-lg transition-colors shrink-0 flex items-center gap-1 ${
                 activeCategory === 'campus'
-                  ? 'bg-[#602a85] text-white'
-                  : 'bg-purple-50 text-purple-800 hover:bg-purple-100'
+                  ? 'bg-helvetia text-white'
+                  : 'bg-helvetia-50 text-helvetia-800 hover:bg-helvetia-100'
               }`}
             >
               <GraduationCap className="w-3 h-3" />
@@ -226,8 +227,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               onClick={() => setActiveCategory('north')}
               className={`px-2.5 py-1 rounded-lg transition-colors shrink-0 ${
                 activeCategory === 'north'
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-warm-900 text-white'
+                  : 'bg-warm-100 text-warm-600 hover:bg-warm-200'
               }`}
             >
               North (AMK/YCK)
@@ -236,8 +237,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               onClick={() => setActiveCategory('central')}
               className={`px-2.5 py-1 rounded-lg transition-colors shrink-0 ${
                 activeCategory === 'central'
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-warm-900 text-white'
+                  : 'bg-warm-100 text-warm-600 hover:bg-warm-200'
               }`}
             >
               Central / City
@@ -249,16 +250,16 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             <button
               onClick={handleUseRealGps}
               disabled={isLocating}
-              className="w-full p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border border-slate-200 transition-all"
+              className="w-full p-2.5 bg-warm-100 hover:bg-warm-200 text-warm-800 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border border-warm-200 transition-all"
             >
               {isLocating ? (
                 <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#602a85]" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-helvetia" />
                   <span>Detecting GPS Coordinates...</span>
                 </>
               ) : (
                 <>
-                  <Locate className="w-3.5 h-3.5 text-blue-600" />
+                  <Locate className="w-3.5 h-3.5 text-helvetia-600" />
                   <span>Use Browser GPS (Current Physical Location)</span>
                 </>
               )}
@@ -289,23 +290,23 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                   }}
                   className={`p-2.5 text-left rounded-xl border transition-all flex items-start justify-between gap-2 text-xs ${
                     isSelected
-                      ? 'bg-purple-50 border-[#602a85] text-[#602a85] font-bold ring-1 ring-[#602a85]'
+                      ? 'bg-helvetia-50 border-helvetia text-helvetia font-bold ring-1 ring-helvetia'
                       : isNyp
-                      ? 'border-purple-200 bg-purple-50/40 hover:bg-purple-100/50 text-slate-800 font-semibold'
-                      : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                      ? 'border-helvetia-200 bg-helvetia-50/40 hover:bg-helvetia-100/50 text-warm-800 font-semibold'
+                      : 'border-warm-200 hover:bg-warm-50 text-warm-700'
                   }`}
                 >
                   <div className="flex items-start gap-2 min-w-0">
-                    <MapPin className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${isNyp ? 'text-[#602a85]' : 'text-slate-400'}`} />
+                    <MapPin className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${isNyp ? 'text-helvetia' : 'text-warm-500'}`} />
                     <span className="truncate">{loc.name}</span>
                   </div>
-                  {isSelected && <Check className="w-4 h-4 text-[#602a85] shrink-0" />}
+                  {isSelected && <Check className="w-4 h-4 text-helvetia shrink-0" />}
                 </button>
               );
             })}
 
             {filteredLocations.length === 0 && (
-              <div className="col-span-2 py-8 text-center text-slate-400 text-xs">
+              <div className="col-span-2 py-8 text-center text-warm-500 text-xs">
                 No location found matching "{searchQuery}"
               </div>
             )}
@@ -313,13 +314,13 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-          <span className="text-[11px] text-slate-500">
-            Selected: <strong className="text-slate-800">{currentLocation.name.split('(')[0].trim()}</strong>
+        <div className="p-3 bg-warm-50 border-t border-warm-200 flex items-center justify-between">
+          <span className="text-[11px] text-warm-500">
+            Selected: <strong className="text-warm-800">{currentLocation.name.split('(')[0].trim()}</strong>
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-xl"
+            className="px-4 py-1.5 bg-warm-800 hover:bg-warm-900 text-white text-xs font-semibold rounded-xl"
           >
             Done
           </button>

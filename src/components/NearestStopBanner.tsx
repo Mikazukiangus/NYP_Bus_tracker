@@ -39,19 +39,18 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
   };
 
   return (
-    <div className="bg-gradient-to-r from-purple-900 via-[#602a85] to-[#7832a8] rounded-2xl text-white p-4 sm:p-5 shadow-md relative overflow-hidden">
-      {/* Decorative background subtle circle */}
-      <div className="absolute -right-8 -bottom-8 w-48 h-48 rounded-full bg-white/5 pointer-events-none blur-2xl" />
+    <div className="nearest-stop-banner bg-helvetia rounded-2xl text-white p-4 sm:p-5 shadow-md relative overflow-hidden border-t-4 border-green-blue">
+      <div aria-hidden="true" className="absolute right-0 bottom-0 w-20 h-2 bg-lemon pointer-events-none" />
 
       <div className="relative z-10">
         {/* Top badge row */}
         <div className="flex items-center justify-between gap-2 mb-2.5">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="bg-emerald-400 text-slate-950 text-[11px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs shrink-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-900 animate-ping inline-block" />
+            <span className="bg-lemon text-helvetia-950 text-[11px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs shrink-0">
+              <span className="w-2 h-2 rounded-full bg-helvetia animate-ping inline-block" />
               Nearest Bus Stop
             </span>
-            <span className="text-purple-200 text-xs font-medium truncate">
+            <span className="text-helvetia-200 text-xs font-medium truncate">
               to {userLocation.name.split('(')[0].trim()}
             </span>
           </div>
@@ -60,13 +59,13 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
             onClick={onToggleFavorite}
             className={`p-2 rounded-xl transition-all flex items-center gap-1.5 text-xs font-semibold shrink-0 ${
               isFavorite
-                ? 'bg-red-500 text-white shadow-xs'
+                ? 'bg-lemon text-helvetia-950 shadow-xs'
                 : 'bg-white/10 hover:bg-white/20 text-white'
             }`}
             title={isFavorite ? 'Remove from favourites' : 'Save to favourites'}
             aria-label={isFavorite ? 'Remove from favourites' : 'Save to favourites'}
           >
-            <Heart className={`w-4 h-4 ${isFavorite ? 'fill-white text-white' : ''}`} />
+            <Heart className={`w-4 h-4 ${isFavorite ? 'fill-helvetia-950' : ''}`} />
             <span className="hidden sm:inline">
               {isFavorite ? 'Favourited' : 'Add to Favs'}
             </span>
@@ -80,24 +79,24 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                 {nearestStop.name}
               </h2>
-              <span className="bg-white/20 text-purple-100 font-mono font-bold text-xs px-2 py-0.5 rounded-md">
+              <span className="bg-white/20 text-white font-mono font-bold text-xs px-2 py-0.5 rounded-md">
                 {nearestStop.code}
               </span>
             </div>
-            <p className="text-purple-200 text-sm mt-0.5 font-medium">Along {nearestStop.road}</p>
+            <p className="text-helvetia-200 text-sm mt-0.5 font-medium">Along {nearestStop.road}</p>
           </div>
 
           {/* Distance & Walk pill */}
           <div className="flex items-center gap-3">
             <div className="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl px-3.5 py-2 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-emerald-400/20 text-emerald-300 flex items-center justify-center shrink-0">
-                <Navigation className="w-4 h-4 text-emerald-300" />
+              <div className="w-8 h-8 rounded-lg bg-lemon/15 text-lemon flex items-center justify-center shrink-0">
+                <Navigation className="w-4 h-4" />
               </div>
               <div>
                 <div className="text-lg font-black text-white leading-none">
                   {formatDistance(distanceMeters)}
                 </div>
-                <div className="text-[11px] text-purple-200 font-medium" title="Straight-line distance; the walking route may be longer">
+                <div className="text-[11px] text-white font-medium" title="Straight-line distance; the walking route may be longer">
                   ~{walkingMin} min walk · straight line
                 </div>
               </div>
@@ -105,9 +104,9 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
 
             <button
               onClick={onViewOnMap}
-              className="bg-white text-purple-950 hover:bg-purple-50 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-xs shrink-0"
+              className="bg-lemon text-helvetia-950 hover:bg-lemon-hover font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-xs shrink-0"
             >
-              <MapIcon className="w-3.5 h-3.5 text-[#602a85]" />
+              <MapIcon className="w-3.5 h-3.5 text-helvetia" />
               <span>Map View</span>
             </button>
           </div>
@@ -116,12 +115,12 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
         {/* Selected stop indicator if user clicked another stop */}
         {!isCurrentlySelected && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs bg-black/15 px-3 py-2 rounded-xl">
-            <span className="text-amber-200">
+            <span className="text-lemon">
               Viewing other stop: <strong>{selectedStop.name} ({selectedStop.code})</strong>
             </span>
             <button
               onClick={() => onSelectStop(nearestStop)}
-              className="text-white underline font-semibold hover:text-emerald-300"
+              className="text-white underline font-semibold hover:text-lemon"
             >
               Switch back to nearest stop
             </button>
@@ -129,15 +128,15 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
         )}
 
         {/* Route stops browsing hint */}
-        <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between text-xs text-purple-200">
+        <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between text-xs text-helvetia-200">
           <div className="flex items-center gap-1 min-w-0">
-            <MapPin className="w-3.5 h-3.5 text-purple-300 shrink-0" />
+            <MapPin className="w-3.5 h-3.5 text-helvetia-300 shrink-0" />
             <span className="sm:hidden">Other stops on this route</span>
             <span className="hidden sm:inline">Looking for another stop along this bus route?</span>
           </div>
           <button
             onClick={onOpenStopsList}
-            className="text-white hover:text-emerald-300 font-semibold flex items-center gap-0.5 shrink-0 py-1"
+            className="text-white hover:text-lemon font-semibold flex items-center gap-0.5 shrink-0 py-1"
           >
             <span>Browse all stops</span>
             <ChevronRight className="w-3.5 h-3.5" />
