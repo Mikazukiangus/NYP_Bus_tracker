@@ -6,6 +6,7 @@ import busArrivalHandler from './api/bus-arrival.ts';
 import busRouteHandler from './api/bus-route.ts';
 import healthHandler from './api/health.ts';
 import weatherHandler from './api/weather.ts';
+import trafficIncidentsHandler from './api/traffic-incidents.ts';
 
 dotenv.config();
 
@@ -32,6 +33,10 @@ app.all('/api/bus-arrival', (req, res) => {
 
 app.all('/api/bus-route', (req, res) => {
   return busRouteHandler(req, res);
+});
+
+app.all('/api/traffic-incidents', (req, res) => {
+  return trafficIncidentsHandler(req, res);
 });
 
 // Also support case-insensitive BusArrival

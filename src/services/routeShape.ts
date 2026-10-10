@@ -40,6 +40,16 @@ function distanceToSegmentMeters(p: [number, number], a: [number, number], b: [n
   return Math.hypot(ax + t * dx - px, ay + t * dy - py) * 111320;
 }
 
+// Shortest distance in metres from a point to a polyline
+export function distanceToPathMeters(p: [number, number], path: [number, number][]): number {
+  if (path.length === 1) return calculateDistanceMeters(p[0], p[1], path[0][0], path[0][1]);
+  let min = Infinity;
+  for (let i = 1; i < path.length; i++) {
+    min = Math.min(min, distanceToSegmentMeters(p, path[i - 1], path[i]));
+  }
+  return min;
+}
+
 function stopCoverage(stops: BusStop[], path: [number, number][]): number {
   const near = stops.filter((stop) => {
     for (let i = 1; i < path.length; i++) {

@@ -3,7 +3,7 @@
 // Public Overpass servers are too slow and flaky to query on every page view, so this runs offline
 // (one bulk query for every Singapore bus route) and the output is committed and served from the CDN.
 // Re-run occasionally to pick up route changes:  npm run shapes   (or: npm run shapes -- ./saved.json)
-import { mkdir, readFile, rm, writeFile } from 'fs/promises';
+import { mkdir, readdir, readFile, rm, writeFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -194,11 +194,19 @@ async function main() {
     byService.set(ref, [...(byService.get(ref) ?? []), shape]);
   }
 
-  await rm(OUT_DIR, { recursive: true, force: true });
+  // Only rewrite files whose shapes changed (generatedAt = when they last changed), so a scheduled
+  // refresh produces a diff only for routes OpenStreetMap actually updated
   await mkdir(OUT_DIR, { recursive: true });
   const generatedAt = new Date().toISOString();
   let totalBytes = 0;
+  let changed = 0;
   for (const [serviceNo, shapes] of [...byService].sort(([a], [b]) => a.localeCompare(b, 'en', { numeric: true }))) {
+    const file = path.join(OUT_DIR, `${serviceNo}.json`);
+    const existing = await readFile(file, 'utf8').then((t) => JSON.parse(t), () => null);
+    if (existing && JSON.stringify(existing.shapes) === JSON.stringify(shapes)) {
+      totalBytes += JSON.stringify(existing).length;
+      continue;
+    }
     const body = JSON.stringify({
       serviceNo,
       shapes,
@@ -207,11 +215,21 @@ async function main() {
       generatedAt,
     });
     totalBytes += body.length;
-    await writeFile(path.join(OUT_DIR, `${serviceNo}.json`), body);
+    changed++;
+    await writeFile(file, body);
+  }
+
+  // Remove services that no longer have an OSM route
+  let removed = 0;
+  for (const name of await readdir(OUT_DIR)) {
+    if (name.endsWith('.json') && !byService.has(name.slice(0, -5))) {
+      await rm(path.join(OUT_DIR, name));
+      removed++;
+    }
   }
 
   console.log(
-    `Wrote ${byService.size} services (${relations.length} OSM relations, ${(totalBytes / 1024 / 1024).toFixed(1)} MB) to ${path.relative(process.cwd(), OUT_DIR)}`
+    `${byService.size} services (${relations.length} OSM relations, ${(totalBytes / 1024 / 1024).toFixed(1)} MB) in ${path.relative(process.cwd(), OUT_DIR)}: ${changed} updated, ${removed} removed`
   );
 }
 

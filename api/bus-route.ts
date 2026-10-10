@@ -20,6 +20,13 @@ interface LTABusRouteRow {
   Direction: number;
   StopSequence: number;
   BusStopCode: string;
+  // "HHmm", or "-" when the service doesn't run that day
+  WD_FirstBus?: string;
+  WD_LastBus?: string;
+  SAT_FirstBus?: string;
+  SAT_LastBus?: string;
+  SUN_FirstBus?: string;
+  SUN_LastBus?: string;
 }
 
 interface LTABusServiceRow {
@@ -29,12 +36,15 @@ interface LTABusServiceRow {
   Category: string;
 }
 
+type FirstLast = [string, string] | null;
+
 interface RouteStop {
   code: string;
   name: string;
   road: string;
   lat: number;
   lng: number;
+  firstLastBus?: { weekday: FirstLast; saturday: FirstLast; sunday: FirstLast };
 }
 
 interface RouteDirection {
@@ -54,7 +64,7 @@ export interface BusRouteResponse {
 }
 
 export interface Datasets {
-  stops: Map<string, LTABusStop>;
+  stops: Map<string, LTABusStop>; // keyed by BusStopCode
   routes: Map<string, LTABusRouteRow[]>; // keyed by upper-case ServiceNo
   services: Map<string, LTABusServiceRow>;
   loadedAt: number;
@@ -130,18 +140,28 @@ function mapCategory(category?: string): BusRouteResponse['category'] {
   return 'Trunk';
 }
 
+const TIME_RE = /^\d{4}$/;
+const firstLast = (first?: string, last?: string): FirstLast =>
+  first && last && TIME_RE.test(first) && TIME_RE.test(last) ? [first, last] : null;
+
 function buildDirection(rows: LTABusRouteRow[], stops: Map<string, LTABusStop>): RouteDirection | undefined {
   const ordered = [...rows].sort((a, b) => a.StopSequence - b.StopSequence);
   const routeStops: RouteStop[] = [];
   for (const row of ordered) {
     const stop = stops.get(row.BusStopCode);
     if (!stop) continue;
+    const times = {
+      weekday: firstLast(row.WD_FirstBus, row.WD_LastBus),
+      saturday: firstLast(row.SAT_FirstBus, row.SAT_LastBus),
+      sunday: firstLast(row.SUN_FirstBus, row.SUN_LastBus),
+    };
     routeStops.push({
       code: stop.BusStopCode,
       name: stop.Description,
       road: stop.RoadName,
       lat: stop.Latitude,
       lng: stop.Longitude,
+      ...(times.weekday || times.saturday || times.sunday ? { firstLastBus: times } : {}),
     });
   }
   if (routeStops.length === 0) return undefined;

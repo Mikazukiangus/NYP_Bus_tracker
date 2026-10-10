@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Navigation, Heart, ShieldCheck, Map as MapIcon, ChevronRight } from 'lucide-react';
+import { MapPin, Navigation, Heart, Map as MapIcon, ChevronRight } from 'lucide-react';
 import { BusStop, UserLocation } from '../types/bus';
 
 interface NearestStopBannerProps {
@@ -27,7 +27,8 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
 }) => {
   const isCurrentlySelected = selectedStop.code === nearestStop.code;
 
-  // Estimate walking time (approx 80m per min)
+  // Rough walking time: straight-line distance at ~80 m/min. Real paths are usually longer
+  // (crossings, overhead bridges), so it is labelled as an estimate.
   const walkingMin = Math.max(1, Math.round(distanceMeters / 80));
 
   const formatDistance = (meters: number) => {
@@ -83,17 +84,7 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
                 {nearestStop.code}
               </span>
             </div>
-            <p className="text-purple-200 text-sm mt-0.5 font-medium flex flex-wrap items-center gap-x-1.5">
-              <span>Along {nearestStop.road}</span>
-              {nearestStop.sheltered && (
-                <>
-                  <span className="opacity-40">•</span>
-                  <span className="text-emerald-300 flex items-center gap-1 text-xs">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Sheltered Linkway
-                  </span>
-                </>
-              )}
-            </p>
+            <p className="text-purple-200 text-sm mt-0.5 font-medium">Along {nearestStop.road}</p>
           </div>
 
           {/* Distance & Walk pill */}
@@ -106,8 +97,8 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
                 <div className="text-lg font-black text-white leading-none">
                   {formatDistance(distanceMeters)}
                 </div>
-                <div className="text-[11px] text-purple-200 font-medium">
-                  ~{walkingMin} min walk
+                <div className="text-[11px] text-purple-200 font-medium" title="Straight-line distance; the walking route may be longer">
+                  ~{walkingMin} min walk · straight line
                 </div>
               </div>
             </div>

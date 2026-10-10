@@ -5,6 +5,8 @@ import {
   BusServiceArrivals,
   FavoriteItem,
   IncomingBus,
+  StopServiceArrivals,
+  TrafficIncident,
   UserLocation
 } from './types/bus';
 import type { WeatherSnapshot } from './types/weather';
@@ -15,24 +17,30 @@ import {
 import {
   findNearestBusStop,
   generateArrivalTimings,
-  fetchLTABusArrivals,
+  fetchStopArrivals,
   fetchBusRoute,
+  fetchTrafficIncidents,
+  pickDirectionForStop,
   pickNearestDirection,
 } from './services/busTrackerService';
-import { applyRouteShapes, fetchRouteShapes } from './services/routeShape';
+import { applyRouteShapes, distanceToPathMeters, fetchRouteShapes } from './services/routeShape';
 import { fetchWeatherSnapshot, summarizeWeather } from './services/neaWeather';
 import { Header } from './components/Header';
 import { BusSearchBox } from './components/BusSearchBox';
 import { NearestStopBanner } from './components/NearestStopBanner';
 import { ArrivalDisplay } from './components/ArrivalDisplay';
+import { StopServicesBoard } from './components/StopServicesBoard';
 import { LiveBusMap } from './components/LiveBusMap';
 import { RouteStopsList } from './components/RouteStopsList';
 import { NEAWeatherWidget } from './components/NEAWeatherWidget';
-import { FavoritesModal } from './components/FavoritesModal';
+import { FavoritesModal, NextBusLabel } from './components/FavoritesModal';
 import { LocationPickerModal } from './components/LocationPickerModal';
+import { useFavoriteArrivals } from './services/favoriteArrivals';
 import { Heart, Compass, Bus, AlertCircle, ArrowUpRight } from 'lucide-react';
 
 const FAVORITES_STORAGE_KEY = 'sbs_transit_favorites_v1';
+// Incidents within this distance of the route line are shown on the map
+const INCIDENT_ROUTE_DISTANCE_M = 150;
 
 export default function App() {
   // User Location (Default: Nanyang Polytechnic)
@@ -80,7 +88,11 @@ export default function App() {
       const loc = userLocationRef.current;
       setCurrentRoute(route);
       setBusNumber(route.serviceNo);
-      setDirection(opts.direction ?? pickNearestDirection(route, loc.lat, loc.lng));
+      setDirection(
+        opts.direction ??
+          (opts.stopCode ? pickDirectionForStop(route, opts.stopCode) : undefined) ??
+          pickNearestDirection(route, loc.lat, loc.lng)
+      );
       setSelectedStopCode(opts.stopCode ?? null);
 
       // Upgrade straight stop-to-stop lines to road-following OpenStreetMap geometry when it matches the stops
@@ -155,32 +167,42 @@ export default function App() {
     };
   });
 
+  // Every service at the selected stop (live only); the tracked service's times come from the same call
+  const [stopServices, setStopServices] = useState<{ stopCode: string; services: StopServiceArrivals[] } | null>(null);
+
   useEffect(() => {
     let isCancelled = false;
 
     const loadArrivals = async () => {
       setIsRefreshing(true);
       try {
-        const result = await fetchLTABusArrivals(
-          currentRoute.serviceNo,
-          selectedStop.code,
-          refreshCount * 30
-        );
-        if (!isCancelled) {
-          setDataSource(result.source);
+        const services = await fetchStopArrivals(selectedStop.code);
+        if (isCancelled) return;
+        const base = {
+          serviceNo: currentRoute.serviceNo,
+          operator: currentRoute.operator,
+          stopCode: selectedStop.code,
+          stopName: selectedStop.name,
+          roadName: selectedStop.road,
+          destination: routeDir.destination,
+          direction,
+          lastUpdated: new Date(),
+        };
+        if (services) {
+          const svc = services.find((s) => s.serviceNo.toUpperCase() === currentRoute.serviceNo.toUpperCase());
+          setDataSource('LTA_DATAMALL_V3');
+          setStopServices({ stopCode: selectedStop.code, services });
           setArrivals({
-            serviceNo: currentRoute.serviceNo,
-            operator: currentRoute.operator,
-            stopCode: selectedStop.code,
-            stopName: selectedStop.name,
-            roadName: selectedStop.road,
-            destination: routeDir.destination,
-            direction,
-            nextBus: result.nextBus,
-            nextBus2: result.nextBus2,
-            nextBus3: result.nextBus3,
-            lastUpdated: new Date(),
+            ...base,
+            nextBus: svc?.nextBus ?? null,
+            nextBus2: svc?.nextBus2 ?? null,
+            nextBus3: svc?.nextBus3 ?? null,
           });
+        } else {
+          // Live feed unreachable: placeholder times, clearly labelled "Simulated" in the UI
+          setDataSource('FALLBACK_SIMULATED');
+          setStopServices(null);
+          setArrivals({ ...base, ...generateArrivalTimings(currentRoute.serviceNo, selectedStop.code, refreshCount * 30) });
         }
       } catch (err) {
         console.error('Failed to load arrivals:', err);
@@ -222,6 +244,24 @@ export default function App() {
   const handleRefresh = useCallback(() => {
     setRefreshCount((c) => c + 1);
   }, []);
+
+  // LTA traffic incidents (accidents, roadworks, breakdowns...) near the route being viewed
+  const [trafficIncidents, setTrafficIncidents] = useState<TrafficIncident[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const incidents = await fetchTrafficIncidents();
+      if (incidents) setTrafficIncidents(incidents);
+    };
+    load();
+    const timer = setInterval(load, 3 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const incidentsOnRoute = useMemo(
+    () => trafficIncidents.filter((i) => distanceToPathMeters([i.lat, i.lng], routeDir.path) <= INCIDENT_ROUTE_DISTANCE_M),
+    [trafficIncidents, routeDir]
+  );
 
   // NEA weather: one Singapore-wide snapshot, summarised for wherever the user is
   const [weatherSnapshot, setWeatherSnapshot] = useState<WeatherSnapshot | null>(null);
@@ -293,6 +333,12 @@ export default function App() {
 
   const [isFavoritesModalOpen, setIsFavoritesModalOpen] = useState(false);
 
+  // UI Active Tab: 'arrivals' | 'map' | 'stops' | 'weather'
+  const [activeTab, setActiveTab] = useState<'arrivals' | 'map' | 'stops' | 'weather'>('arrivals');
+
+  // Live next-bus times for favourites, while they are on screen (the mini card or the modal)
+  const favoriteArrivals = useFavoriteArrivals(favorites, isFavoritesModalOpen || activeTab === 'arrivals');
+
   const saveFavorites = (items: FavoriteItem[]) => {
     setFavorites(items);
     try {
@@ -337,9 +383,6 @@ export default function App() {
   const handleSelectFavorite = (fav: FavoriteItem) => {
     loadRoute(fav.serviceNo, { direction: fav.direction, stopCode: fav.stopCode });
   };
-
-  // UI Active Tab: 'arrivals' | 'map' | 'stops' | 'weather'
-  const [activeTab, setActiveTab] = useState<'arrivals' | 'map' | 'stops' | 'weather'>('arrivals');
 
   // Handle bus number search submission
   const handleSearchBus = (num: string) => {
@@ -457,6 +500,14 @@ export default function App() {
               dataSource={dataSource}
             />
 
+            <StopServicesBoard
+              stop={selectedStop}
+              services={stopServices?.stopCode === selectedStop.code ? stopServices.services : null}
+              isLive={dataSource === 'LTA_DATAMALL_V3'}
+              currentServiceNo={currentRoute.serviceNo}
+              onSelectService={(serviceNo) => loadRoute(serviceNo, { stopCode: selectedStop.code })}
+            />
+
             {/* Split row: Map Preview & NEA Weather */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-7">
@@ -468,6 +519,7 @@ export default function App() {
                   onSelectStop={handleSelectStop}
                   userLocation={userLocation}
                   incomingBuses={incomingBuses}
+                  incidents={incidentsOnRoute}
                 />
               </div>
               <div className="lg:col-span-5 space-y-6">
@@ -511,7 +563,7 @@ export default function App() {
                             {f.stopName}
                           </span>
                         </div>
-                        <span className="text-slate-400 font-mono text-[11px]">{f.stopCode}</span>
+                        <NextBusLabel arrival={favoriteArrivals[f.id]} />
                       </div>
                     ))}
                   </div>
@@ -531,6 +583,7 @@ export default function App() {
               onSelectStop={handleSelectStop}
               userLocation={userLocation}
               incomingBuses={incomingBuses}
+              incidents={incidentsOnRoute}
             />
             {/* Quick arrival summary card below the map */}
             <ArrivalDisplay
@@ -563,6 +616,13 @@ export default function App() {
                 isRefreshing={isRefreshing}
                 dataSource={dataSource}
               />
+              <StopServicesBoard
+                stop={selectedStop}
+                services={stopServices?.stopCode === selectedStop.code ? stopServices.services : null}
+                isLive={dataSource === 'LTA_DATAMALL_V3'}
+                currentServiceNo={currentRoute.serviceNo}
+                onSelectService={(serviceNo) => loadRoute(serviceNo, { stopCode: selectedStop.code })}
+              />
             </div>
           </div>
         )}
@@ -587,10 +647,12 @@ export default function App() {
             </div>
             <span className="font-semibold text-slate-700">BusTrackerSG • A member of NYP Bus</span>
           </div>
-          <div className="flex flex-wrap items-center gap-4 text-slate-400">
-            <span>Data: LTA DataMall & National Environment Agency (NEA)</span>
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-slate-400">
+            <span>Bus data: LTA DataMall</span>
             <span>•</span>
-            <span>Singapore Public Transport Standards (WSH & ISO certified)</span>
+            <span>Weather: NEA via data.gov.sg</span>
+            <span>•</span>
+            <span>Map: OneMap (SLA) & OpenStreetMap contributors</span>
           </div>
         </div>
       </footer>
@@ -600,6 +662,7 @@ export default function App() {
         isOpen={isFavoritesModalOpen}
         onClose={() => setIsFavoritesModalOpen(false)}
         favorites={favorites}
+        arrivals={favoriteArrivals}
         onRemoveFavorite={handleRemoveFavorite}
         onSelectFavorite={handleSelectFavorite}
       />

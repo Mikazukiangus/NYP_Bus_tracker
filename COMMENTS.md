@@ -215,15 +215,32 @@ This application is a real-time Singapore public bus tracking web app inspired b
 
 ---
 
+### Turn 14: Data Improvements (GPS vs Scheduled, All Buses at Stop, First/Last Bus, Incidents, Freshness)
+- **User Prompt**:
+  > *"push it and do 1-8"* (the eight data improvements suggested in Turn 13)
+- **Action & Implementation**:
+  1. **Live GPS vs scheduled** – each arrival card shows whether LTA's estimate comes from the bus's GPS (`Monitored=1`) or the timetable (`Monitored=0`, e.g. bus still at the interchange); legend added. Shared `TrackingBadge` in `src/components/ArrivalBits.tsx`.
+  2. **All buses at the stop** – arrivals now use one LTA BusArrival call per stop (no `ServiceNo`), shared by the main board and the new `StopServicesBoard` (Arrivals and Route Stops tabs): every service due, its destination, next two buses, load and GPS/scheduled. Tapping a service tracks it from the same stop (`pickDirectionForStop` chooses the direction that serves it). Destination names come from `public/bus-routes/stops.json` (stop code → name, built with the route files). Removed the old "use the first service if the requested one is missing" fallback, which could show another bus's times.
+  3. **First/last bus** – `api/bus-route.ts` now includes LTA's `WD/SAT/SUN_FirstBus/LastBus` per stop (`firstLastBus`); the arrivals board shows today's first/last bus at the selected stop (Sunday times on Sundays; before 4 am the previous day's schedule) with an expander for all three day types. Route files grow to ~2.5 KB gzipped each.
+  4. **Removed invented content** – header "Bus Services: Normal Operation", footer "WSH & ISO certified" (now lists the real data sources), the `sheltered` stop flags, and the generated bus registration numbers / speeds. Header clock now always shows Singapore time.
+  5. **Favourites** – modal and Arrivals-tab mini card show live next-bus times (`useFavoriteArrivals` in `src/services/favoriteArrivals.ts`, one call per distinct stop, every 30 s while visible).
+  6. **Traffic incidents** – new `/api/traffic-incidents` (LTA DataMall `TrafficIncidents`, CDN cache 2 min). The client refreshes every 3 min and shows incidents within 150 m of the current route line as map markers with LTA's message, plus a count in the map header.
+  7. **Walking time** – labelled as a straight-line estimate on the nearest-stop banner; the Route Stops list notes distances are straight-line. Stop numbers now stay correct while filtering.
+  8. **Freshness** – `.github/workflows/refresh-data.yml` runs monthly (03:00 SGT on the 1st, or manually): rebuilds OSM route shapes and commits only the routes that changed (`build-route-shapes.ts` now leaves unchanged files alone); if nothing changed it calls the Vercel Deploy Hook (`monthly-data-refresh`, ref `main`, URL stored as the `VERCEL_DEPLOY_HOOK_URL` repository secret) so the build regenerates the LTA route data.
+- **Still simulated**: only the arrival-board fallback when the LTA feed is unreachable (labelled "Simulated").
+
+---
+
 ## 3. Architecture & API Endpoints Summary
 
 ### Serverless & Proxy Endpoints
 | Endpoint | Method | Description | Data Source |
 |---|---|---|---|
 | `/api/health` | GET | System and API health monitor | Self-test + Environment check |
-| `/api/bus-arrival` | GET | Live bus arrival times, load, and telemetry | Singapore LTA DataMall v3 |
+| `/api/bus-arrival` | GET | Live arrivals for every service at a stop (or one service with `ServiceNo`): ETA, load, deck, GPS position / monitored flag | Singapore LTA DataMall v3 |
+| `/api/traffic-incidents` | GET | Live traffic incidents across Singapore (the client shows those near the route) | LTA DataMall TrafficIncidents |
 | `/api/bus-route` | GET | Real stop sequence (both directions) for a service; fallback when static files are missing | LTA DataMall BusRoutes + BusStops + BusServices |
-| `/bus-routes/<SERVICE>.json`, `/bus-routes/index.json` | GET (static) | Real stop sequences generated at build time (primary source for routes) | LTA DataMall, via `scripts/build-bus-routes.ts` |
+| `/bus-routes/<SERVICE>.json`, `/bus-routes/index.json`, `/bus-routes/stops.json` | GET (static) | Real stop sequences with first/last bus times, the service list, and stop code → name, generated at build time | LTA DataMall, via `scripts/build-bus-routes.ts` |
 | `/route-shapes/<SERVICE>.json` | GET (static) | Road-following route geometry for a service | OpenStreetMap (ODbL), pre-built by `npm run shapes` |
 | `/api/weather` | GET | Singapore-wide snapshot of 12 NEA datasets (forecasts, station readings, PSI/PM2.5, UV, lightning, WBGT); the client picks the nearest station/region | NEA via data.gov.sg v2 real-time API |
 

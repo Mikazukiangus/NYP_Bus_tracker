@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bus, MapPin, Heart, Clock, Radio, RefreshCw } from 'lucide-react';
+import { Bus, MapPin, Heart, Clock, RefreshCw } from 'lucide-react';
 import { UserLocation } from '../types/bus';
 
 interface HeaderProps {
@@ -33,7 +33,8 @@ export const Header: React.FC<HeaderProps> = ({
           hour: '2-digit',
           minute: '2-digit',
           second: '2-digit',
-          hour12: false
+          hour12: false,
+          timeZone: 'Asia/Singapore'
         }) + ' SGT'
       );
     };
@@ -51,11 +52,6 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="text-purple-200 text-[11px] hidden sm:inline">| A member of NYP Bus</span>
         </div>
         <div className="flex items-center gap-4 text-[11px]">
-          <div className="flex items-center gap-1.5 text-emerald-300">
-            <Radio className="w-3 h-3 animate-pulse" />
-            <span className="hidden xs:inline">Bus Services:</span>
-            <span>Normal Operation</span>
-          </div>
           <div className="flex items-center gap-1 text-purple-200">
             <Clock className="w-3 h-3" />
             <span className="font-mono">{sgTime || 'Singapore Time'}</span>
@@ -91,7 +87,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onOpenLocationPicker}
             className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-purple-200 bg-purple-50/70 hover:bg-purple-100/70 transition-colors text-xs text-purple-900 group max-w-[220px] lg:max-w-[300px]"
-            title="Change your simulated or GPS location in Singapore"
+            title="Change your location (preset place or GPS)"
           >
             <MapPin className="w-3.5 h-3.5 text-[#602a85] shrink-0 group-hover:scale-110 transition-transform" />
             <span className="truncate font-medium text-[11px] sm:text-xs">

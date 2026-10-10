@@ -1,4 +1,4 @@
-// Builds every LTA bus route into public/bus-routes/<SERVICE>.json (+ index.json) at build time.
+// Builds every LTA bus route into public/bus-routes/<SERVICE>.json (+ index.json, stops.json) at build time.
 //
 // Runs before `vite build` on every Vercel deploy (LTA_ACCOUNT_KEY is available there), so the app can
 // load routes instantly from the CDN instead of waiting ~10 s for /api/bus-route to page through
@@ -47,6 +47,10 @@ async function main() {
 
   services.sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
   await writeFile(path.join(OUT_DIR, 'index.json'), JSON.stringify({ generatedAt, services }));
+
+  // Stop code -> name, so the "all buses at this stop" board can show where each bus is heading
+  const stopNames = Object.fromEntries([...data.stops].map(([code, stop]) => [code, stop.Description]));
+  await writeFile(path.join(OUT_DIR, 'stops.json'), JSON.stringify({ generatedAt, stops: stopNames }));
   console.log(
     `[bus-routes] Wrote ${services.length} services (${(totalBytes / 1024 / 1024).toFixed(1)} MB) to ${path.relative(process.cwd(), OUT_DIR)}`
   );

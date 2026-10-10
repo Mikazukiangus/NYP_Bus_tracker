@@ -1,13 +1,5 @@
-import { BusArrivalInfo, BusLoad, BusRoute, BusStop, BusType } from '../types/bus';
+import { BusArrivalInfo, BusLoad, BusRoute, BusStop, BusType, StopServiceArrivals, TrafficIncident } from '../types/bus';
 import { calculateDistanceMeters } from '../data/singaporeBuses';
-
-// Generate consistent bus registration numbers matching Singapore standard
-function generateBusReg(serviceNo: string, index: number): string {
-  const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'P', 'R', 'S', 'T', 'U', 'Y', 'Z'];
-  const num = 3000 + (parseInt(serviceNo.replace(/\D/g, '') || '10', 10) * 17 + index * 123) % 6900;
-  const checksum = letters[(num + index) % letters.length];
-  return `SBS ${num}${checksum}`;
-}
 
 export interface NearestStopResult {
   nearestStop: BusStop;
@@ -43,7 +35,7 @@ export function findNearestBusStop(
   };
 }
 
-// Generate realistic Singapore LTA/SBS Transit arrival times
+// Offline placeholder arrival times, used only when the LTA feed can't be reached (shown as "Simulated")
 export function generateArrivalTimings(
   serviceNo: string,
   stopCode: string,
@@ -77,8 +69,6 @@ export function generateArrivalTimings(
     load: loads[seed % loads.length],
     type: types[seed % types.length],
     feature: 'WAB',
-    busReg: generateBusReg(serviceNo, 1),
-    speedKmH: 28 + (seed % 18)
   };
 
   const nextBus2: BusArrivalInfo = {
@@ -86,8 +76,6 @@ export function generateArrivalTimings(
     load: loads[(seed + 1) % loads.length],
     type: types[(seed + 2) % types.length],
     feature: 'WAB',
-    busReg: generateBusReg(serviceNo, 2),
-    speedKmH: 32 + ((seed + 2) % 15)
   };
 
   const nextBus3: BusArrivalInfo = {
@@ -95,8 +83,6 @@ export function generateArrivalTimings(
     load: loads[(seed + 3) % loads.length],
     type: types[(seed + 4) % types.length],
     feature: 'WAB',
-    busReg: generateBusReg(serviceNo, 3),
-    speedKmH: 35 + ((seed + 1) % 12)
   };
 
   return { nextBus, nextBus2, nextBus3 };
@@ -112,64 +98,42 @@ function parseLTAEstimatedMinutes(isoString?: string): number {
   return mins <= 0 ? 0 : mins;
 }
 
-// Fetch bus arrivals from our /api/bus-arrival endpoint (which queries LTA DataMall v3)
-export async function fetchLTABusArrivals(
-  serviceNo: string,
-  stopCode: string,
-  baseOffsetSeconds: number = 0
-): Promise<{
-  nextBus: BusArrivalInfo | null;
-  nextBus2: BusArrivalInfo | null;
-  nextBus3: BusArrivalInfo | null;
-  source: 'LTA_DATAMALL_V3' | 'FALLBACK_SIMULATED';
-}> {
-  try {
-    const url = `/api/bus-arrival?BusStopCode=${encodeURIComponent(stopCode)}&ServiceNo=${encodeURIComponent(serviceNo)}`;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
-
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-
-    if (res.ok) {
-      const data = await res.json();
-      const service = data?.Services?.find(
-        (s: { ServiceNo: string }) => s.ServiceNo.toUpperCase() === serviceNo.toUpperCase()
-      ) || data?.Services?.[0];
-
-      if (service) {
-        const parseBus = (busRaw?: any, index: number = 1): BusArrivalInfo | null => {
-          if (!busRaw || !busRaw.EstimatedArrival) return null;
-          return {
-            estimatedMinutes: parseLTAEstimatedMinutes(busRaw.EstimatedArrival),
-            load: (busRaw.Load as BusLoad) || 'SEA',
-            type: (busRaw.Type as BusType) || 'SD',
-            feature: busRaw.Feature === 'WAB' ? 'WAB' : '',
-            busReg: generateBusReg(serviceNo, index),
-            lat: busRaw.Latitude ? parseFloat(busRaw.Latitude) : undefined,
-            lng: busRaw.Longitude ? parseFloat(busRaw.Longitude) : undefined,
-            speedKmH: 30 + (index * 4),
-            monitored: busRaw.Monitored === 1,
-          };
-        };
-
-        return {
-          nextBus: parseBus(service.NextBus, 1),
-          nextBus2: parseBus(service.NextBus2, 2),
-          nextBus3: parseBus(service.NextBus3, 3),
-          source: data.source || 'LTA_DATAMALL_V3',
-        };
-      }
-    }
-  } catch (err) {
-    // Graceful fallback to client generator
-  }
-
-  const generated = generateArrivalTimings(serviceNo, stopCode, baseOffsetSeconds);
+function parseBus(raw?: any): BusArrivalInfo | null {
+  if (!raw || !raw.EstimatedArrival) return null;
+  const lat = raw.Latitude ? parseFloat(raw.Latitude) : undefined;
+  const lng = raw.Longitude ? parseFloat(raw.Longitude) : undefined;
   return {
-    ...generated,
-    source: 'FALLBACK_SIMULATED',
+    estimatedMinutes: parseLTAEstimatedMinutes(raw.EstimatedArrival),
+    load: (raw.Load as BusLoad) || 'SEA',
+    type: (raw.Type as BusType) || 'SD',
+    feature: raw.Feature === 'WAB' ? 'WAB' : '',
+    lat,
+    lng,
+    monitored: raw.Monitored === 1,
   };
+}
+
+// Fetch live arrivals for every service at a stop (one LTA BusArrival call, cached 15 s at the CDN).
+// Returns null when the live feed is unavailable, including the server's no-key simulation.
+export async function fetchStopArrivals(stopCode: string): Promise<StopServiceArrivals[] | null> {
+  try {
+    const res = await fetch(`/api/bus-arrival?BusStopCode=${encodeURIComponent(stopCode)}`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data?.source !== 'LTA_DATAMALL_V3' || !Array.isArray(data.Services)) return null;
+    return data.Services.map((svc: any) => ({
+      serviceNo: String(svc.ServiceNo),
+      operator: svc.Operator,
+      destinationCode: svc.NextBus?.DestinationCode || undefined,
+      nextBus: parseBus(svc.NextBus),
+      nextBus2: parseBus(svc.NextBus2),
+      nextBus3: parseBus(svc.NextBus3),
+    }));
+  } catch {
+    return null;
+  }
 }
 
 export type BusRouteLookup =
@@ -230,4 +194,34 @@ export function pickNearestDirection(route: BusRoute, userLat: number, userLng: 
   const d1 = findNearestBusStop(route, 1, userLat, userLng).distanceMeters;
   const d2 = findNearestBusStop(route, 2, userLat, userLng).distanceMeters;
   return d2 < d1 ? 2 : 1;
+}
+
+// Pick the direction that serves a stop (preferring one where it isn't the terminus), e.g. for favourites
+export function pickDirectionForStop(route: BusRoute, stopCode: string): number | undefined {
+  const dirs = [route.direction1, route.direction2].map((d, i) => ({ d, dir: i + 1 }));
+  const candidates = dirs.filter(({ d }) => d?.stops.some((s) => s.code === stopCode));
+  const notTerminus = candidates.find(({ d }) => d!.stops[d!.stops.length - 1].code !== stopCode);
+  return (notTerminus ?? candidates[0])?.dir;
+}
+
+let stopNamesPromise: Promise<Record<string, string>> | null = null;
+
+// Stop code -> name for every LTA stop, built at deploy time (empty if the static data isn't there)
+export function fetchStopNames(): Promise<Record<string, string>> {
+  stopNamesPromise ??= fetchStaticJson<{ stops: Record<string, string> }>('/bus-routes/stops.json').then(
+    (data) => data?.stops ?? {}
+  );
+  return stopNamesPromise;
+}
+
+// Live LTA traffic incidents across Singapore; null if unavailable
+export async function fetchTrafficIncidents(): Promise<TrafficIncident[] | null> {
+  try {
+    const res = await fetch('/api/traffic-incidents', { signal: AbortSignal.timeout(10000) });
+    if (!res.ok || !res.headers.get('content-type')?.includes('json')) return null;
+    const data = await res.json();
+    return Array.isArray(data?.incidents) ? data.incidents : null;
+  } catch {
+    return null;
+  }
 }

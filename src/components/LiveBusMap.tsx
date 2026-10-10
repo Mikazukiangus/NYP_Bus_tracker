@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { BusRoute, BusStop, IncomingBus, UserLocation } from '../types/bus';
-import { Navigation, Locate, Maximize2 } from 'lucide-react';
+import { BusRoute, BusStop, IncomingBus, TrafficIncident, UserLocation } from '../types/bus';
+import { Navigation, Locate, Maximize2, TriangleAlert } from 'lucide-react';
 
 interface LiveBusMapProps {
   route: BusRoute;
@@ -11,6 +11,7 @@ interface LiveBusMapProps {
   onSelectStop: (stop: BusStop) => void;
   userLocation: UserLocation;
   incomingBuses: IncomingBus[];
+  incidents: TrafficIncident[]; // LTA traffic incidents near this route
 }
 
 // OneMap: Singapore Land Authority's free official basemap (no key; attribution required)
@@ -39,7 +40,8 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
   selectedStop,
   onSelectStop,
   userLocation,
-  incomingBuses
+  incomingBuses,
+  incidents
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -47,6 +49,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
   const routeLayerRef = useRef<L.Polyline | null>(null);
   const stopsLayerRef = useRef<L.LayerGroup | null>(null);
   const busesLayerRef = useRef<L.LayerGroup | null>(null);
+  const incidentsLayerRef = useRef<L.LayerGroup | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
 
   const [showStops, setShowStops] = useState(true);
@@ -87,6 +90,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     stopsLayerRef.current = L.layerGroup().addTo(map);
+    incidentsLayerRef.current = L.layerGroup().addTo(map);
     busesLayerRef.current = L.layerGroup().addTo(map);
 
     mapInstanceRef.current = map;
@@ -287,6 +291,31 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
     });
   }, [incomingBuses, showBuses, selectedStop.name]);
 
+  // LTA traffic incidents along the route (accidents, roadworks, breakdowns, ...)
+  useEffect(() => {
+    const group = incidentsLayerRef.current;
+    if (!group) return;
+    group.clearLayers();
+
+    incidents.forEach((incident) => {
+      const icon = L.divIcon({
+        html: `<div class="w-6 h-6 rounded-full bg-amber-400 border-2 border-white shadow-md flex items-center justify-center text-slate-900 text-[13px] font-black leading-none">!</div>`,
+        className: 'traffic-incident-marker',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      });
+      L.marker([incident.lat, incident.lng], { icon, zIndexOffset: 700 })
+        .bindPopup(
+          `<div class="font-sans text-xs max-w-[240px]">
+            <div class="font-black text-amber-800 text-sm">${escapeHtml(incident.type)}</div>
+            <div class="text-slate-700 mt-1">${escapeHtml(incident.message)}</div>
+            <div class="text-[10px] text-slate-400 mt-1.5">LTA traffic incident near this route</div>
+          </div>`
+        )
+        .addTo(group);
+    });
+  }, [incidents]);
+
   const handleCenterNearest = () => {
     mapInstanceRef.current?.flyTo([nearestStop.lat, nearestStop.lng], 17, { duration: 1 });
   };
@@ -322,6 +351,15 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
               ? `${incomingBuses.length} bus${incomingBuses.length > 1 ? 'es' : ''} tracked`
               : 'No live GPS'}
           </span>
+          {incidents.length > 0 && (
+            <span
+              className="bg-amber-100 text-amber-900 text-[11px] font-bold px-2 py-0.5 rounded-md shrink-0 flex items-center gap-1"
+              title="LTA traffic incidents within 150 m of this route"
+            >
+              <TriangleAlert className="w-3 h-3" />
+              {incidents.length} incident{incidents.length > 1 ? 's' : ''}
+            </span>
+          )}
         </div>
 
         {/* Quick Map Controls (scrolls sideways on narrow screens) */}
@@ -365,6 +403,12 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
             <span className="w-3 h-3 rounded-md bg-[#602a85] inline-block shadow-2xs shrink-0" />
             <span className="text-slate-700">Bus (live GPS)</span>
           </div>
+          {incidents.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-amber-400 text-[8px] font-black flex items-center justify-center shrink-0">!</span>
+              <span className="text-slate-700">Traffic incident</span>
+            </div>
+          )}
           <div className="hidden sm:flex items-center gap-2">
             <span
               className={`w-4 h-0 border-t-[3px] border-[#602a85] inline-block shrink-0 ${followsRoads ? '' : 'border-dotted'}`}

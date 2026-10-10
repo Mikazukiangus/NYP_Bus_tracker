@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCw, Accessibility, Layers, Info, CheckCircle2, Clock } from 'lucide-react';
-import { BusArrivalInfo, BusLoad, BusServiceArrivals, BusStop } from '../types/bus';
+import { RefreshCw, Accessibility, Layers, Info, Clock, CalendarClock, ChevronDown, Satellite } from 'lucide-react';
+import { BusArrivalInfo, BusLoad, BusServiceArrivals, BusStop, FirstLastTimes } from '../types/bus';
+import { TrackingBadge } from './ArrivalBits';
 
 interface ArrivalDisplayProps {
   arrivals: BusServiceArrivals;
@@ -12,6 +13,25 @@ interface ArrivalDisplayProps {
 
 const BUS_TYPE_LABEL = { SD: 'Single Deck', DD: 'Double Deck', BD: 'Bendy Bus' } as const;
 
+// "0530" -> "5:30 am"
+function formatHHmm(hhmm: string) {
+  const h = parseInt(hhmm.slice(0, 2), 10);
+  const m = hhmm.slice(2);
+  return `${h % 12 === 0 ? 12 : h % 12}:${m} ${h < 12 ? 'am' : 'pm'}`;
+}
+
+const formatTimes = (t: FirstLastTimes) => (t ? `${formatHHmm(t[0])} – ${formatHHmm(t[1])}` : 'No service');
+
+// LTA publishes separate first/last bus times for weekdays, Saturdays and Sundays/public holidays.
+// Before 4 am the previous day's late buses are still running, so use the previous day's schedule.
+function todaysDayType(): 'weekday' | 'saturday' | 'sunday' {
+  const sgNow = new Date(Date.now() + 8 * 3600 * 1000 - 4 * 3600 * 1000); // SGT, shifted back 4 h
+  const day = sgNow.getUTCDay();
+  return day === 0 ? 'sunday' : day === 6 ? 'saturday' : 'weekday';
+}
+
+const DAY_LABEL = { weekday: 'Weekdays', saturday: 'Saturdays', sunday: 'Sundays & PH' } as const;
+
 export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   arrivals,
   activeStop,
@@ -20,6 +40,10 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   dataSource
 }) => {
   const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(15);
+  const [showAllDays, setShowAllDays] = useState(false);
+  const isLive = dataSource === 'LTA_DATAMALL_V3';
+  const firstLast = activeStop.firstLastBus;
+  const dayType = todaysDayType();
   const onRefreshRef = useRef(onRefresh);
 
   useEffect(() => {
@@ -135,6 +159,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
             </div>
           )}
         </div>
+        {isLive && <TrackingBadge bus={bus} compact={false} />}
 
         {/* Load badge */}
         <div className="mt-2 @2xl:mt-3 flex flex-wrap items-center gap-1.5 @2xl:gap-2">
@@ -181,6 +206,40 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
             <p className="text-xs text-slate-500 font-medium">
               at <strong className="text-slate-800">{activeStop.name}</strong> ({activeStop.code}) • Towards {arrivals.destination}
             </p>
+            {firstLast && (
+              <button
+                onClick={() => setShowAllDays((v) => !v)}
+                className="mt-1 flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-700"
+                aria-expanded={showAllDays}
+              >
+                <CalendarClock className="w-3.5 h-3.5 text-[#602a85] shrink-0" />
+                <span>
+                  {firstLast[dayType] ? (
+                    <>
+                      First <strong className="text-slate-700">{formatHHmm(firstLast[dayType]![0])}</strong> · Last{' '}
+                      <strong className="text-slate-700">{formatHHmm(firstLast[dayType]![1])}</strong>
+                    </>
+                  ) : (
+                    'No service'
+                  )}{' '}
+                  ({DAY_LABEL[dayType].toLowerCase()})
+                </span>
+                <ChevronDown className={`w-3 h-3 transition-transform ${showAllDays ? 'rotate-180' : ''}`} />
+              </button>
+            )}
+            {firstLast && showAllDays && (
+              <div className="mt-1.5 grid grid-cols-3 gap-1.5 text-[11px] max-w-md">
+                {(['weekday', 'saturday', 'sunday'] as const).map((d) => (
+                  <div
+                    key={d}
+                    className={`rounded-lg border px-2 py-1 ${d === dayType ? 'border-purple-200 bg-purple-50' : 'border-slate-200 bg-slate-50'}`}
+                  >
+                    <div className="font-semibold text-slate-700">{DAY_LABEL[d]}</div>
+                    <div className="text-slate-500">{formatTimes(firstLast[d])}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -229,6 +288,18 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
             <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
             <strong>LSD:</strong> Limited Standing
           </span>
+          {isLive && (
+            <>
+              <span className="flex items-center gap-1">
+                <Satellite className="w-3 h-3 text-emerald-700" />
+                <strong>Live GPS:</strong> bus is being tracked
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-slate-500" />
+                <strong>Scheduled:</strong> timetable estimate
+              </span>
+            </>
+          )}
         </div>
       </div>
     </div>

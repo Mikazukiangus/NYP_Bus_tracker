@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BusStop, BusRoute } from '../types/bus';
-import { Search, MapPin, ShieldCheck, ChevronRight, Check } from 'lucide-react';
+import { Search, ChevronRight, Check } from 'lucide-react';
 
 interface RouteStopsListProps {
   route: BusRoute;
@@ -23,7 +23,8 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
 
   const routeDir = direction === 2 && route.direction2 ? route.direction2 : route.direction1;
 
-  const filteredStops = stopsWithDistance.filter(
+  // Keep each stop's position on the route so numbering stays right while filtering
+  const filteredStops = stopsWithDistance.map((s, i) => ({ ...s, sequence: i + 1 })).filter(
     (s) =>
       s.name.toLowerCase().includes(filterQuery.toLowerCase()) ||
       s.code.includes(filterQuery) ||
@@ -45,6 +46,7 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
           <p className="text-xs text-slate-500 font-medium">
             From {routeDir.origin} to {routeDir.destination} ({routeDir.stops.length} stops)
           </p>
+          <p className="text-[11px] text-slate-400">Distances are straight-line from your location</p>
         </div>
 
         {/* Filter input */}
@@ -62,7 +64,7 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
 
       {/* Sequential Stop List */}
       <div className="mt-3 divide-y divide-slate-100 max-h-[500px] overflow-y-auto pr-1">
-        {filteredStops.map((stop, index) => {
+        {filteredStops.map((stop) => {
           const isNearest = stop.code === nearestStop.code;
           const isSelected = stop.code === selectedStop.code;
 
@@ -87,7 +89,7 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
                       : 'bg-slate-100 text-slate-600'
                   }`}
                 >
-                  {isNearest ? '★' : index + 1}
+                  {isNearest ? '★' : stop.sequence}
                 </div>
 
                 <div className="min-w-0">
@@ -104,14 +106,7 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
-                    <span>{stop.road}</span>
-                    {stop.sheltered && (
-                      <span className="text-emerald-600 flex items-center gap-0.5 text-[11px]">
-                        <ShieldCheck className="w-3 h-3" /> Sheltered
-                      </span>
-                    )}
-                  </div>
+                  <div className="text-xs text-slate-500 mt-0.5">{stop.road}</div>
                 </div>
               </div>
 

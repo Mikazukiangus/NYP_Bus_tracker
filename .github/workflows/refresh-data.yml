@@ -1,0 +1,66 @@
+# Monthly data refresh:
+#  1. Rebuild road-following route lines from OpenStreetMap and commit any that changed.
+#  2. Make sure the site redeploys, which regenerates the LTA route/stop data at build time
+#     (scripts/build-bus-routes.ts). A pushed commit triggers the deploy on its own; otherwise the
+#     Vercel Deploy Hook in the VERCEL_DEPLOY_HOOK_URL secret is called.
+name: Refresh route data
+
+on:
+  schedule:
+    - cron: '0 19 1 * *' # 03:00 SGT on the 1st of every month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Rebuild OpenStreetMap route shapes
+        # Public Overpass servers are sometimes down; still redeploy for fresh LTA data
+        continue-on-error: true
+        run: npm run shapes
+
+      - name: Commit changed shapes
+        id: commit
+        run: |
+          git add public/route-shapes
+          if git diff --cached --quiet; then
+            echo "No route shape changes"
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: monthly refresh of OpenStreetMap route shapes"
+          git push
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Redeploy to refresh LTA route data
+        if: steps.commit.outputs.pushed != 'true'
+        env:
+          DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "::warning::VERCEL_DEPLOY_HOOK_URL secret not set; LTA route data was not refreshed"
+            exit 0
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK" > /dev/null
+          echo "Vercel redeploy triggered"

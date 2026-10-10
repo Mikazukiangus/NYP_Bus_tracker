@@ -1,12 +1,29 @@
 import React from 'react';
 import { FavoriteItem } from '../types/bus';
-import { X, Trash2, Heart, ExternalLink, Bus, Clock } from 'lucide-react';
-import { generateArrivalTimings } from '../services/busTrackerService';
+import { X, Trash2, Heart, ExternalLink, Clock } from 'lucide-react';
+import type { FavoriteArrival } from '../services/favoriteArrivals';
+import { formatEta, TrackingBadge } from './ArrivalBits';
+
+// Compact "next bus" label for a favourite (used in the modal and the Arrivals tab mini card)
+export const NextBusLabel: React.FC<{ arrival?: FavoriteArrival }> = ({ arrival }) => {
+  if (!arrival || arrival.status === 'loading') return <span className="text-[11px] text-slate-400">…</span>;
+  if (arrival.status === 'unavailable') return <span className="text-[11px] text-slate-400">Live times unavailable</span>;
+  if (!arrival.nextBus) return <span className="text-[11px] text-slate-400">No estimate now</span>;
+  return (
+    <span className="flex items-center gap-1.5 text-[11px] shrink-0">
+      <strong className={arrival.nextBus.estimatedMinutes <= 0 ? 'text-emerald-600 font-black' : 'text-slate-900'}>
+        {formatEta(arrival.nextBus.estimatedMinutes)}
+      </strong>
+      <TrackingBadge bus={arrival.nextBus} compact />
+    </span>
+  );
+};
 
 interface FavoritesModalProps {
   isOpen: boolean;
   onClose: () => void;
   favorites: FavoriteItem[];
+  arrivals: Record<string, FavoriteArrival>;
   onRemoveFavorite: (id: string) => void;
   onSelectFavorite: (fav: FavoriteItem) => void;
 }
@@ -15,6 +32,7 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
   isOpen,
   onClose,
   favorites,
+  arrivals,
   onRemoveFavorite,
   onSelectFavorite
 }) => {
@@ -59,10 +77,7 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
             </div>
           ) : (
             favorites.map((fav) => {
-              // Compute dynamic arrivals for this saved favorite
-              const arrivalTimings = generateArrivalTimings(fav.serviceNo, fav.stopCode);
-              const nextMins = arrivalTimings.nextBus.estimatedMinutes;
-              const nextMins2 = arrivalTimings.nextBus2.estimatedMinutes;
+              const arrival = arrivals[fav.id];
 
               return (
                 <div
@@ -93,19 +108,21 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
                         Towards {fav.destination.replace(' Bus Interchange', '')}
                       </div>
 
-                      {/* Quick Arrival Preview */}
-                      <div className="flex items-center gap-2 mt-1 text-[11px]">
+                      {/* Live arrival preview (LTA BusArrival) */}
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[11px]">
                         <span className="flex items-center gap-1 text-slate-600">
                           <Clock className="w-3 h-3 text-[#602a85]" />
                           <span>Next:</span>
-                          <strong className={nextMins <= 0 ? 'text-emerald-600 font-black' : 'text-slate-900 font-bold'}>
-                            {nextMins <= 0 ? 'Arr' : `${nextMins} min`}
-                          </strong>
+                          <NextBusLabel arrival={arrival} />
                         </span>
-                        <span className="text-slate-300">•</span>
-                        <span className="text-slate-500">
-                          2nd: <strong>{nextMins2} min</strong>
-                        </span>
+                        {arrival?.status === 'ok' && arrival.nextBus2 && (
+                          <>
+                            <span className="text-slate-300">•</span>
+                            <span className="text-slate-500">
+                              2nd: <strong>{formatEta(arrival.nextBus2.estimatedMinutes)}</strong>
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

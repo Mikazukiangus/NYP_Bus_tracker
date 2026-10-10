@@ -2,6 +2,9 @@ export type BusLoad = 'SEA' | 'SDA' | 'LSD'; // Seats Available, Standing Availa
 export type BusType = 'SD' | 'DD' | 'BD'; // Single Deck, Double Deck, Bendy
 export type BusOperator = 'SBST' | 'SMRT' | 'TTS' | 'GAS';
 
+// First and last bus of a service at a stop as "HHmm" (LTA BusRoutes); null when it doesn't run that day
+export type FirstLastTimes = [string, string] | null;
+
 export interface BusStop {
   code: string; // e.g. "09037"
   name: string; // e.g. "Opp Mandarin Orchard"
@@ -9,7 +12,8 @@ export interface BusStop {
   lat: number;
   lng: number;
   distanceMeters?: number;
-  sheltered?: boolean;
+  // Only on LTA route data, for the service being viewed
+  firstLastBus?: { weekday: FirstLastTimes; saturday: FirstLastTimes; sunday: FirstLastTimes };
 }
 
 export interface BusArrivalInfo {
@@ -17,11 +21,27 @@ export interface BusArrivalInfo {
   load: BusLoad;
   type: BusType;
   feature: 'WAB' | '';
-  busReg?: string; // e.g. "SBS 3290R"
   lat?: number;
   lng?: number;
-  speedKmH?: number;
   monitored?: boolean; // true when LTA has a live GPS fix (position is real), false when schedule-based
+}
+
+// One service's next three buses at a stop, from LTA BusArrival for the whole stop
+export interface StopServiceArrivals {
+  serviceNo: string;
+  operator: string;
+  destinationCode?: string;
+  nextBus: BusArrivalInfo | null;
+  nextBus2: BusArrivalInfo | null;
+  nextBus3: BusArrivalInfo | null;
+}
+
+// LTA DataMall TrafficIncidents entry (from /api/traffic-incidents)
+export interface TrafficIncident {
+  type: string;
+  lat: number;
+  lng: number;
+  message: string;
 }
 
 export interface BusServiceArrivals {
