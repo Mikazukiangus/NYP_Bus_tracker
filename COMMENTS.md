@@ -300,11 +300,12 @@ This application is a real-time Singapore public bus tracking web app inspired b
 | `/api/bus-arrival` | GET | Live arrivals for every service at a stop (or one service with `ServiceNo`): ETA, load, deck, GPS position / monitored flag | Singapore LTA DataMall v3 |
 | `/api/traffic-incidents` | GET | Live traffic incidents across Singapore (the client shows those near the route) | LTA DataMall TrafficIncidents |
 | `/api/bus-route` | GET | Real stop sequence (both directions) for a service; fallback when static files are missing | LTA DataMall BusRoutes + BusStops + BusServices |
-| `/bus-routes/<SERVICE>.json`, `/bus-routes/index.json`, `/bus-routes/stops.json` | GET (static) | Real stop sequences with first/last bus times, the service list, and stop code → name, generated at build time | LTA DataMall, via `scripts/build-bus-routes.ts` |
+| `/bus-routes/<SERVICE>.json`, `/bus-routes/index.json` | GET (static) | Real stop sequences with first/last bus times, and the service list, generated at build time | LTA DataMall, via `scripts/build-bus-routes.ts` |
+| `/bus-routes/network.json` | GET (static) | Every stop (code, name, road, position) and every service direction (stop order + road distances), for stop names, buses near you, stop search and trip planning in the browser (~135 KB gzipped) | LTA DataMall, via `scripts/build-bus-routes.ts` |
 | `/route-shapes/<SERVICE>.json` | GET (static) | Road-following route geometry for a service | OpenStreetMap (ODbL), pre-built by `npm run shapes` |
 | `/api/weather` | GET | Singapore-wide snapshot of 12 NEA datasets (forecasts, station readings, PSI/PM2.5, UV, lightning, WBGT); the client picks the nearest station/region | NEA via data.gov.sg v2 real-time API |
 
-Map basemap tiles are loaded directly by the browser from OneMap (Singapore Land Authority); no proxy or key needed.
+Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/api/common/elastic/search`) are called directly by the browser from OneMap (Singapore Land Authority); no proxy or key needed.
 
 ### Query Parameters for `/api/bus-arrival`
 - `BusStopCode` (Required): 5-digit bus stop code (e.g. `83139`, `55329`, `09037`).
@@ -331,5 +332,24 @@ Map basemap tiles are loaded directly by the browser from OneMap (Singapore Land
   - `scripts/build-route-shapes.ts` now tries every Overpass instance in up to 3 rounds, pausing 1 min then 2 min between rounds, within a 25-minute overall deadline (inside the job's 30-minute limit).
   - `.github/workflows/refresh-data.yml`: if the shapes step still fails, a follow-up step posts a "Route shapes not refreshed" warning annotation and a note in the run summary. Updated `actions/checkout` and `actions/setup-node` to v7 (Node.js 24 runtime) to clear GitHub's Node.js 20 deprecation warning.
 - **Validation**: the shapes script type-checks; a stubbed run with every Overpass call failing showed all three rounds and the final error without touching any route files.
+
+---
+
+### Turn 20: Location Search, Buses Near You & Trip Planner (10 October 2026)
+- **User Prompt**:
+  > *"For the current location, i would like to be able to use GPS location, or a location which i can input or the postal code of the location. And for "Find Bus Service", instead of showing popular bus services, it should show the bus services that are around the area. There should also be a field to input the location that you would like to go to and it should show you the buses to take to that location. This route should also be reflected on the map. Figure out how this can be done in a nice logical UI/UX."*
+- **UX design**:
+  - **From** (`LocationBar.tsx`): the location bar shows where trips start, with an icon for how it was set (GPS with accuracy, place, address, postal code or bus stop), a one-tap **GPS** button and **Change**.
+  - **Set your location** (`LocationPickerModal.tsx`, a bottom sheet on phones): one search box for address, place, 6-digit postal code or bus stop (name or 5-digit code), then "Use my current GPS position", recent places, NYP and suggested places. The old category chips were removed.
+  - **Find Bus Service** (`BusSearchBox.tsx`): "Bus number" and "Where to?" side by side (stacked on phones). The "Popular" chips are now **Near you**: every service at stops within 500 m (widening to 800 m / 1.5 km when nothing is nearby), ordered by the nearest stop; tapping one tracks it from that stop. "Popular" only returns if the network data can't load.
+  - **Buses to <destination>** (`TripPlannerCard.tsx`): up to 5 direct options plus changes when they are at least 8 min faster (or when nothing is direct). Each shows the bus(es), walk to the boarding stop, stops ridden, live next buses ("Leave in 6 min"), GPS/scheduled, and the door-to-door estimate with arrival time. The best option is selected automatically once live times are in; the selected option expands into steps (walk → board → ride/get off → change → walk) with "Live times" buttons to track each bus. If walking is quicker it says so.
+  - **Map** (`LiveBusMap.tsx`): the chosen trip is drawn in its own layer above the route: dashed walking lines, the ridden part of each bus route in lemon with a Helvetia casing (road-following when OSM geometry matches), boarding markers with the service number, alighting dots and a destination flag; the full tracked route fades and its stops hide (Stops toggle brings them back). A "Trip" button reframes the whole trip; the header reads "Trip to …".
+- **Implementation**:
+  - `scripts/build-bus-routes.ts` writes `public/bus-routes/network.json` (replaces `stops.json`): stops as `[code, name, road, lat, lng]` and each service direction as stop indexes plus per-stop road distance in 100 m units, from LTA's `Distance` field (straight-line ×1.25 where missing). ~500 KB raw, ~135 KB gzipped; loaded once in the background (`busNetwork.ts`, with a ~550 m spatial grid).
+  - `tripPlanner.ts` (pure, runs in a few ms): walks of up to 500 m (800 m if needed) at each end, direct buses, and one change within 200 m (e.g. across the road) with a 5-min assumed wait. Walking = straight line ×1.3 at 80 m/min; riding = 22 km/h + 0.35 min per stop. Services between the same two stops are merged ("159 or 159A"). Live waits come from LTA BusArrival at each boarding stop (`useStopsArrivals`, every 30 s), using the first bus still catchable after walking; options with no bus due drop to the end.
+  - `placeSearch.ts`: OneMap search from the browser (CORS allowed, no token), debounced 350 ms, title-cased, de-duplicated and re-ranked (exact/prefix matches first; e.g. "Jurong Point" no longer lists a clinic first), plus local bus stop search; recent places (6) in local storage. `routeShape.ts` `legPath` cuts the ridden section out of the OSM line, matching stops in order so loop services are cut correctly.
+  - Shared `requestGpsLocation()` in `userLocation.ts`; `UserLocation` gains optional `kind` / `address`.
+- **Limits**: buses only (no MRT), at most one change, walking distances are straight-line estimates, and OneMap search returns its first 10 results.
+- **Validation**: TypeScript, production build and 22 tests (8 new: nearby services, stop search, direct/merged options, one change, walk-only, live catchable bus, OneMap parsing/ranking, recent places). Browser checks with the local LTA stub (real BusArrival via the deployed API) at desktop and 375 px: destination search → options with live times → auto-selected trip on the map; postal code 560123 as start (re-plans to "walk ~7 min"); stop-code search; recent places; no horizontal overflow or console errors.
 
 ---

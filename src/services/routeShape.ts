@@ -1,4 +1,4 @@
-import { BusRoute, BusStop } from '../types/bus';
+import { BusRoute, BusStop, RouteDirection } from '../types/bus';
 import { calculateDistanceMeters } from '../data/singaporeBuses';
 
 interface RouteShape {
@@ -100,4 +100,43 @@ export function applyRouteShapes(route: BusRoute, shapes: RouteShape[]): BusRout
         }
       : {}),
   };
+}
+
+// The part of a direction's line ridden between two of its stops, following the roads when the line does.
+// Stops are matched to the line in order, so loop services are cut at the right pass.
+export function legPath(
+  dir: RouteDirection,
+  boardCode: string,
+  alightCode: string
+): { path: [number, number][]; followsRoads: boolean } | null {
+  const stops = dir.stops;
+  const from = stops.findIndex((s) => s.code === boardCode);
+  const to = from < 0 ? -1 : stops.findIndex((s, k) => k > from && s.code === alightCode);
+  if (to < 0) return null;
+  const straight = stops.slice(from, to + 1).map((s): [number, number] => [s.lat, s.lng]);
+  if (dir.pathSource !== 'OPENSTREETMAP' || dir.path.length < 2) return { path: straight, followsRoads: false };
+
+  const path = dir.path;
+  let cursor = 0;
+  let startIdx = 0;
+  let endIdx = 0;
+  for (let k = 0; k <= to; k++) {
+    const stop: [number, number] = [stops[k].lat, stops[k].lng];
+    let best = Infinity;
+    let bestIdx = cursor;
+    for (let i = cursor; i < path.length; i++) {
+      const d = calculateDistanceMeters(stop[0], stop[1], path[i][0], path[i][1]);
+      if (d < best) {
+        best = d;
+        bestIdx = i;
+      } else if (best < MAX_STOP_OFFSET_M && d > best + 1500) {
+        break; // well past this stop
+      }
+    }
+    cursor = bestIdx;
+    if (k === from) startIdx = bestIdx;
+    if (k === to) endIdx = bestIdx;
+  }
+  if (endIdx <= startIdx) return { path: straight, followsRoads: false };
+  return { path: [straight[0], ...path.slice(startIdx, endIdx + 1), straight[straight.length - 1]], followsRoads: true };
 }

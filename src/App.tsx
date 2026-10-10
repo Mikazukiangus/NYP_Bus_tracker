@@ -5,6 +5,7 @@ import {
   BusServiceArrivals,
   FavoriteItem,
   IncomingBus,
+  JourneyOverlay,
   TrafficIncident,
   UserLocation
 } from './types/bus';
@@ -21,7 +22,11 @@ import {
   pickDirectionForStop,
   pickNearestDirection,
 } from './services/busTrackerService';
-import { applyRouteShapes, distanceToPathMeters, fetchRouteShapes } from './services/routeShape';
+import { applyRouteShapes, distanceToPathMeters, fetchRouteShapes, legPath } from './services/routeShape';
+import { BusNetwork, NearbyService, loadBusNetwork, servicesNear } from './services/busNetwork';
+import { TripLeg, TripOption, liveDeparture, planTrips, tripScore } from './services/tripPlanner';
+import { PlaceResult, addRecentPlace, loadRecentPlaces } from './services/placeSearch';
+import { useStopsArrivals } from './services/useStopsArrivals';
 import { fetchWeatherSnapshot, summarizeWeather } from './services/neaWeather';
 import { Header } from './components/Header';
 import { BusSearchBox } from './components/BusSearchBox';
@@ -33,10 +38,12 @@ import { RouteStopsList } from './components/RouteStopsList';
 import { NEAWeatherWidget } from './components/NEAWeatherWidget';
 import { FavoritesModal, NextBusLabel } from './components/FavoritesModal';
 import { LocationPickerModal } from './components/LocationPickerModal';
+import { LocationBar } from './components/LocationBar';
+import { RankedTrip, TripPlannerCard, TripPlannerState } from './components/TripPlannerCard';
 import { useFavoriteArrivals } from './services/favoriteArrivals';
 import { useStopArrivals } from './services/useStopArrivals';
 import { loadSavedLocation, locationFromGps, saveUserLocation } from './services/userLocation';
-import { Heart, Compass, Bus, AlertCircle, ArrowUpRight } from 'lucide-react';
+import { Heart, AlertCircle } from 'lucide-react';
 
 const FAVORITES_STORAGE_KEY = 'sbs_transit_favorites_v1';
 // Incidents within this distance of the route line are shown on the map
@@ -61,6 +68,9 @@ export default function App() {
   const routeRequestId = useRef(0);
   const currentRouteRef = useRef(currentRoute);
   currentRouteRef.current = currentRoute;
+
+  // UI Active Tab: 'arrivals' | 'map' | 'stops' | 'weather'
+  const [activeTab, setActiveTab] = useState<'arrivals' | 'map' | 'stops' | 'weather'>('arrivals');
 
   // Selected stop code (null = follow the nearest stop; user can pick any other stop)
   const [selectedStopCode, setSelectedStopCode] = useState<string | null>(null);
@@ -144,6 +154,183 @@ export default function App() {
     saveUserLocation(loc);
     setSelectedStopCode(null);
     setDirection(pickNearestDirection(currentRouteRef.current, loc.lat, loc.lng));
+  }, []);
+
+  // LTA bus network (every stop and service direction, built at deploy time) for nearby buses,
+  // stop search and trip planning. Loaded once in the background.
+  const [network, setNetwork] = useState<BusNetwork | null>(null);
+  const [networkStatus, setNetworkStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading');
+
+  useEffect(() => {
+    let active = true;
+    loadBusNetwork().then((net) => {
+      if (!active) return;
+      setNetwork(net);
+      setNetworkStatus(net ? 'ready' : 'unavailable');
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Services at stops around the user (null while loading, undefined if the network is unavailable)
+  const nearbyServices = useMemo(
+    () =>
+      network ? servicesNear(network, userLocation.lat, userLocation.lng) : networkStatus === 'loading' ? null : undefined,
+    [network, networkStatus, userLocation.lat, userLocation.lng]
+  );
+
+  // Places chosen recently as a start or destination
+  const [recentPlaces, setRecentPlaces] = useState<PlaceResult[]>(() => loadRecentPlaces());
+  const rememberPlace = useCallback((place: PlaceResult) => {
+    setRecentPlaces((current) => addRecentPlace(place, current));
+  }, []);
+
+  // Trip planning: buses from the user's location to a destination
+  const [destination, setDestination] = useState<PlaceResult | null>(null);
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+
+  const tripPlan = useMemo(
+    () => (network && destination ? planTrips(network, userLocation, destination) : null),
+    [network, destination, userLocation.lat, userLocation.lng]
+  );
+
+  // Live departures at each option's boarding stop, refreshed while a destination is set
+  const tripBoardStops = useMemo(() => tripPlan?.options.map((o) => o.legs[0].board.code) ?? [], [tripPlan]);
+  const tripArrivals = useStopsArrivals(tripBoardStops, !!tripPlan);
+
+  // Ranked by door-to-door time using live waits where known; options with no bus due go last
+  const rankedTrips = useMemo<RankedTrip[]>(() => {
+    if (!tripPlan) return [];
+    const ranked = tripPlan.options.map((option) => ({
+      option,
+      live: liveDeparture(option, tripArrivals[option.legs[0].board.code]),
+    }));
+    return ranked.sort((a, b) => {
+      const diff = tripScore(a.option, a.live) - tripScore(b.option, b.live);
+      return Number.isNaN(diff) ? 0 : diff;
+    });
+  }, [tripPlan, tripArrivals]);
+
+  const selectedTrip = useMemo(
+    () => tripPlan?.options.find((o) => o.id === selectedTripId) ?? null,
+    [tripPlan, selectedTripId]
+  );
+
+  // Track the first bus of a trip at its boarding stop
+  const selectTrip = useCallback(
+    (option: TripOption) => {
+      setSelectedTripId(option.id);
+      const leg = option.legs[0];
+      loadRoute(leg.serviceNo, { direction: leg.direction, stopCode: leg.board.code });
+    },
+    [loadRoute]
+  );
+
+  const trackTripLeg = useCallback(
+    (leg: TripLeg) => loadRoute(leg.serviceNo, { direction: leg.direction, stopCode: leg.board.code }),
+    [loadRoute]
+  );
+
+  // Choosing a bus some other way (search, nearby, favourites...) leaves the trip list but stops showing a trip
+  const trackService = useCallback(
+    (serviceNo: string, opts: { direction?: number; stopCode?: string } = {}) => {
+      setSelectedTripId(null);
+      loadRoute(serviceNo, opts);
+    },
+    [loadRoute]
+  );
+
+  // Once live times are in for a new plan, pick the best option and show it on the map
+  const tripPlanKey = tripPlan && destination
+    ? `${destination.id}|${userLocation.lat},${userLocation.lng}|${tripPlan.options.map((o) => o.id).join(',')}`
+    : '';
+  const autoSelectedPlanKey = useRef('');
+  useEffect(() => {
+    if (!tripPlanKey || autoSelectedPlanKey.current === tripPlanKey) return;
+    if (rankedTrips.some((t) => t.live.status === 'loading')) return;
+    autoSelectedPlanKey.current = tripPlanKey;
+    const best = rankedTrips[0];
+    if (best && best.live.status !== 'not-running') selectTrip(best.option);
+    else setSelectedTripId(null);
+  }, [tripPlanKey, rankedTrips, selectTrip]);
+
+  const handleSetDestination = useCallback(
+    (place: PlaceResult) => {
+      rememberPlace(place);
+      setDestination(place);
+      setSelectedTripId(null);
+    },
+    [rememberPlace]
+  );
+
+  const handleClearDestination = useCallback(() => {
+    setDestination(null);
+    setSelectedTripId(null);
+  }, []);
+
+  const tripState = useMemo<TripPlannerState>(() => {
+    if (tripPlan) return { status: 'ready', plan: tripPlan, trips: rankedTrips };
+    return { status: networkStatus === 'unavailable' ? 'unavailable' : 'loading' };
+  }, [tripPlan, rankedTrips, networkStatus]);
+
+  // Road-following lines for the chosen trip's bus legs (straight stop-to-stop lines until they load)
+  const [tripRoadPaths, setTripRoadPaths] = useState<{
+    tripId: string;
+    legs: ({ path: [number, number][]; followsRoads: boolean } | null)[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (!selectedTrip) return;
+    let active = true;
+    Promise.all(
+      selectedTrip.legs.map(async (leg) => {
+        const result = await fetchBusRoute(leg.serviceNo);
+        if (result.status !== 'ok') return null;
+        const shaped = applyRouteShapes(result.route, await fetchRouteShapes(leg.serviceNo));
+        const dir = leg.direction === 2 && shaped.direction2 ? shaped.direction2 : shaped.direction1;
+        return legPath(dir, leg.board.code, leg.alight.code);
+      })
+    ).then((legs) => {
+      if (active) setTripRoadPaths({ tripId: selectedTrip.id, legs });
+    });
+    return () => {
+      active = false;
+    };
+  }, [selectedTrip]);
+
+  const journey = useMemo<JourneyOverlay | null>(() => {
+    if (!network || !destination) return null;
+    const from = { lat: userLocation.lat, lng: userLocation.lng, name: userLocation.name };
+    const to = { lat: destination.lat, lng: destination.lng, name: destination.name };
+    // Close enough to walk: show just the destination and the walk
+    if (tripPlan && tripPlan.options.length === 0) {
+      return { id: `walk@${from.lat},${from.lng}>${destination.id}`, from, to, legs: [] };
+    }
+    if (!selectedTrip) return null;
+    const road = tripRoadPaths?.tripId === selectedTrip.id ? tripRoadPaths.legs : [];
+    const pick = ({ code, name, lat, lng }: TripLeg['board']) => ({ code, name, lat, lng });
+    return {
+      id: `${selectedTrip.id}@${from.lat},${from.lng}>${destination.id}`,
+      from,
+      to,
+      legs: selectedTrip.legs.map((leg, i) => {
+        const stops = network.patterns[leg.patternIndex].stops.slice(leg.boardPos, leg.alightPos + 1);
+        return {
+          serviceNo: leg.serviceNo,
+          board: pick(leg.board),
+          alight: pick(leg.alight),
+          path: road[i]?.path ?? stops.map((s): [number, number] => [network.stops[s].lat, network.stops[s].lng]),
+          followsRoads: road[i]?.followsRoads ?? false,
+        };
+      }),
+    };
+  }, [selectedTrip, tripPlan, network, destination, tripRoadPaths, userLocation]);
+
+  const showTripOnMap = useCallback(() => {
+    setActiveTab('map');
+    // After the map tab renders
+    setTimeout(() => document.getElementById('trip-map')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   }, []);
 
   // Real-time Bus Arrival Timings for active selected stop
@@ -279,8 +466,6 @@ export default function App() {
 
   const [isFavoritesModalOpen, setIsFavoritesModalOpen] = useState(false);
 
-  // UI Active Tab: 'arrivals' | 'map' | 'stops' | 'weather'
-  const [activeTab, setActiveTab] = useState<'arrivals' | 'map' | 'stops' | 'weather'>('arrivals');
 
   // Live next-bus times for favourites, while they are on screen (the mini card or the modal)
   const favoriteArrivals = useFavoriteArrivals(favorites, isFavoritesModalOpen || activeTab === 'arrivals');
@@ -327,13 +512,33 @@ export default function App() {
   };
 
   const handleSelectFavorite = (fav: FavoriteItem) => {
-    loadRoute(fav.serviceNo, { direction: fav.direction, stopCode: fav.stopCode });
+    trackService(fav.serviceNo, { direction: fav.direction, stopCode: fav.stopCode });
   };
 
   // Handle bus number search submission
   const handleSearchBus = (num: string) => {
-    loadRoute(num);
+    trackService(num);
   };
+
+  const handleSelectNearby = (svc: NearbyService) => {
+    trackService(svc.serviceNo, { direction: svc.direction, stopCode: svc.stop.code });
+  };
+
+  const tripCard = destination && (
+    <TripPlannerCard
+      destination={destination}
+      fromName={userLocation.name}
+      state={tripState}
+      selectedId={selectedTrip?.id ?? null}
+      canShowMap={!!journey}
+      onSelect={selectTrip}
+      onTrackLeg={trackTripLeg}
+      trackedServiceNo={currentRoute.serviceNo}
+      trackedStopCode={selectedStop.code}
+      onShowMap={showTripOnMap}
+      onClear={handleClearDestination}
+    />
+  );
 
   // Keep the saved location if GPS fails; a late fix must not override a new manual choice.
   useEffect(() => {
@@ -370,26 +575,12 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {/* Quick Location & Commuter Bar */}
-        <div className="bg-green-blue-soft border border-green-blue/25 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2 min-w-0">
-            <Compass className="w-4 h-4 text-helvetia shrink-0" />
-            <span className="text-warm-600 hidden sm:inline shrink-0">Your Current Commute Location:</span>
-            <strong className="text-warm-900 truncate">{userLocation.name}</strong>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <button
-              onClick={() => setIsLocationModalOpen(true)}
-              className="text-helvetia hover:text-helvetia-700 font-bold underline py-1"
-            >
-              Change<span className="hidden sm:inline"> Location / Use GPS</span>
-            </button>
-            <span className="text-warm-300 hidden lg:inline">•</span>
-            <span className="text-warm-500 hidden lg:inline">
-              Singapore Bus Interchanges & Stops Live Feed
-            </span>
-          </div>
-        </div>
+        {/* Where the user is starting from */}
+        <LocationBar
+          location={userLocation}
+          onOpenPicker={() => setIsLocationModalOpen(true)}
+          onLocationChange={applyUserLocation}
+        />
 
         {/* Bus Search Box & Direction Selector */}
         <BusSearchBox
@@ -399,7 +590,18 @@ export default function App() {
           currentRoute={currentRoute}
           direction={direction}
           setDirection={handleSetDirection}
+          nearby={nearbyServices}
+          locationName={userLocation.name.split('(')[0].trim()}
+          onSelectNearby={handleSelectNearby}
+          network={network}
+          destination={destination}
+          onSetDestination={handleSetDestination}
+          onClearDestination={handleClearDestination}
+          recentPlaces={recentPlaces}
         />
+
+        {/* Trip options sit above the stop details, except on the map tab where the map comes first */}
+        {(activeTab === 'arrivals' || activeTab === 'stops') && tripCard}
 
         {(isRouteLoading || routeNotice) && (
           <div
@@ -447,7 +649,7 @@ export default function App() {
               services={stopServices}
               dataSource={dataSource}
               currentServiceNo={currentRoute.serviceNo}
-              onSelectService={(serviceNo) => loadRoute(serviceNo, { stopCode: selectedStop.code })}
+              onSelectService={(serviceNo) => trackService(serviceNo, { stopCode: selectedStop.code })}
             />
 
             {/* Split row: Map Preview & NEA Weather */}
@@ -462,6 +664,7 @@ export default function App() {
                   userLocation={userLocation}
                   incomingBuses={incomingBuses}
                   incidents={incidentsOnRoute}
+                  journey={journey}
                 />
               </div>
               <div className="lg:col-span-5 space-y-6">
@@ -516,7 +719,7 @@ export default function App() {
         )}
 
         {activeTab === 'map' && (
-          <div className="space-y-4">
+          <div id="trip-map" className="space-y-4 scroll-mt-32">
             <LiveBusMap
               route={currentRoute}
               direction={direction}
@@ -526,7 +729,9 @@ export default function App() {
               userLocation={userLocation}
               incomingBuses={incomingBuses}
               incidents={incidentsOnRoute}
+              journey={journey}
             />
+            {tripCard}
             {/* Quick arrival summary card below the map */}
             <ArrivalDisplay
               arrivals={arrivals}
@@ -565,7 +770,7 @@ export default function App() {
                 services={stopServices}
                 dataSource={dataSource}
                 currentServiceNo={currentRoute.serviceNo}
-                onSelectService={(serviceNo) => loadRoute(serviceNo, { stopCode: selectedStop.code })}
+                onSelectService={(serviceNo) => trackService(serviceNo, { stopCode: selectedStop.code })}
               />
             </div>
           </div>
@@ -616,6 +821,9 @@ export default function App() {
         onClose={() => setIsLocationModalOpen(false)}
         currentLocation={userLocation}
         onSelectLocation={applyUserLocation}
+        network={network}
+        recentPlaces={recentPlaces}
+        onPlaceChosen={rememberPlace}
       />
     </div>
   );

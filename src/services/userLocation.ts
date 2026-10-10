@@ -14,7 +14,9 @@ function isUserLocation(value: unknown): value is UserLocation {
     typeof loc.lat === 'number' && typeof loc.lng === 'number' &&
     isSingaporeLocation(loc.lat, loc.lng) && typeof loc.isSimulated === 'boolean' &&
     (loc.accuracyMeters === undefined ||
-      (typeof loc.accuracyMeters === 'number' && Number.isFinite(loc.accuracyMeters) && loc.accuracyMeters >= 0));
+      (typeof loc.accuracyMeters === 'number' && Number.isFinite(loc.accuracyMeters) && loc.accuracyMeters >= 0)) &&
+    (loc.kind === undefined || ['place', 'address', 'postal', 'stop'].includes(loc.kind)) &&
+    (loc.address === undefined || typeof loc.address === 'string');
 }
 
 export function loadSavedLocation(storage?: Pick<Storage, 'getItem'>): UserLocation | null {
@@ -47,4 +49,33 @@ export function locationFromGps(coords: Pick<GeolocationCoordinates, 'latitude' 
     ...(Number.isFinite(coords.accuracy) && coords.accuracy >= 0
       ? { accuracyMeters: Math.round(coords.accuracy) } : {}),
   };
+}
+
+export type GpsResult = { location: UserLocation } | { error: string };
+
+// One fresh GPS fix, with a message suitable for the user when it can't be used
+export function requestGpsLocation(timeoutMs = 8000): Promise<GpsResult> {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    return Promise.resolve({ error: 'Location services are not available in this browser.' });
+  }
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const location = locationFromGps(pos.coords);
+        resolve(
+          location
+            ? { location }
+            : { error: 'Your GPS position is outside Singapore. Search for an address or postal code instead.' }
+        );
+      },
+      (err) =>
+        resolve({
+          error:
+            err.code === 1
+              ? 'Location permission was denied. Allow it in your browser, or search for an address or postal code.'
+              : 'Could not get a GPS fix. Try again, or search for an address or postal code.',
+        }),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: timeoutMs }
+    );
+  });
 }

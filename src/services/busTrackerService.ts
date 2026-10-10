@@ -1,5 +1,6 @@
 import { BusArrivalInfo, BusLoad, BusRoute, BusStop, BusType, StopServiceArrivals, TrafficIncident } from '../types/bus';
 import { calculateDistanceMeters } from '../data/singaporeBuses';
+import { loadBusNetwork } from './busNetwork';
 
 export interface NearestStopResult {
   nearestStop: BusStop;
@@ -206,11 +207,12 @@ export function pickDirectionForStop(route: BusRoute, stopCode: string): number 
 
 let stopNamesPromise: Promise<Record<string, string>> | null = null;
 
-// Stop code -> name for every LTA stop, built at deploy time (empty if the static data isn't there)
+// Stop code -> name for every LTA stop, from the bus network built at deploy time (empty if it isn't there)
 export function fetchStopNames(): Promise<Record<string, string>> {
-  stopNamesPromise ??= fetchStaticJson<{ stops: Record<string, string> }>('/bus-routes/stops.json').then(
-    (data) => data?.stops ?? {}
-  );
+  stopNamesPromise ??= loadBusNetwork().then((network) => {
+    if (!network) stopNamesPromise = null; // try again next time
+    return network ? Object.fromEntries(network.stops.map((s) => [s.code, s.name])) : {};
+  });
   return stopNamesPromise;
 }
 

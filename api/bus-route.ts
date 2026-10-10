@@ -20,6 +20,7 @@ interface LTABusRouteRow {
   Direction: number;
   StopSequence: number;
   BusStopCode: string;
+  Distance?: number; // km travelled from the first stop
   // "HHmm", or "-" when the service doesn't run that day
   WD_FirstBus?: string;
   WD_LastBus?: string;

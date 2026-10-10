@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { BusRoute, BusStop, IncomingBus, TrafficIncident, UserLocation } from '../types/bus';
-import { Navigation, Locate, Maximize2, TriangleAlert } from 'lucide-react';
+import { BusRoute, BusStop, IncomingBus, JourneyOverlay, TrafficIncident, UserLocation } from '../types/bus';
+import { Navigation, Locate, Maximize2, TriangleAlert, Route } from 'lucide-react';
 
 interface LiveBusMapProps {
   route: BusRoute;
@@ -12,6 +12,7 @@ interface LiveBusMapProps {
   userLocation: UserLocation;
   incomingBuses: IncomingBus[];
   incidents: TrafficIncident[]; // LTA traffic incidents near this route
+  journey?: JourneyOverlay | null; // a planned trip to draw over the route
 }
 
 // OneMap: Singapore Land Authority's free official basemap (no key; attribution required)
@@ -25,10 +26,17 @@ const ONEMAP_STYLES = { Default: 'Standard', Grey: 'Grey', Night: 'Night' } as c
 // OneMap only serves tiles for Singapore
 const SINGAPORE_BOUNDS = L.latLngBounds([1.144, 103.535], [1.494, 104.502]);
 
+// Keep a framed trip clear of the legend in the top-left corner
+const TRIP_FIT: L.FitBoundsOptions = { paddingTopLeft: [40, 150], paddingBottomRight: [40, 30], maxZoom: 17 };
+
 const ORDINAL_LABEL = { 1: '1st', 2: '2nd', 3: '3rd' } as const;
 const LOAD_LABEL = { SEA: 'Seats available', SDA: 'Standing available', LSD: 'Limited standing' } as const;
 const LOAD_COLOR = { SEA: 'var(--color-green-blue)', SDA: '#f59e0b', LSD: '#ef4444' } as const;
 const TYPE_LABEL = { SD: 'Single deck', DD: 'Double deck', BD: 'Bendy' } as const;
+
+// Lucide "flag" icon, for the destination marker
+const FLAG_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>';
 
 const escapeHtml = (text: string) =>
   text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -41,7 +49,8 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
   onSelectStop,
   userLocation,
   incomingBuses,
-  incidents
+  incidents,
+  journey = null,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -50,13 +59,17 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
   const stopsLayerRef = useRef<L.LayerGroup | null>(null);
   const busesLayerRef = useRef<L.LayerGroup | null>(null);
   const incidentsLayerRef = useRef<L.LayerGroup | null>(null);
+  const journeyLayerRef = useRef<L.LayerGroup | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
 
   const [showStops, setShowStops] = useState(true);
+  // A trip has its own stop markers, so hide the tracked route's stops (the Stops toggle brings them back)
   const [showBuses, setShowBuses] = useState(true);
 
   const routeDir = direction === 2 && route.direction2 ? route.direction2 : route.direction1;
   const followsRoads = routeDir.pathSource === 'OPENSTREETMAP';
+  const hasJourney = !!journey;
+  useEffect(() => setShowStops(!hasJourney), [hasJourney]);
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -89,6 +102,9 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
     L.control.layers(baseLayers, undefined, { position: 'topright' }).addTo(map);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
+    // Trip lines sit above the route line (overlay pane, z 400) but below markers (z 600)
+    map.createPane('journey').style.zIndex = '450';
+    journeyLayerRef.current = L.layerGroup().addTo(map);
     stopsLayerRef.current = L.layerGroup().addTo(map);
     incidentsLayerRef.current = L.layerGroup().addTo(map);
     busesLayerRef.current = L.layerGroup().addTo(map);
@@ -118,7 +134,8 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
       routeLayerRef.current = L.polyline(routeDir.path, {
         color: 'var(--color-helvetia)',
         weight: 5,
-        opacity: 0.85,
+        // Fade the full route behind a planned trip
+        opacity: hasJourney ? 0.3 : 0.85,
         lineCap: 'round',
         lineJoin: 'round',
         dashArray: followsRoads ? undefined : '1 9',
@@ -131,18 +148,110 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
         map.attributionControl.removeAttribution(OSM_ROUTE_ATTRIBUTION);
       };
     }
-  }, [routeDir, followsRoads]);
+  }, [routeDir, followsRoads, hasJourney]);
 
   // Frame the user and their nearest stop whenever the route, direction or location changes
+  // (a planned trip is framed by its own effect instead)
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map) return;
+    if (!map || journey) return;
     const bounds = L.latLngBounds([
       [userLocation.lat, userLocation.lng],
       [nearestStop.lat, nearestStop.lng],
     ]);
     map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
-  }, [route.serviceNo, direction, nearestStop.code, userLocation.lat, userLocation.lng]);
+  }, [route.serviceNo, direction, nearestStop.code, userLocation.lat, userLocation.lng, journey?.id]);
+
+  // Planned trip: walking legs (dashed), bus legs (lemon line with a Helvetia casing), boarding,
+  // alighting and destination markers (drawn above live buses so the plan stays readable)
+  useEffect(() => {
+    const group = journeyLayerRef.current;
+    if (!group) return;
+    group.clearLayers();
+    if (!journey) return;
+
+    const walk = (from: { lat: number; lng: number }, to: { lat: number; lng: number }) =>
+      L.polyline(
+        [
+          [from.lat, from.lng],
+          [to.lat, to.lng],
+        ],
+        { pane: 'journey', color: 'var(--color-green-blue-ink)', weight: 4, opacity: 0.9, dashArray: '2 8', lineCap: 'round' }
+      ).addTo(group);
+
+    journey.legs.forEach((leg, i) => {
+      walk(i === 0 ? journey.from : journey.legs[i - 1].alight, leg.board);
+      L.polyline(leg.path, { pane: 'journey', color: 'var(--color-helvetia-950)', weight: 10, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }).addTo(group);
+      L.polyline(leg.path, {
+        pane: 'journey',
+        color: 'var(--color-lemon)',
+        weight: 5,
+        opacity: 1,
+        lineCap: 'round',
+        lineJoin: 'round',
+        dashArray: leg.followsRoads ? undefined : '1 9',
+      }).addTo(group);
+
+      L.marker([leg.board.lat, leg.board.lng], {
+        title: `Board Bus ${leg.serviceNo} at ${leg.board.name} (${leg.board.code})`,
+        zIndexOffset: 1150,
+        icon: L.divIcon({
+          html: `<div class="px-1.5 h-6 min-w-8 rounded-lg bg-helvetia text-white border-2 border-lemon shadow-md flex items-center justify-center text-[11px] font-black whitespace-nowrap">${escapeHtml(leg.serviceNo)}</div>`,
+          className: 'journey-board-marker',
+          iconSize: [40, 24],
+          iconAnchor: [20, 12],
+        }),
+      })
+        .bindPopup(
+          `<div class="font-sans text-xs"><div class="font-black text-helvetia-950 text-sm">Board Bus ${escapeHtml(leg.serviceNo)}</div>
+          <div class="text-warm-700">${escapeHtml(leg.board.name)} · ${leg.board.code}</div></div>`
+        )
+        .addTo(group);
+      L.marker([leg.alight.lat, leg.alight.lng], {
+        title: `Get off at ${leg.alight.name} (${leg.alight.code})`,
+        zIndexOffset: 1100,
+        icon: L.divIcon({
+          html: `<div class="w-4 h-4 m-[3px] rounded-full bg-lemon border-[3px] border-helvetia-950 shadow-md"></div>`,
+          className: 'journey-alight-marker',
+          iconSize: [22, 22],
+          iconAnchor: [11, 11],
+        }),
+      })
+        .bindPopup(
+          `<div class="font-sans text-xs"><div class="font-black text-helvetia-950 text-sm">Get off Bus ${escapeHtml(leg.serviceNo)}</div>
+          <div class="text-warm-700">${escapeHtml(leg.alight.name)} · ${leg.alight.code}</div></div>`
+        )
+        .addTo(group);
+    });
+    const last = journey.legs[journey.legs.length - 1];
+    walk(last ? last.alight : journey.from, journey.to);
+
+    L.marker([journey.to.lat, journey.to.lng], {
+      title: `Destination: ${journey.to.name}`,
+      zIndexOffset: 1200,
+      icon: L.divIcon({
+        html: `<div class="w-8 h-8 rounded-full bg-lemon text-helvetia-950 border-2 border-helvetia-950 shadow-lg flex items-center justify-center">${FLAG_SVG}</div>`,
+        className: 'journey-destination-marker',
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+      }),
+    })
+      .bindPopup(`<div class="font-sans text-xs"><div class="font-black text-helvetia-950 text-sm">Destination</div><div class="text-warm-700">${escapeHtml(journey.to.name)}</div></div>`)
+      .addTo(group);
+  }, [journey]);
+
+  // Frame the whole trip when one is chosen
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !journey) return;
+    const points: [number, number][] = [
+      [journey.from.lat, journey.from.lng],
+      [journey.to.lat, journey.to.lng],
+      ...journey.legs.flatMap((leg) => leg.path),
+    ];
+    map.fitBounds(L.latLngBounds(points), TRIP_FIT);
+    // Only when a different trip is chosen, not when its lines are upgraded to road geometry
+  }, [journey?.id]);
 
   // Update User Location Marker
   useEffect(() => {
@@ -329,6 +438,16 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
     mapInstanceRef.current?.flyTo([userLocation.lat, userLocation.lng], 17, { duration: 1 });
   };
 
+  const handleFitTrip = () => {
+    if (!mapInstanceRef.current || !journey) return;
+    const points: [number, number][] = [
+      [journey.from.lat, journey.from.lng],
+      [journey.to.lat, journey.to.lng],
+      ...journey.legs.flatMap((leg) => leg.path),
+    ];
+    mapInstanceRef.current.fitBounds(L.latLngBounds(points), TRIP_FIT);
+  };
+
   const handleFitRoute = () => {
     if (mapInstanceRef.current && routeDir.path.length > 0) {
       mapInstanceRef.current.fitBounds(L.latLngBounds(routeDir.path), { padding: [30, 30] });
@@ -350,7 +469,9 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
           <span
             className={`w-2.5 h-2.5 rounded-full shrink-0 ${incomingBuses.length ? 'bg-green-blue animate-pulse' : 'bg-warm-300'}`}
           />
-          <span className="font-bold text-sm text-warm-900 truncate">Bus {route.serviceNo} Live Map</span>
+          <span className="font-bold text-sm text-warm-900 truncate">
+            {journey ? `Trip to ${journey.to.name}` : `Bus ${route.serviceNo} Live Map`}
+          </span>
           <span className="bg-helvetia-100 text-helvetia-900 text-[11px] font-bold px-2 py-0.5 rounded-md shrink-0">
             {incomingBuses.length
               ? `${incomingBuses.length} bus${incomingBuses.length > 1 ? 'es' : ''} tracked`
@@ -383,6 +504,12 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
             <Locate className="w-3.5 h-3.5 text-green-blue" />
             <span className="hidden sm:inline">Me</span>
           </button>
+          {journey && (
+            <button onClick={handleFitTrip} className={actionClass} title="Show the whole trip" aria-label="Show the whole trip">
+              <Route className="w-3.5 h-3.5 text-helvetia" />
+              <span className="hidden sm:inline">Trip</span>
+            </button>
+          )}
           <button onClick={handleFitRoute} className={actionClass} title="Fit whole route" aria-label="Fit whole route">
             <Maximize2 className="w-3.5 h-3.5 text-warm-600" />
             <span className="hidden sm:inline">Full Route</span>
@@ -408,6 +535,20 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
             <span className="w-3 h-3 rounded-md bg-helvetia inline-block shadow-2xs shrink-0" />
             <span className="text-warm-700">Bus (live GPS)</span>
           </div>
+          {journey && (
+            <>
+              {journey.legs.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="w-4 h-[5px] rounded-full bg-lemon ring-2 ring-helvetia-950 inline-block shrink-0" />
+                  <span className="text-warm-700">Your bus</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-0 border-t-[3px] border-dotted border-green-blue-ink inline-block shrink-0" />
+                <span className="text-warm-700">Walk (straight line)</span>
+              </div>
+            </>
+          )}
           {incidents.length > 0 && (
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-amber-400 text-[8px] font-black flex items-center justify-center shrink-0">!</span>

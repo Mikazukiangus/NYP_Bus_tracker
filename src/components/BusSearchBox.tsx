@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Search, ArrowRightLeft, Sparkles, X } from 'lucide-react';
+import { Search, ArrowRightLeft, Sparkles, X, MapPinned, Flag } from 'lucide-react';
 import { BusRoute } from '../types/bus';
+import type { BusNetwork, NearbyService, NearbyServicesResult } from '../services/busNetwork';
+import type { PlaceResult } from '../services/placeSearch';
+import { PlaceSearch } from './PlaceSearch';
 
 interface BusSearchBoxProps {
   busNumber: string;
@@ -9,10 +12,21 @@ interface BusSearchBoxProps {
   currentRoute: BusRoute;
   direction: number;
   setDirection: (dir: number) => void;
+  // Services at stops around the user's location; null while the bus network loads, undefined if unavailable
+  nearby: NearbyServicesResult | null | undefined;
+  locationName: string;
+  onSelectNearby: (service: NearbyService) => void;
+  network: BusNetwork | null;
+  destination: PlaceResult | null;
+  onSetDestination: (place: PlaceResult) => void;
+  onClearDestination: () => void;
+  recentPlaces: PlaceResult[];
 }
 
-// 72, 45, 50 and 159 serve Nanyang Poly stops (55329 / 55321 / 54351)
+// Shown only if the bus network data can't be loaded: 72, 45, 50 and 159 serve Nanyang Poly stops
 const POPULAR_NUMBERS = ['72', '45', '50', '159', '14', '65', '147', '190', '857'];
+
+const formatMetres = (m: number) => (m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`);
 
 export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
   busNumber,
@@ -20,7 +34,15 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
   onSearch,
   currentRoute,
   direction,
-  setDirection
+  setDirection,
+  nearby,
+  locationName,
+  onSelectNearby,
+  network,
+  destination,
+  onSetDestination,
+  onClearDestination,
+  recentPlaces,
 }) => {
   const [inputVal, setInputVal] = useState(busNumber);
 
@@ -49,71 +71,131 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
 
   return (
     <div className="bg-white rounded-2xl border border-warm-200/90 shadow-sm p-3.5 sm:p-5">
-      {/* Search Input Bar */}
-      <form onSubmit={handleSubmit} className="relative">
-        <label htmlFor="bus-search-input" className="sr-only sm:not-sr-only sm:block text-xs font-semibold text-warm-700 uppercase tracking-wider sm:mb-1.5">
-          Find Bus Service
-        </label>
-        <div className="relative flex items-center">
-          <div className="absolute left-3.5 text-warm-500 pointer-events-none flex items-center">
-            <Search className="w-5 h-5" />
+      <h2 className="text-xs font-semibold text-warm-700 uppercase tracking-wider mb-2">Find Bus Service</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 md:gap-3">
+        {/* Bus number */}
+        <form onSubmit={handleSubmit} className="relative">
+          <label htmlFor="bus-search-input" className="block text-[11px] font-semibold text-warm-600 mb-1">
+            Bus number
+          </label>
+          <div className="relative flex items-center">
+            <div className="absolute left-3.5 text-warm-500 pointer-events-none flex items-center">
+              <Search className="w-5 h-5" />
+            </div>
+            <input
+              id="bus-search-input"
+              type="text"
+              value={inputVal}
+              onChange={(e) => setInputVal(e.target.value)}
+              placeholder="e.g. 72"
+              enterKeyHint="search"
+              className="w-full pl-11 pr-24 py-3 bg-warm-50 border border-warm-300 rounded-xl text-base sm:text-lg font-bold text-warm-900 placeholder:text-warm-500 placeholder:font-normal focus:bg-white focus:outline-none focus:ring-2 focus:ring-helvetia focus:border-transparent transition-all"
+              autoComplete="off"
+            />
+
+            {inputVal && (
+              <button
+                type="button"
+                aria-label="Clear bus number"
+                onClick={() => {
+                  setInputVal('');
+                }}
+                className="absolute right-20 text-warm-500 hover:text-warm-600 p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+
+            <button
+              type="submit"
+              className="absolute right-1.5 px-4 py-2 bg-lemon hover:bg-lemon-hover text-helvetia-950 rounded-lg text-sm font-bold transition-all shadow-xs"
+            >
+              Track
+            </button>
           </div>
-          <input
-            id="bus-search-input"
-            type="text"
-            value={inputVal}
-            onChange={(e) => setInputVal(e.target.value)}
-            placeholder="Bus number, e.g. 72"
-            enterKeyHint="search"
-            className="w-full pl-11 pr-24 py-3 sm:py-3.5 bg-warm-50 border border-warm-300 rounded-xl text-base sm:text-lg font-bold text-warm-900 placeholder:text-warm-500 placeholder:font-normal focus:bg-white focus:outline-none focus:ring-2 focus:ring-helvetia focus:border-transparent transition-all"
-            autoComplete="off"
+        </form>
+
+        {/* Destination */}
+        <div>
+          <span className="block text-[11px] font-semibold text-warm-600 mb-1">Where to?</span>
+          <PlaceSearch
+            network={network}
+            onSelect={onSetDestination}
+            onClear={onClearDestination}
+            value={destination?.name ?? ''}
+            recent={recentPlaces}
+            label="Destination"
+            placeholder="Place, address or postal code"
+            icon={<Flag className="w-5 h-5" />}
+            inputClassName="py-3 text-base font-semibold"
           />
-
-          {inputVal && (
-            <button
-              type="button"
-              aria-label="Clear bus number"
-              onClick={() => {
-                setInputVal('');
-              }}
-              className="absolute right-20 text-warm-500 hover:text-warm-600 p-1"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-
-          <button
-            type="submit"
-            className="absolute right-1.5 px-4 py-2 bg-lemon hover:bg-lemon-hover text-helvetia-950 rounded-lg text-sm font-bold transition-all shadow-xs"
-          >
-            Track
-          </button>
         </div>
-      </form>
+      </div>
 
-      {/* Popular Chips */}
+      {/* Services at stops around the user */}
       <div className="mt-2.5 sm:mt-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
-        <span className="text-[11px] font-medium text-warm-500 flex items-center gap-1 shrink-0 mr-1">
-          <Sparkles className="w-3 h-3 text-green-blue" />
-          Popular:
-        </span>
-        {POPULAR_NUMBERS.map((num) => {
-          const isActive = currentRoute.serviceNo === num;
-          return (
-            <button
-              key={num}
-              type="button"
-              onClick={() => handleSelectQuick(num)}
-              className={`px-3 py-1.5 sm:px-2.5 sm:py-1 rounded-lg text-xs font-bold transition-all shrink-0 ${
-                isActive
-                  ? 'bg-helvetia text-white shadow-xs scale-105'
-                  : 'bg-warm-100 hover:bg-warm-200 text-warm-700'
-              }`}
+        {nearby === null ? (
+          <>
+            <span className="text-[11px] font-medium text-warm-500 flex items-center gap-1 shrink-0 mr-1">
+              <MapPinned className="w-3 h-3 text-green-blue" />
+              Buses near you:
+            </span>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <span key={i} className="w-10 h-7 rounded-lg bg-warm-100 animate-pulse shrink-0" />
+            ))}
+          </>
+        ) : nearby && nearby.services.length > 0 ? (
+          <>
+            <span
+              className="text-[11px] font-medium text-warm-500 flex items-center gap-1 shrink-0 mr-1"
+              title={`Services at the ${nearby.stopCount} bus stops within ${formatMetres(nearby.radiusM)} of ${locationName}`}
             >
-              {num}
-            </button>
-          );
-        })}
+              <MapPinned className="w-3 h-3 text-green-blue" />
+              <span>
+                Near you<span className="hidden sm:inline"> (within {formatMetres(nearby.radiusM)})</span>:
+              </span>
+            </span>
+            {nearby.services.map((svc) => {
+              const isActive = currentRoute.serviceNo.toUpperCase() === svc.serviceNo.toUpperCase();
+              return (
+                <button
+                  key={svc.serviceNo}
+                  type="button"
+                  onClick={() => onSelectNearby(svc)}
+                  title={`Bus ${svc.serviceNo} from ${svc.stop.name} (${svc.stop.code}), ${formatMetres(svc.distanceM)} away`}
+                  aria-label={`Bus ${svc.serviceNo}, from ${svc.stop.name}, ${formatMetres(svc.distanceM)} away`}
+                  className={`px-3 py-1.5 sm:px-2.5 sm:py-1 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                    isActive ? 'bg-helvetia text-white shadow-xs' : 'bg-warm-100 hover:bg-warm-200 text-warm-700'
+                  }`}
+                >
+                  {svc.serviceNo}
+                </button>
+              );
+            })}
+          </>
+        ) : (
+          <>
+            <span className="text-[11px] font-medium text-warm-500 flex items-center gap-1 shrink-0 mr-1">
+              <Sparkles className="w-3 h-3 text-green-blue" />
+              Popular:
+            </span>
+            {POPULAR_NUMBERS.map((num) => {
+              const isActive = currentRoute.serviceNo === num;
+              return (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => handleSelectQuick(num)}
+                  className={`px-3 py-1.5 sm:px-2.5 sm:py-1 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                    isActive ? 'bg-helvetia text-white shadow-xs' : 'bg-warm-100 hover:bg-warm-200 text-warm-700'
+                  }`}
+                >
+                  {num}
+                </button>
+              );
+            })}
+          </>
+        )}
       </div>
 
       {/* Route Direction Switcher */}

@@ -5,7 +5,7 @@ import { BusArrivalInfo } from '../types/bus';
 export const formatEta = (minutes: number) => (minutes <= 0 ? 'Arr' : `${minutes} min`);
 
 // Whether LTA's estimate is based on the bus's live GPS position or only on the timetable
-export const TrackingBadge: React.FC<{ bus: BusArrivalInfo; compact?: boolean }> = ({ bus, compact }) =>
+export const TrackingBadge: React.FC<{ bus: Pick<BusArrivalInfo, 'monitored'>; compact?: boolean }> = ({ bus, compact }) =>
   bus.monitored ? (
     <span
       className="inline-flex items-center gap-1 text-[10px] font-bold text-green-blue-ink"

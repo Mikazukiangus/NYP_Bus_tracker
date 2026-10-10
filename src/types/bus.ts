@@ -93,8 +93,24 @@ export interface UserLocation {
   lat: number;
   lng: number;
   name: string;
-  isSimulated: boolean;
+  isSimulated: boolean; // false only for the device's own GPS position
   accuracyMeters?: number;
+  kind?: 'place' | 'address' | 'postal' | 'stop'; // how a searched location was found
+  address?: string;
+}
+
+// A planned trip drawn on the map: walk to the first stop, one or two bus legs, walk to the destination
+export interface JourneyOverlay {
+  id: string;
+  from: { lat: number; lng: number; name: string };
+  to: { lat: number; lng: number; name: string };
+  legs: {
+    serviceNo: string;
+    board: { code: string; name: string; lat: number; lng: number };
+    alight: { code: string; name: string; lat: number; lng: number };
+    path: [number, number][];
+    followsRoads: boolean;
+  }[];
 }
 
 export interface FavoriteItem {
