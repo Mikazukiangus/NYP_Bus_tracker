@@ -171,6 +171,41 @@ export async function fetchLTABusArrivals(
   };
 }
 
+export type BusRouteLookup =
+  | { status: 'ok'; route: BusRoute }
+  | { status: 'not_found' }
+  | { status: 'unavailable' };
+
+// Fetch the real stop sequence for a service from /api/bus-route (LTA DataMall BusRoutes + BusStops)
+export async function fetchBusRoute(serviceNo: string): Promise<BusRouteLookup> {
+  try {
+    const controller = new AbortController();
+    // A cold serverless instance has to page through all LTA route data, so allow extra time
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    const res = await fetch(`/api/bus-route?ServiceNo=${encodeURIComponent(serviceNo)}`, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (res.status === 404) return { status: 'not_found' };
+    if (!res.ok) return { status: 'unavailable' };
+
+    const data = await res.json();
+    if (!data?.direction1?.stops?.length) return { status: 'unavailable' };
+    return { status: 'ok', route: data as BusRoute };
+  } catch {
+    return { status: 'unavailable' };
+  }
+}
+
+// Pick the direction whose nearest stop is closest to the user
+export function pickNearestDirection(route: BusRoute, userLat: number, userLng: number): number {
+  if (!route.direction2) return 1;
+  const d1 = findNearestBusStop(route, 1, userLat, userLng).distanceMeters;
+  const d2 = findNearestBusStop(route, 2, userLat, userLng).distanceMeters;
+  return d2 < d1 ? 2 : 1;
+}
+
 // Generate live moving buses along the route coordinates
 export function initLiveBuses(route: BusRoute, direction: number): LiveBus[] {
   const routeDir = direction === 2 && route.direction2 ? route.direction2 : route.direction1;

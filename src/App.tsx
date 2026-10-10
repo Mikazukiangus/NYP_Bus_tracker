@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   BusRoute,
   BusStop,
@@ -9,7 +9,6 @@ import {
   UserLocation
 } from './types/bus';
 import {
-  POPULAR_ROUTES,
   SINGAPORE_LOCATIONS,
   getOrCreateBusRoute
 } from './data/singaporeBuses';
@@ -17,6 +16,8 @@ import {
   findNearestBusStop,
   generateArrivalTimings,
   fetchLTABusArrivals,
+  fetchBusRoute,
+  pickNearestDirection,
   initLiveBuses,
   stepLiveBuses
 } from './services/busTrackerService';
@@ -39,10 +40,60 @@ export default function App() {
   const [userLocation, setUserLocation] = useState<UserLocation>(SINGAPORE_LOCATIONS[0]);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 
-  // Active Bus Service & Route (Default: 72 NYP / Tampines)
+  const userLocationRef = useRef(userLocation);
+  userLocationRef.current = userLocation;
+
+  // Active Bus Service & Route (Default: 72, which stops at NYP on Ang Mo Kio Ave 8 / Ave 5).
+  // The bundled route is only an offline placeholder until the real LTA route loads.
   const [busNumber, setBusNumber] = useState<string>('72');
   const [direction, setDirection] = useState<number>(1);
-  const currentRoute = useMemo(() => getOrCreateBusRoute(busNumber), [busNumber]);
+  const [currentRoute, setCurrentRoute] = useState<BusRoute>(() => getOrCreateBusRoute('72'));
+  const [isRouteLoading, setIsRouteLoading] = useState(false);
+  const [routeNotice, setRouteNotice] = useState<string | null>(null);
+  const routeRequestId = useRef(0);
+  const currentRouteRef = useRef(currentRoute);
+  currentRouteRef.current = currentRoute;
+
+  // Selected stop code (null = follow the nearest stop; user can pick any other stop)
+  const [selectedStopCode, setSelectedStopCode] = useState<string | null>(null);
+
+  // Load a service's real stop sequence from LTA DataMall, falling back to bundled data if offline
+  const loadRoute = useCallback(
+    async (serviceNo: string, opts: { direction?: number; stopCode?: string } = {}) => {
+      const requestId = ++routeRequestId.current;
+      setIsRouteLoading(true);
+      const result = await fetchBusRoute(serviceNo);
+      if (requestId !== routeRequestId.current) return;
+      setIsRouteLoading(false);
+
+      if (result.status === 'not_found') {
+        setRouteNotice(`Bus ${serviceNo.toUpperCase()} is not a current LTA bus service. Please check the number.`);
+        return;
+      }
+
+      const route =
+        result.status === 'ok' ? { ...result.route, source: 'LTA_DATAMALL' as const } : getOrCreateBusRoute(serviceNo);
+      setRouteNotice(
+        result.status === 'ok'
+          ? null
+          : `Live LTA route data is unavailable right now, so the stops shown for Bus ${route.serviceNo} are approximate.`
+      );
+      const loc = userLocationRef.current;
+      setCurrentRoute(route);
+      setBusNumber(route.serviceNo);
+      setDirection(opts.direction ?? pickNearestDirection(route, loc.lat, loc.lng));
+      setSelectedStopCode(opts.stopCode ?? null);
+    },
+    []
+  );
+
+  useEffect(() => {
+    loadRoute('72');
+  }, [loadRoute]);
+
+  const routeDir = useMemo(() => {
+    return direction === 2 && currentRoute.direction2 ? currentRoute.direction2 : currentRoute.direction1;
+  }, [currentRoute, direction]);
 
   // Find nearest stop based on userLocation
   const nearestResult = useMemo(() => {
@@ -53,13 +104,26 @@ export default function App() {
   const distanceMeters = nearestResult.distanceMeters;
   const stopsWithDistance = nearestResult.allStopsWithDistance;
 
-  // Selected stop (defaults to nearest stop, but user can click any other stop)
-  const [selectedStop, setSelectedStop] = useState<BusStop>(nearestStop);
+  const selectedStop = useMemo<BusStop>(
+    () => routeDir.stops.find((s) => s.code === selectedStopCode) ?? nearestStop,
+    [routeDir, selectedStopCode, nearestStop]
+  );
 
-  // Synchronize selectedStop when nearestStop changes
-  useEffect(() => {
-    setSelectedStop(nearestStop);
-  }, [nearestStop]);
+  const handleSelectStop = useCallback((stop: BusStop) => {
+    setSelectedStopCode(stop.code);
+  }, []);
+
+  const handleSetDirection = useCallback((dir: number) => {
+    setDirection(dir);
+    setSelectedStopCode(null);
+  }, []);
+
+  // Changing location re-targets the nearest stop and the direction closest to the user
+  const applyUserLocation = useCallback((loc: UserLocation) => {
+    setUserLocation(loc);
+    setSelectedStopCode(null);
+    setDirection(pickNearestDirection(currentRouteRef.current, loc.lat, loc.lng));
+  }, []);
 
   // Live Moving Buses on the map
   const [liveBuses, setLiveBuses] = useState<LiveBus[]>(() =>
@@ -84,10 +148,6 @@ export default function App() {
   const [refreshCount, setRefreshCount] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [dataSource, setDataSource] = useState<'LTA_DATAMALL_V3' | 'FALLBACK_SIMULATED'>('LTA_DATAMALL_V3');
-
-  const routeDir = useMemo(() => {
-    return direction === 2 && currentRoute.direction2 ? currentRoute.direction2 : currentRoute.direction1;
-  }, [currentRoute, direction]);
 
   const [arrivals, setArrivals] = useState<BusServiceArrivals>(() => {
     const { nextBus, nextBus2, nextBus3 } = generateArrivalTimings(
@@ -183,16 +243,16 @@ export default function App() {
     } catch {
       // ignore
     }
-    // Seed default favorite (Bus 72 at Nanyang Poly)
+    // Seed default favorite (Bus 72 at Nanyang Poly, towards Tampines)
     return [
       {
-        id: 'fav-72-55189',
+        id: 'fav-72-55329',
         serviceNo: '72',
-        stopCode: '55189',
-        stopName: 'Nanyang Poly (Main Gate)',
+        stopCode: '55329',
+        stopName: 'Nanyang Poly',
         roadName: 'Ang Mo Kio Ave 8',
         direction: 1,
-        destination: 'Tampines Bus Interchange',
+        destination: 'Tampines Int',
         savedAt: Date.now(),
       },
     ];
@@ -216,7 +276,6 @@ export default function App() {
   }, [favorites, currentRoute.serviceNo, selectedStop.code]);
 
   const handleToggleFavorite = () => {
-    const routeDir = direction === 2 && currentRoute.direction2 ? currentRoute.direction2 : currentRoute.direction1;
     if (isCurrentFavorite) {
       saveFavorites(
         favorites.filter(
@@ -243,14 +302,7 @@ export default function App() {
   };
 
   const handleSelectFavorite = (fav: FavoriteItem) => {
-    setBusNumber(fav.serviceNo);
-    setDirection(fav.direction);
-    const newRoute = getOrCreateBusRoute(fav.serviceNo);
-    const routeDir = fav.direction === 2 && newRoute.direction2 ? newRoute.direction2 : newRoute.direction1;
-    const match = routeDir.stops.find((s) => s.code === fav.stopCode);
-    if (match) {
-      setSelectedStop(match);
-    }
+    loadRoute(fav.serviceNo, { direction: fav.direction, stopCode: fav.stopCode });
   };
 
   // UI Active Tab: 'arrivals' | 'map' | 'stops' | 'weather'
@@ -258,8 +310,7 @@ export default function App() {
 
   // Handle bus number search submission
   const handleSearchBus = (num: string) => {
-    setBusNumber(num);
-    setDirection(1);
+    loadRoute(num);
   };
 
   // Attempt silent GPS on mount if available
@@ -270,7 +321,7 @@ export default function App() {
           // If within Singapore bounding box (approx 1.15 to 1.48 lat, 103.6 to 104.05 lng)
           const { latitude, longitude } = pos.coords;
           if (latitude >= 1.15 && latitude <= 1.48 && longitude >= 103.55 && longitude <= 104.1) {
-            setUserLocation({
+            applyUserLocation({
               name: 'My GPS Location',
               lat: latitude,
               lng: longitude,
@@ -284,7 +335,7 @@ export default function App() {
         { enableHighAccuracy: true, timeout: 5000 }
       );
     }
-  }, []);
+  }, [applyUserLocation]);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
@@ -330,14 +381,27 @@ export default function App() {
           onSearch={handleSearchBus}
           currentRoute={currentRoute}
           direction={direction}
-          setDirection={setDirection}
+          setDirection={handleSetDirection}
         />
+
+        {(isRouteLoading || routeNotice) && (
+          <div
+            className={`rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs border ${
+              routeNotice && !isRouteLoading
+                ? 'bg-amber-50 border-amber-200 text-amber-900'
+                : 'bg-slate-50 border-slate-200 text-slate-600'
+            }`}
+          >
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{isRouteLoading ? 'Loading route stops from LTA DataMall...' : routeNotice}</span>
+          </div>
+        )}
 
         {/* Nearest Bus Stop Highlight Banner */}
         <NearestStopBanner
           nearestStop={nearestStop}
           selectedStop={selectedStop}
-          onSelectStop={setSelectedStop}
+          onSelectStop={handleSelectStop}
           distanceMeters={distanceMeters}
           userLocation={userLocation}
           isFavorite={isCurrentFavorite}
@@ -366,7 +430,7 @@ export default function App() {
                   direction={direction}
                   nearestStop={nearestStop}
                   selectedStop={selectedStop}
-                  onSelectStop={setSelectedStop}
+                  onSelectStop={handleSelectStop}
                   userLocation={userLocation}
                   liveBuses={liveBuses}
                 />
@@ -424,7 +488,7 @@ export default function App() {
               direction={direction}
               nearestStop={nearestStop}
               selectedStop={selectedStop}
-              onSelectStop={setSelectedStop}
+              onSelectStop={handleSelectStop}
               userLocation={userLocation}
               liveBuses={liveBuses}
             />
@@ -447,7 +511,7 @@ export default function App() {
                 direction={direction}
                 nearestStop={nearestStop}
                 selectedStop={selectedStop}
-                onSelectStop={setSelectedStop}
+                onSelectStop={handleSelectStop}
                 stopsWithDistance={stopsWithDistance}
               />
             </div>
@@ -527,9 +591,7 @@ export default function App() {
         isOpen={isLocationModalOpen}
         onClose={() => setIsLocationModalOpen(false)}
         currentLocation={userLocation}
-        onSelectLocation={(loc) => {
-          setUserLocation(loc);
-        }}
+        onSelectLocation={applyUserLocation}
       />
     </div>
   );

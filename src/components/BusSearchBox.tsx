@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search, ArrowRightLeft, Sparkles, X } from 'lucide-react';
 import { BusRoute } from '../types/bus';
-import { POPULAR_ROUTES } from '../data/singaporeBuses';
 
 interface BusSearchBoxProps {
   busNumber: string;
@@ -12,7 +11,8 @@ interface BusSearchBoxProps {
   setDirection: (dir: number) => void;
 }
 
-const POPULAR_NUMBERS = ['72', '159', '76', '14', '65', '147', '190', '857'];
+// 72, 45, 50 and 159 serve Nanyang Poly stops (55329 / 55321 / 54351)
+const POPULAR_NUMBERS = ['72', '45', '50', '159', '14', '65', '147', '190', '857'];
 
 export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
   busNumber,
@@ -23,6 +23,11 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
   setDirection
 }) => {
   const [inputVal, setInputVal] = useState(busNumber);
+
+  // Keep the input in sync when the service changes elsewhere (e.g. a favourite is opened)
+  useEffect(() => {
+    setInputVal(busNumber);
+  }, [busNumber]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

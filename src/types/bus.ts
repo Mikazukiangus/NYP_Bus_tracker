@@ -59,6 +59,7 @@ export interface BusRoute {
   serviceNo: string;
   operator: BusOperator;
   category: 'Trunk' | 'Feeder' | 'Express';
+  source?: 'LTA_DATAMALL' | 'OFFLINE';
   direction1: {
     origin: string;
     destination: string;

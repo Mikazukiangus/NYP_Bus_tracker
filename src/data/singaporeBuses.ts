@@ -146,39 +146,109 @@ export const POPULAR_ROUTES: Record<string, BusRoute> = {
     serviceNo: '72',
     operator: 'SBST',
     category: 'Trunk',
+    // Real LTA stop sequence (Yio Chu Kang Int <-> Tampines Int via Nanyang Poly), offline fallback only
     direction1: {
-      origin: 'Yio Chu Kang Bus Interchange',
-      destination: 'Tampines Bus Interchange',
+      origin: 'Yio Chu Kang Int',
+      destination: 'Tampines Int',
       stops: [
-        { code: '55171', name: 'Yio Chu Kang Interchange', road: 'Ang Mo Kio Ave 8', lat: 1.3818, lng: 103.8448, sheltered: true },
-        { code: '55189', name: 'Nanyang Poly (Main Gate)', road: 'Ang Mo Kio Ave 8', lat: 1.3800, lng: 103.8489, sheltered: true },
-        { code: '55181', name: 'Opp Nanyang Poly', road: 'Ang Mo Kio Ave 8', lat: 1.3792, lng: 103.8495, sheltered: true },
-        { code: '55209', name: 'Blk 502', road: 'Ang Mo Kio Ave 5', lat: 1.3765, lng: 103.8560, sheltered: true },
-        { code: '55219', name: 'Blk 522', road: 'Ang Mo Kio Ave 5', lat: 1.3768, lng: 103.8615, sheltered: true },
-        { code: '64109', name: 'Hougang Stn Exit B', road: 'Upper Serangoon Rd', lat: 1.3695, lng: 103.8890, sheltered: true },
-        { code: '64009', name: 'Hougang Central Int', road: 'Hougang Ctrl', lat: 1.3712, lng: 103.8925, sheltered: true },
-        { code: '75009', name: 'Tampines Interchange', road: 'Tampines Ctrl 1', lat: 1.3533, lng: 103.9450, sheltered: true },
+        { code: '55509', name: 'Yio Chu Kang Int', road: 'Ang Mo Kio Ave 8', lat: 1.38262, lng: 103.84471 },
+        { code: '55329', name: 'Nanyang Poly', road: 'Ang Mo Kio Ave 8', lat: 1.37902, lng: 103.84723 },
+        { code: '54351', name: 'Nanyang Poly', road: 'Ang Mo Kio Ave 5', lat: 1.37648, lng: 103.85003 },
+        { code: '54471', name: 'Opp Blk 538', road: 'Ang Mo Kio Ave 5', lat: 1.37613, lng: 103.8533 },
+        { code: '54481', name: 'ITE Coll Ctrl', road: 'Ang Mo Kio Ave 5', lat: 1.37599, lng: 103.85577 },
+        { code: '54491', name: 'Aft CTE', road: 'Ang Mo Kio Ave 5', lat: 1.37717, lng: 103.8601 },
+        { code: '54501', name: 'Opp AMK Ind Pk 2', road: 'Ang Mo Kio Ave 5', lat: 1.37787, lng: 103.86266 },
+        { code: '54651', name: 'Opp Techplace 2', road: 'Ang Mo Kio Ave 5', lat: 1.37854, lng: 103.86552 },
+        { code: '66451', name: 'Aft AMK Ind Pk 2', road: 'Ang Mo Kio Ave 5', lat: 1.37872, lng: 103.86854 },
+        { code: '66461', name: 'Ang Mo Kio Linear Pk', road: 'Ang Mo Kio Ave 5', lat: 1.37889, lng: 103.87128 },
+        { code: '66471', name: 'Bef Yio Chu Kang Rd', road: 'Ang Mo Kio Ave 5', lat: 1.37896, lng: 103.87436 },
+        { code: '64119', name: 'Blk 953', road: 'Yio Chu Kang Rd', lat: 1.37679, lng: 103.87714 },
+        { code: '64491', name: 'Hougang 1', road: 'Hougang Ave 9', lat: 1.37513, lng: 103.87905 },
+        { code: '64481', name: 'Bet Blks 930/931', road: 'Hougang Ave 9', lat: 1.37514, lng: 103.88079 },
+        { code: '64471', name: 'Blk 917', road: 'Hougang Ave 9', lat: 1.37455, lng: 103.88397 },
+        { code: '64419', name: 'Blk 681', road: 'Hougang Ave 4', lat: 1.37339, lng: 103.88522 },
+        { code: '64331', name: 'Blk 508', road: 'Hougang Ave 4', lat: 1.37144, lng: 103.88806 },
+        { code: '64521', name: 'Blk 834', road: 'Hougang Ave 4', lat: 1.36984, lng: 103.88957 },
+        { code: '64559', name: 'Blk 830A', road: 'Hougang Ctrl', lat: 1.37055, lng: 103.89091 },
+        { code: '64549', name: 'Opp Hougang Ctrl Int', road: 'Hougang Ctrl', lat: 1.37148, lng: 103.89229 },
+        { code: '64019', name: 'Blk 302', road: "Upp S'goon Rd", lat: 1.36831, lng: 103.89394 },
+        { code: '63069', name: 'Blk 25', road: "Upp S'goon Rd", lat: 1.36638, lng: 103.89195 },
+        { code: '63249', name: 'Blk 1', road: 'Hougang Ave 3', lat: 1.36396, lng: 103.89261 },
+        { code: '64201', name: 'Aft Hougang Ave 3', road: 'Tampines Rd', lat: 1.36173, lng: 103.89421 },
+        { code: '64211', name: 'Aft Hougang Ave 7', road: 'Tampines Rd', lat: 1.3622, lng: 103.89765 },
+        { code: '64221', name: 'Opp Defu Ave 2', road: 'Tampines Rd', lat: 1.36264, lng: 103.90086 },
+        { code: '64131', name: 'Bef KPE', road: 'Tampines Rd', lat: 1.36302, lng: 103.90351 },
+        { code: '64141', name: 'Aft Jln Telawi', road: 'Tampines Rd', lat: 1.36467, lng: 103.9082 },
+        { code: '64151', name: 'Aft Greenwich Dr', road: 'Tampines Rd', lat: 1.36812, lng: 103.90985 },
+        { code: '64161', name: 'Schenker', road: 'Tampines Rd', lat: 1.37191, lng: 103.91143 },
+        { code: '64171', name: 'Aft Buangkok East Dr', road: 'Tampines Rd', lat: 1.37401, lng: 103.91235 },
+        { code: '64181', name: 'Bef TPE', road: 'Tampines Rd', lat: 1.37652, lng: 103.91336 },
+        { code: '64191', name: 'Aft Goldhill Memorial Ctr', road: 'Tampines Rd', lat: 1.37947, lng: 103.91593 },
+        { code: '73021', name: 'Bef Tampines Ind Dr', road: 'Tampines Rd', lat: 1.37991, lng: 103.91861 },
+        { code: '73031', name: 'Aft Tampines Ind Dr', road: 'Tampines Rd', lat: 1.37606, lng: 103.92002 },
+        { code: '74011', name: 'Aft Tampines Ind Ave 5', road: 'Tampines Rd', lat: 1.37329, lng: 103.92045 },
+        { code: '74021', name: 'Bef Tampines Ind Ave 4', road: 'Tampines Rd', lat: 1.37043, lng: 103.92278 },
+        { code: '74031', name: 'Bef Tampines Lk', road: 'Tampines Rd', lat: 1.36763, lng: 103.9257 },
+        { code: '74051', name: 'Tampines Dormitory', road: 'Tampines Rd', lat: 1.36636, lng: 103.92934 },
+        { code: '75299', name: 'Bef Tampines Ave 9', road: 'Tampines Ave 10', lat: 1.36412, lng: 103.93112 },
+        { code: '75289', name: 'Opp Blks 741/742', road: 'Tampines Ave 9', lat: 1.36046, lng: 103.93332 },
+        { code: '75279', name: 'Opp Blk 721', road: 'Tampines Ave 9', lat: 1.36047, lng: 103.9362 },
+        { code: '75269', name: 'Blk 522 CP', road: 'Tampines Ave 6', lat: 1.3586, lng: 103.93815 },
+        { code: '75121', name: 'Opp Darul Ghufran Mque', road: 'Tampines Ave 5', lat: 1.35593, lng: 103.93903 },
+        { code: '75009', name: 'Tampines Int', road: 'Tampines Ctrl 1', lat: 1.35408, lng: 103.94339 },
       ],
-      path: [
-        [1.3818, 103.8448], [1.3800, 103.8489], [1.3792, 103.8495], [1.3765, 103.8560],
-        [1.3768, 103.8615], [1.3695, 103.8890], [1.3712, 103.8925], [1.3533, 103.9450]
-      ]
+      path: []
     },
     direction2: {
-      origin: 'Tampines Bus Interchange',
-      destination: 'Yio Chu Kang Bus Interchange',
+      origin: 'Tampines Int',
+      destination: 'Yio Chu Kang Int',
       stops: [
-        { code: '75009', name: 'Tampines Interchange', road: 'Tampines Ctrl 1', lat: 1.3533, lng: 103.9450, sheltered: true },
-        { code: '64009', name: 'Hougang Central Int', road: 'Hougang Ctrl', lat: 1.3712, lng: 103.8925, sheltered: true },
-        { code: '55211', name: 'Opp Blk 522', road: 'Ang Mo Kio Ave 5', lat: 1.3769, lng: 103.8612, sheltered: true },
-        { code: '55181', name: 'Opp Nanyang Poly', road: 'Ang Mo Kio Ave 8', lat: 1.3792, lng: 103.8495, sheltered: true },
-        { code: '55189', name: 'Nanyang Poly (Main Gate)', road: 'Ang Mo Kio Ave 8', lat: 1.3800, lng: 103.8489, sheltered: true },
-        { code: '55171', name: 'Yio Chu Kang Interchange', road: 'Ang Mo Kio Ave 8', lat: 1.3818, lng: 103.8448, sheltered: true },
+        { code: '75009', name: 'Tampines Int', road: 'Tampines Ctrl 1', lat: 1.35408, lng: 103.94339 },
+        { code: '75129', name: 'Darul Ghufran Mque', road: 'Tampines Ave 5', lat: 1.35564, lng: 103.93937 },
+        { code: '75261', name: 'Blk 709', road: 'Tampines Ave 6', lat: 1.35802, lng: 103.93797 },
+        { code: '75271', name: 'Blk 721', road: 'Tampines Ave 9', lat: 1.36025, lng: 103.93601 },
+        { code: '75281', name: 'Blk 742A', road: 'Tampines Ave 9', lat: 1.36023, lng: 103.93364 },
+        { code: '75291', name: 'Aft Tampines Ave 9', road: 'Tampines Ave 10', lat: 1.36402, lng: 103.93075 },
+        { code: '74059', name: 'Opp Tampines Dormitory', road: 'Tampines Rd', lat: 1.36612, lng: 103.92922 },
+        { code: '74039', name: 'Aft Tampines Ind Ave 2', road: 'Tampines Rd', lat: 1.36708, lng: 103.92591 },
+        { code: '74029', name: 'Aft Tampines Ind Ave 4', road: 'Tampines Rd', lat: 1.37007, lng: 103.92289 },
+        { code: '74019', name: 'Bef Tampines Ind Ave 5', road: 'Tampines Rd', lat: 1.37359, lng: 103.92015 },
+        { code: '73039', name: 'Bef Tampines Ind Dr', road: 'Tampines Rd', lat: 1.37606, lng: 103.91984 },
+        { code: '73029', name: 'Aft Tampines Ind Dr', road: 'Tampines Rd', lat: 1.37989, lng: 103.91817 },
+        { code: '64199', name: 'Bef Goldhill Memorial Ctr', road: 'Tampines Rd', lat: 1.37918, lng: 103.91568 },
+        { code: '64189', name: 'Aft Old Tampines Rd', road: 'Tampines Rd', lat: 1.37693, lng: 103.91392 },
+        { code: '64179', name: 'Bef Buangkok East Dr', road: 'Tampines Rd', lat: 1.37421, lng: 103.91288 },
+        { code: '64169', name: 'Opp Schenker', road: 'Tampines Rd', lat: 1.37131, lng: 103.91147 },
+        { code: '64159', name: 'Bef Greenwich Dr', road: 'Tampines Rd', lat: 1.36751, lng: 103.90999 },
+        { code: '64149', name: 'LP 137', road: 'Tampines Rd', lat: 1.36509, lng: 103.9089 },
+        { code: '64139', name: 'Bef KPE', road: 'Tampines Rd', lat: 1.36324, lng: 103.90666 },
+        { code: '64229', name: 'Bef Defu Ave 2', road: 'Tampines Rd', lat: 1.36242, lng: 103.90226 },
+        { code: '64219', name: 'Aft Defu Ave 2', road: 'Tampines Rd', lat: 1.36195, lng: 103.89837 },
+        { code: '64209', name: 'Aft Defu Ave 1', road: 'Tampines Rd', lat: 1.36147, lng: 103.89453 },
+        { code: '63241', name: 'Blk 21', road: 'Hougang Ave 3', lat: 1.3641, lng: 103.89214 },
+        { code: '63061', name: 'Opp Blk 25', road: "Upp S'goon Rd", lat: 1.36624, lng: 103.89129 },
+        { code: '64011', name: 'Naung Residence', road: "Upp S'goon Rd", lat: 1.36756, lng: 103.89276 },
+        { code: '64541', name: 'Hougang Ctrl Int', road: 'Hougang Ctrl', lat: 1.37124, lng: 103.89281 },
+        { code: '64551', name: 'Blk 836', road: 'Hougang Ctrl', lat: 1.37035, lng: 103.89092 },
+        { code: '64529', name: 'Hougang Polyclinic', road: 'Hougang Ave 4', lat: 1.36993, lng: 103.88934 },
+        { code: '64339', name: 'Blk 602', road: 'Hougang Ave 4', lat: 1.37137, lng: 103.88703 },
+        { code: '64411', name: 'Blk 670', road: 'Hougang Ave 4', lat: 1.37353, lng: 103.88503 },
+        { code: '64479', name: 'Blk 665', road: 'Hougang Ave 9', lat: 1.3744, lng: 103.88354 },
+        { code: '64489', name: 'Blk 946A', road: 'Hougang Ave 9', lat: 1.37489, lng: 103.88068 },
+        { code: '64499', name: 'Regentville', road: 'Hougang Ave 9', lat: 1.37488, lng: 103.87829 },
+        { code: '64111', name: 'Opp Blk 953', road: 'Yio Chu Kang Rd', lat: 1.37594, lng: 103.87684 },
+        { code: '66479', name: 'Aft Yio Chu Kang Rd', road: 'Ang Mo Kio Ave 5', lat: 1.37864, lng: 103.8743 },
+        { code: '66459', name: 'Opp Ang Mo Kio Linear Pk', road: 'Ang Mo Kio Ave 5', lat: 1.37849, lng: 103.87075 },
+        { code: '54659', name: 'Techplace 2', road: 'Ang Mo Kio Ave 5', lat: 1.37834, lng: 103.86686 },
+        { code: '54509', name: 'Aft Blk 5000', road: 'Ang Mo Kio Ave 5', lat: 1.37759, lng: 103.86257 },
+        { code: '54499', name: 'Bef CTE', road: 'Ang Mo Kio Ave 5', lat: 1.37701, lng: 103.86055 },
+        { code: '54489', name: 'Opp ITE Coll Ctrl', road: 'Ang Mo Kio Ave 5', lat: 1.37568, lng: 103.85542 },
+        { code: '54479', name: 'Blk 538', road: 'Ang Mo Kio Ave 5', lat: 1.37579, lng: 103.8532 },
+        { code: '54359', name: 'Blk 502', road: 'Ang Mo Kio Ave 5', lat: 1.37615, lng: 103.84999 },
+        { code: '55321', name: 'Opp Nanyang Poly', road: 'Ang Mo Kio Ave 8', lat: 1.37836, lng: 103.84723 },
+        { code: '55509', name: 'Yio Chu Kang Int', road: 'Ang Mo Kio Ave 8', lat: 1.38262, lng: 103.84471 },
       ],
-      path: [
-        [1.3533, 103.9450], [1.3712, 103.8925], [1.3769, 103.8612], [1.3792, 103.8495],
-        [1.3800, 103.8489], [1.3818, 103.8448]
-      ]
+      path: []
     }
   },
   '14': {
@@ -487,8 +557,16 @@ export const POPULAR_ROUTES: Record<string, BusRoute> = {
 // Procedural realistic route generator for any other bus service entered (e.g. 2, 5, 12, 30, 51, 166, etc.)
 export function getOrCreateBusRoute(serviceNo: string): BusRoute {
   const cleanNo = serviceNo.trim().toUpperCase();
-  if (POPULAR_ROUTES[cleanNo]) {
-    return POPULAR_ROUTES[cleanNo];
+  const curated = POPULAR_ROUTES[cleanNo];
+  if (curated) {
+    const withPath = (dir: BusRoute['direction1']) =>
+      dir.path.length ? dir : { ...dir, path: dir.stops.map((s): [number, number] => [s.lat, s.lng]) };
+    return {
+      ...curated,
+      source: 'OFFLINE',
+      direction1: withPath(curated.direction1),
+      ...(curated.direction2 ? { direction2: withPath(curated.direction2) } : {}),
+    };
   }
 
   // Derive deterministic parameters from the string
@@ -543,6 +621,7 @@ export function getOrCreateBusRoute(serviceNo: string): BusRoute {
     serviceNo: cleanNo,
     operator,
     category: 'Trunk',
+    source: 'OFFLINE',
     direction1: {
       origin: origin.name,
       destination: dest.name,

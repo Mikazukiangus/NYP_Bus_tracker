@@ -140,6 +140,22 @@ This application is a real-time Singapore public bus tracking web app inspired b
 
 ---
 
+### Turn 9: Real LTA Route & Stop Data, Dependency Cleanup, NYP Stop Corrections
+- **User Prompt**:
+  > *"continue the project ... read COMMENTS.md"* → review found the NYP/Bus 72 stop data was fabricated; user approved fixes A–C and push.
+- **Findings**:
+  - Hardcoded stops `55189`/`55181`/`55171` were labelled "Nanyang Poly (Main Gate)" / "Opp Nanyang Poly" / "Yio Chu Kang Interchange", but are actually *Yio Chu Kang Stn*, *Opp Yio Chu Kang Stn* and *Castle Green*. Bus 72 does not call at them, so the default view was falling back to simulated arrivals.
+  - Real NYP stops: `55329` Nanyang Poly (AMK Ave 8, Bus 72 → Tampines), `55321` Opp Nanyang Poly (Bus 72 → Yio Chu Kang Int), `54351` Nanyang Poly (AMK Ave 5, Bus 45 / 50 / 72 / 159). Yio Chu Kang Int is `55509`.
+  - `npm install` failed on a clean checkout (esbuild 0.25 devDependency conflicted with Vite 8's esbuild peer range).
+- **Action & Implementation**:
+  - **A. Real route data** – new `/api/bus-route?ServiceNo=72` serverless endpoint pages through LTA DataMall `BusStops`, `BusRoutes` and `BusServices` (500 rows/page, 8 pages in parallel), caches them in memory per warm instance (12 h) and at the CDN (`s-maxage=86400, stale-while-revalidate=604800`). Returns a `BusRoute` with real stop codes, names, roads, coordinates and both directions; `404` for unknown services, `503` when `LTA_ACCOUNT_KEY` is missing. `maxDuration: 60` set in `vercel.json` for cold loads.
+  - Client (`src/App.tsx`, `src/services/busTrackerService.ts`) now loads routes via `fetchBusRoute()`, auto-picks the direction whose nearest stop is closest to the user, and tracks the selected stop by code (so favourites restore the right stop after the async load). Unknown bus numbers show a "not a current LTA bus service" notice instead of a made-up route; if the API is unreachable, the bundled data is used with an "approximate stops" notice.
+  - **B. Dependencies** – removed unused `@google/genai`, `autoprefixer` and the conflicting `esbuild` devDependency; renamed package to `bustrackersg`; regenerated `bun.lock` (the lockfile Vercel uses); trimmed `.env.example` to `LTA_ACCOUNT_KEY` / `PORT`.
+  - **C. NYP corrections** – Bus 72 offline fallback in `src/data/singaporeBuses.ts` replaced with the real 45/44-stop LTA sequence; default favourite is now Bus 72 @ `55329` Nanyang Poly; popular chips include NYP services 45, 50 and 159.
+- **Known remaining simulations**: map bus markers (`initLiveBuses`/`stepLiveBuses`), bus registration numbers, and favourites-modal arrival previews are still generated client-side. Other entries in `POPULAR_ROUTES` (14, 65, 147, ...) still contain approximate stops but are only used when `/api/bus-route` is unavailable.
+
+---
+
 ## 3. Architecture & API Endpoints Summary
 
 ### Serverless & Proxy Endpoints
@@ -147,11 +163,15 @@ This application is a real-time Singapore public bus tracking web app inspired b
 |---|---|---|---|
 | `/api/health` | GET | System and API health monitor | Self-test + Environment check |
 | `/api/bus-arrival` | GET | Live bus arrival times, load, and telemetry | Singapore LTA DataMall v3 |
+| `/api/bus-route` | GET | Real stop sequence (both directions) for a service | LTA DataMall BusRoutes + BusStops + BusServices |
 | `/api/weather` | GET | Live 2-hour regional weather forecast | Singapore NEA Open Data v2 |
 
 ### Query Parameters for `/api/bus-arrival`
-- `BusStopCode` (Required): 5-digit bus stop code (e.g. `83139`, `55189`, `09037`).
+- `BusStopCode` (Required): 5-digit bus stop code (e.g. `83139`, `55329`, `09037`).
 - `ServiceNo` (Optional): Specific service number (e.g. `15`, `72`, `14`).
+
+### Query Parameters for `/api/bus-route`
+- `ServiceNo` (Required): Bus service number (e.g. `72`, `45`, `851e`).
 
 ---
 
