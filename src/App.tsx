@@ -35,6 +35,7 @@ import { FavoritesModal, NextBusLabel } from './components/FavoritesModal';
 import { LocationPickerModal } from './components/LocationPickerModal';
 import { useFavoriteArrivals } from './services/favoriteArrivals';
 import { useStopArrivals } from './services/useStopArrivals';
+import { loadSavedLocation, locationFromGps, saveUserLocation } from './services/userLocation';
 import { Heart, Compass, Bus, AlertCircle, ArrowUpRight } from 'lucide-react';
 
 const FAVORITES_STORAGE_KEY = 'sbs_transit_favorites_v1';
@@ -42,9 +43,10 @@ const FAVORITES_STORAGE_KEY = 'sbs_transit_favorites_v1';
 const INCIDENT_ROUTE_DISTANCE_M = 150;
 
 export default function App() {
-  // User Location (Default: Nanyang Polytechnic)
-  const [userLocation, setUserLocation] = useState<UserLocation>(SINGAPORE_LOCATIONS[0]);
+  // Restore the last location immediately while requesting a fresh GPS fix.
+  const [userLocation, setUserLocation] = useState<UserLocation>(() => loadSavedLocation() ?? SINGAPORE_LOCATIONS[0]);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const locationRevisionRef = useRef(0);
 
   const userLocationRef = useRef(userLocation);
   userLocationRef.current = userLocation;
@@ -136,7 +138,10 @@ export default function App() {
 
   // Changing location re-targets the nearest stop and the direction closest to the user
   const applyUserLocation = useCallback((loc: UserLocation) => {
+    locationRevisionRef.current += 1;
+    userLocationRef.current = loc;
     setUserLocation(loc);
+    saveUserLocation(loc);
     setSelectedStopCode(null);
     setDirection(pickNearestDirection(currentRouteRef.current, loc.lat, loc.lng));
   }, []);
@@ -330,28 +335,23 @@ export default function App() {
     loadRoute(num);
   };
 
-  // Attempt silent GPS on mount if available
+  // Keep the saved location if GPS fails; a late fix must not override a new manual choice.
   useEffect(() => {
+    let active = true;
+    const revision = locationRevisionRef.current;
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          // If within Singapore bounding box (approx 1.15 to 1.48 lat, 103.6 to 104.05 lng)
-          const { latitude, longitude } = pos.coords;
-          if (latitude >= 1.15 && latitude <= 1.48 && longitude >= 103.55 && longitude <= 104.1) {
-            applyUserLocation({
-              name: 'My GPS Location',
-              lat: latitude,
-              lng: longitude,
-              isSimulated: false,
-            });
-          }
+          const loc = locationFromGps(pos.coords);
+          if (active && locationRevisionRef.current === revision && loc) applyUserLocation(loc);
         },
         () => {
-          // Fallback to Orchard default
+          // Keep the last saved location, or NYP for a first visit.
         },
-        { enableHighAccuracy: true, timeout: 5000 }
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
       );
     }
+    return () => { active = false; };
   }, [applyUserLocation]);
 
   return (

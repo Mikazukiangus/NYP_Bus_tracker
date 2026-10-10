@@ -278,6 +278,19 @@ This application is a real-time Singapore public bus tracking web app inspired b
 
 ---
 
+### Turn 18: Remember Commuter Location (10 October 2026)
+- **User Prompt** (comment on the current-location bar):
+  > *"let this be the last saved location or new gps location"*
+- **Implementation**:
+  - Restore the last chosen preset or GPS coordinates from browser storage immediately on startup. NYP remains the first-visit fallback when no valid saved location exists.
+  - Save each location change, including a fresh GPS fix. Request uncached GPS coordinates on startup and from the location picker; keep the saved location when GPS is denied, times out or is outside Singapore.
+  - A delayed startup GPS callback cannot replace a newer manual location choice. Location changes still update the nearest stop, route direction, map and weather together.
+  - Shared location validation tolerates corrupt/blocked storage and rejects invalid coordinates; a GPS selection outside Singapore explains how to choose a local preset.
+- **Validation**: TypeScript, all 14 tests and production build passed. Desktop (1440 px) and the commented viewport (537 px) browser checks covered preset/GPS persistence across reloads, denied/timed-out GPS, fresh GPS, delayed-fix races, explicit GPS selection, corrupt-storage fallback and no overflow/browser errors.
+- **Publication**: use the existing commit-and-live-deploy instruction, then verify the same reload and GPS flows on the deployed app.
+
+---
+
 ## 3. Architecture & API Endpoints Summary
 
 ### Serverless & Proxy Endpoints

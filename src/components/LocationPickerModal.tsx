@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { UserLocation } from '../types/bus';
 import { SINGAPORE_LOCATIONS } from '../data/singaporeBuses';
+import { locationFromGps } from '../services/userLocation';
 import { X, Navigation, Locate, MapPin, Check, Loader2, Search, GraduationCap } from 'lucide-react';
 
 interface LocationPickerModalProps {
@@ -86,14 +87,12 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setIsLocating(false);
-        const { latitude, longitude, accuracy } = pos.coords;
-        onSelectLocation({
-          name: 'My Device GPS Location',
-          lat: latitude,
-          lng: longitude,
-          isSimulated: false,
-          accuracyMeters: Math.round(accuracy)
-        });
+        const loc = locationFromGps(pos.coords);
+        if (!loc) {
+          setGeoError('Your GPS location is outside Singapore. Please choose a Singapore location below.');
+          return;
+        }
+        onSelectLocation(loc);
         onClose();
       },
       (err) => {
@@ -104,7 +103,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             : 'Unable to retrieve location. Please choose a preset below.'
         );
       },
-      { enableHighAccuracy: true, timeout: 8000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 }
     );
   };
 
