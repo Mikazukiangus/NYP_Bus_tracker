@@ -4,6 +4,7 @@ import type { PlaceResult } from '../services/placeSearch';
 import type { LiveDeparture, TripLeg, TripOption, TripPlan } from '../services/tripPlanner';
 import { expectedTotalMin } from '../services/tripPlanner';
 import { TrackingBadge } from './ArrivalBits';
+import { legStyle } from './tripLegs';
 
 export interface RankedTrip {
   option: TripOption;
@@ -149,7 +150,8 @@ function Steps({
       trackedServiceNo.toUpperCase() === leg.serviceNo.toUpperCase() && trackedStopCode === leg.board.code;
     steps.push(
       <li key={`leg-${i}`} className="relative pl-8 pb-3">
-        <span className="absolute left-0 top-0 w-6 h-6 rounded-full bg-helvetia text-white flex items-center justify-center">
+        {/* Same colour as this bus's line on the map */}
+        <span className={`absolute left-0 top-0 w-6 h-6 rounded-full ring-2 ring-helvetia-950 flex items-center justify-center ${legStyle(i).icon}`}>
           <BusFront className="w-3.5 h-3.5" />
         </span>
         <div className="flex items-start justify-between gap-2">

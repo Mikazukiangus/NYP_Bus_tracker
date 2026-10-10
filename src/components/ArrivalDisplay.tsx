@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { RefreshCw, Accessibility, Layers, Info, Clock, CalendarClock, ChevronDown, Satellite, Flag } from 'lucide-react';
+import { RefreshCw, Accessibility, Layers, Info, Clock, CalendarClock, ChevronDown, Satellite, Flag, ArrowLeftRight, ChevronRight, ChevronLeft } from 'lucide-react';
 import { AlightHint, ArrivalDataSource, BusArrivalInfo, BusLoad, BusServiceArrivals, BusStop, FirstLastTimes } from '../types/bus';
 import { TrackingBadge } from './ArrivalBits';
+import { legStyle, tripLegs } from './tripLegs';
 
 interface ArrivalDisplayProps {
   arrivals: BusServiceArrivals;
@@ -11,6 +12,7 @@ interface ArrivalDisplayProps {
   dataSource: ArrivalDataSource;
   secondsUntilRefresh: number;
   alight?: AlightHint | null; // where to get off for the destination in "Where to?"
+  onTrackLeg?: (legIndex: number) => void; // switch to another bus of the trip
 }
 
 const BUS_TYPE_LABEL = { SD: 'Single Deck', DD: 'Double Deck', BD: 'Bendy Bus' } as const;
@@ -39,7 +41,11 @@ const minutes = (min: number) => Math.max(1, Math.round(min));
 const formatMetres = (m: number) => (m < 1000 ? `${Math.round(m / 10) * 10}\u00a0m` : `${(m / 1000).toFixed(1)}\u00a0km`);
 
 // The stop to get off at for the destination, or a note that this bus doesn't go near it
-const AlightStrip: React.FC<{ alight: AlightHint; serviceNo: string }> = ({ alight, serviceNo }) => {
+const AlightStrip: React.FC<{ alight: AlightHint; serviceNo: string; onTrackLeg?: (legIndex: number) => void }> = ({
+  alight,
+  serviceNo,
+  onTrackLeg,
+}) => {
   if (alight.status === 'not-near') {
     return (
       <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 flex items-start gap-2.5 text-xs text-amber-900">
@@ -54,27 +60,60 @@ const AlightStrip: React.FC<{ alight: AlightHint; serviceNo: string }> = ({ alig
       </div>
     );
   }
-  const { stop, change } = alight;
+  const { stop } = alight;
+  const { trip, prev, next } = tripLegs(alight);
+  const legIndex = trip?.legIndex ?? 0;
+  const style = legStyle(legIndex);
+  const legButton = 'shrink-0 self-start @md:self-center flex items-center gap-1 text-xs font-bold text-helvetia bg-white border border-helvetia-200 hover:bg-helvetia-50 px-2.5 py-1.5 rounded-lg';
+  const serviceChip = (no: string, index: number) => (
+    <span className={`${legStyle(index).badge} font-black text-[11px] px-1.5 py-px rounded`}>{no}</span>
+  );
+
   return (
-    <div className="mt-3 rounded-xl border border-lemon bg-lemon-soft px-3 py-2.5 flex items-start gap-2.5">
-      <span className="w-7 h-7 rounded-full bg-helvetia-950 text-lemon flex items-center justify-center shrink-0" aria-hidden="true">
-        <Flag className="w-3.5 h-3.5" />
-      </span>
-      <div className="min-w-0 text-xs text-warm-700">
-        <p className="text-sm text-warm-900">
-          {change ? 'Get off to change buses at ' : `Get off for ${alight.destinationName} at `}
-          <strong className="font-black">{stop.name}</strong>{' '}
-          <span className="font-mono text-[11px] font-semibold text-warm-600">{stop.code}</span>
-        </p>
-        <p className="mt-0.5">
-          {alight.stopCount}&nbsp;stop{alight.stopCount === 1 ? '' : 's'} · ~{minutes(alight.rideMin)}&nbsp;min ride, then{' '}
-          {change
-            ? alight.walkM > 0
-              ? `walk ~${minutes(alight.walkMin)}\u00a0min to ${change.stopName} (${change.stopCode}) for Bus\u00a0${change.serviceNo}`
-              : `Bus\u00a0${change.serviceNo} from the same stop`
-            : `walk ~${minutes(alight.walkMin)}\u00a0min (${formatMetres(alight.walkM)}) to ${alight.destinationName}`}
-        </p>
+    <div className={`mt-3 rounded-xl border ${style.border} ${style.soft} px-3 py-2.5 flex flex-col @md:flex-row @md:items-start gap-2.5`}>
+      <div className="flex items-start gap-2.5 min-w-0 flex-1">
+        <span className="w-7 h-7 rounded-full bg-helvetia-950 text-lemon flex items-center justify-center shrink-0" aria-hidden="true">
+          {next ? <ArrowLeftRight className="w-3.5 h-3.5" /> : <Flag className="w-3.5 h-3.5" />}
+        </span>
+        <div className="min-w-0 text-xs text-warm-700">
+          {trip && trip.legs.length > 1 && (
+            <p className="text-[11px] font-bold uppercase tracking-wider text-warm-600">
+              Bus {legIndex + 1} of {trip.legs.length} to {trip.destinationName}
+              {prev && <span className="normal-case tracking-normal font-semibold"> · after Bus&nbsp;{prev.serviceNo}</span>}
+            </p>
+          )}
+          <p className="text-sm text-warm-900">
+            {next ? 'Get off to change buses at ' : `Get off for ${alight.destinationName} at `}
+            <strong className="font-black">{stop.name}</strong>{' '}
+            <span className="font-mono text-[11px] font-semibold text-warm-600">{stop.code}</span>
+          </p>
+          <p className="mt-0.5">
+            {alight.stopCount}&nbsp;stop{alight.stopCount === 1 ? '' : 's'} · ~{minutes(alight.rideMin)}&nbsp;min ride, then{' '}
+            {next ? (
+              <>
+                {alight.walkM > 0
+                  ? <>walk ~{minutes(alight.walkMin)}&nbsp;min to {next.board.name} ({next.board.code}) for </>
+                  : 'take '}
+                {serviceChip(next.serviceNo, legIndex + 1)}
+                {alight.walkM > 0 ? '' : ' from the same stop'}, {next.stops.length - 1}&nbsp;stops to{' '}
+                <strong className="text-warm-900">{next.alight.name}</strong>
+              </>
+            ) : (
+              `walk ~${minutes(alight.walkMin)}\u00a0min (${formatMetres(alight.walkM)}) to ${alight.destinationName}`
+            )}
+          </p>
+        </div>
       </div>
+      {onTrackLeg && next && trip && (
+        <button type="button" onClick={() => onTrackLeg(legIndex + 1)} className={legButton}>
+          Bus {next.serviceNo} times <ChevronRight className="w-3.5 h-3.5" />
+        </button>
+      )}
+      {onTrackLeg && prev && !next && trip && (
+        <button type="button" onClick={() => onTrackLeg(legIndex - 1)} className={legButton}>
+          <ChevronLeft className="w-3.5 h-3.5" /> Bus {prev.serviceNo} times
+        </button>
+      )}
     </div>
   );
 };
@@ -87,6 +126,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   dataSource,
   secondsUntilRefresh,
   alight = null,
+  onTrackLeg,
 }) => {
   const [showAllDays, setShowAllDays] = useState(false);
   const isLive = dataSource === 'LTA_DATAMALL_V3';
@@ -283,7 +323,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         </div>
       </div>
 
-      {alight && <AlightStrip alight={alight} serviceNo={arrivals.serviceNo} />}
+      {alight && <AlightStrip alight={alight} serviceNo={arrivals.serviceNo} onTrackLeg={onTrackLeg} />}
 
       {/* Grid of 3 Arrival timings */}
       <div className="grid grid-cols-3 gap-2 @2xl:gap-3.5 mt-3 @2xl:mt-4">

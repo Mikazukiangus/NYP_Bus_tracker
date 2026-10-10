@@ -392,3 +392,27 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - At 375 px nothing overflows the page width and numbers stay with their units.
 
 ---
+
+### Turn 24: Trips With a Change: the Next Bus in the Stops List and on the Map (11 October 2026)
+- **User Prompt**:
+  > *"For routes that requires at least 1 bus change, figure how to display the next leg displayed for the bus-stops (the highlighted stops) and how it's displayed on the map."*
+- **One colour per bus** (`src/components/tripLegs.ts`): the first bus is lemon and the bus after a change is green-blue (the two Wada plate 259 colours). The same colours are used for the map lines, markers and legend, the trip steps' bus icons, the service chips and the highlighted rows in the stops list.
+- **Route Stops** (`RouteStopsList.tsx`):
+  - **Header**: a "Your trip: [852] 1st bus → [167] 2nd bus" switcher; tapping a bus shows its stops and live times. The jump link reads "Change buses at …" on the first bus.
+  - **On the first bus**: the change stop is marked ⇄ "Change here" with "Take 167 from this stop" (or "Walk ~2 min to … for 167"). Right under it, a green block shows the next bus: towards, stops and ride time, where to board ("Board at the same stop" or the walk), the stops in between (folded, tap to show) and the final stop ("Get off for ION Orchard · walk ~2 min"), plus a "Bus 167 stops & times" button.
+  - **On the second bus**: a lemon "First 852 from Opp Blk 646 · 9 stops · get off at …" block sits above the boarding stop, which is badged "Change here from 852". The list scrolls to it when you switch buses.
+  - **Fading**: stops that aren't ridden on the shown bus (before boarding or after getting off) are faded.
+- **Arrivals card strip**: shows "Bus 1 of 2 to ION Orchard" (or "Bus 2 of 2 · after Bus 852"), where to change, the next bus as a coloured chip with its stop count and final stop, and a button to switch to the other bus's live times. On the second bus the strip is green.
+- **Map** (`LiveBusMap.tsx`): each bus is drawn in its own colour with the dark casing. The change stop gets a single "⇄ 167" pill (bordered in the second bus's colour) with a "Change buses" popup, instead of a get-off dot under a boarding pill. If the change needs a walk across the road, the dot, the dashed walk and the pill stay separate. The bus not being tracked is drawn slightly fainter, so the map shows which bus you're on. The legend lists "1st bus: 852" and "2nd bus: 167" (or "Your bus: 265"). With no trip drawn, the route-stop marker at a change stop uses ⇄ and the legend says "Change buses".
+- **Showing the trip for a tracked bus** (`App.tsx`):
+  - **Which trip is shown**: the chosen trip, or else a suggested trip that uses the tracked bus from the tracked stop (direct trips first). Picking 852 at Opp Blk 646 from the nearest stops list therefore shows the 852 → 167 trip in the trip list, strip, stops list and map, as if it had been chosen. A bus that isn't part of a suggested trip drops the trip, as before.
+  - **Switching buses**: switching between the buses of a trip keeps that trip chosen.
+  - **Data passed down**: a `TripView` (the trip's buses with their stops from `network.json`) goes to the components through `AlightHint.trip`; the old `change` field is replaced by it.
+- **Validation**: TypeScript, app build and 23 tests pass. Browser checks with the local LTA stub, NYP → ION Orchard on 852 → 167 (change at Opp St. Theresa's Hme 53019, get off at Orchard Stn/Tang Plaza 09047):
+  - Strip, switcher, change row and next-bus block (16 stops when expanded); the 40 stops not ridden on 852 are faded.
+  - The second-bus view, with the previous-bus block and the "Change here from 852" badge.
+  - The map, with the lemon and green-blue lines, "⇄ 167" pill and legend.
+  - Picking 852 from the nearest stops shows the trip; picking 72 drops it.
+  - At 375 px nothing overflows the page width. NYP → AMK Hub (direct 265) is unchanged apart from the legend label.
+
+---

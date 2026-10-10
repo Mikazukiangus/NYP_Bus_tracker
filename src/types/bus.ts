@@ -111,24 +111,47 @@ export interface JourneyOverlay {
     path: [number, number][];
     followsRoads: boolean;
   }[];
+  activeLeg?: number; // the leg on the bus being tracked; the others are drawn fainter
+}
+
+export type StopRef = Pick<BusStop, 'code' | 'name' | 'road' | 'lat' | 'lng'>;
+
+// A suggested trip that the tracked bus is part of, so the other leg of a trip with a change can be shown with it
+export interface TripView {
+  id: string;
+  destinationName: string;
+  legIndex: number; // the leg on the bus being tracked
+  legs: {
+    serviceNo: string;
+    alsoServiceNos: string[];
+    towards: string;
+    board: StopRef;
+    alight: StopRef;
+    stops: StopRef[]; // board to alight, in order
+    rideMin: number;
+  }[];
+  transferWalkM: number; // between the two buses; 0 when changing at the same stop
+  transferWalkMin: number;
+  walkEndM: number;
+  walkEndMin: number;
 }
 
 // Where to get off the tracked bus for the destination set in "Where to?"
 export type AlightHint =
   | {
       status: 'alight';
-      stop: Pick<BusStop, 'code' | 'name' | 'road' | 'lat' | 'lng'>;
+      stop: StopRef;
       stopCount: number;
       rideMin: number;
       walkM: number; // straight line from the stop to the destination, or to the next bus
       walkMin: number;
       destinationName: string;
-      change?: { serviceNo: string; stopCode: string; stopName: string }; // part of a trip with a change here
+      trip?: TripView; // when the bus is part of a suggested trip (with the next bus if there is a change)
     }
   | {
       // The bus never comes within walking distance of the destination after this stop
       status: 'not-near';
-      stop: Pick<BusStop, 'code' | 'name' | 'road' | 'lat' | 'lng'>; // its closest stop
+      stop: StopRef; // its closest stop
       distanceM: number;
       destinationName: string;
     };

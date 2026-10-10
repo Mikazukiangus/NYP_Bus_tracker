@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { AlightHint, BusRoute, BusStop, IncomingBus, JourneyOverlay, TrafficIncident, UserLocation } from '../types/bus';
 import { Navigation, Locate, Maximize2, TriangleAlert, Route } from 'lucide-react';
+import { legStyle, tripLegs } from './tripLegs';
 
 interface LiveBusMapProps {
   route: BusRoute;
@@ -41,6 +42,9 @@ const TYPE_LABEL = { SD: 'Single deck', DD: 'Double deck', BD: 'Bendy' } as cons
 const flagSvg = (size: number) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>`;
 const FLAG_SVG = flagSvg(14);
+// Lucide "arrow-left-right", for changing buses
+const changeSvg = (size: number) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>`;
 
 const escapeHtml = (text: string) =>
   text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -75,6 +79,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
   const followsRoads = routeDir.pathSource === 'OPENSTREETMAP';
   const hasJourney = !!journey;
   const alightStop = alight?.status === 'alight' ? alight : null;
+  const nextBus = tripLegs(alight).next;
   useEffect(() => setShowStops(!hasJourney), [hasJourney]);
 
   // Initialize Leaflet Map
@@ -169,8 +174,9 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
     map.fitBounds(bounds, alightStop ? ALIGHT_FIT : { padding: [60, 60], maxZoom: 16 });
   }, [route.serviceNo, direction, nearestStop.code, userLocation.lat, userLocation.lng, journey?.id, alightStop?.stop.code]);
 
-  // Planned trip: walking legs (dashed), bus legs (lemon line with a Helvetia casing), boarding,
-  // alighting and destination markers (drawn above live buses so the plan stays readable)
+  // Planned trip: walking legs (dashed), each bus in its own colour (lemon, then green-blue after a change)
+  // with a dark casing, boarding, change, alighting and destination markers (drawn above live buses so the
+  // plan stays readable). The bus being tracked is drawn at full strength and the other one fainter.
   useEffect(() => {
     const group = journeyLayerRef.current;
     if (!group) return;
@@ -186,39 +192,60 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
         { pane: 'journey', color: 'var(--color-green-blue-ink)', weight: 4, opacity: 0.9, dashArray: '2 8', lineCap: 'round' }
       ).addTo(group);
 
+    const pill = (content: string, border: string) =>
+      `<div class="px-1.5 h-6 min-w-8 rounded-lg bg-helvetia text-white border-2 shadow-md flex items-center justify-center gap-0.5 text-[11px] font-black whitespace-nowrap" style="border-color:${border}">${content}</div>`;
+
     journey.legs.forEach((leg, i) => {
-      walk(i === 0 ? journey.from : journey.legs[i - 1].alight, leg.board);
-      L.polyline(leg.path, { pane: 'journey', color: 'var(--color-helvetia-950)', weight: 10, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }).addTo(group);
+      const color = legStyle(i).line;
+      const faded = journey.activeLeg !== undefined && journey.activeLeg !== i;
+      const prev = journey.legs[i - 1];
+      const changeAtSameStop = !!prev && prev.alight.code === leg.board.code;
+      walk(i === 0 ? journey.from : prev.alight, leg.board);
+      L.polyline(leg.path, { pane: 'journey', color: 'var(--color-helvetia-950)', weight: 10, opacity: faded ? 0.6 : 0.9, lineCap: 'round', lineJoin: 'round' }).addTo(group);
       L.polyline(leg.path, {
         pane: 'journey',
-        color: 'var(--color-lemon)',
+        color,
         weight: 5,
-        opacity: 1,
+        opacity: faded ? 0.75 : 1,
         lineCap: 'round',
         lineJoin: 'round',
         dashArray: leg.followsRoads ? undefined : '1 9',
       }).addTo(group);
 
+      // Boarding: the first bus gets a service-number pill; a later bus gets a change pill ("⇄ 167")
+      const title = prev
+        ? changeAtSameStop
+          ? `Change here from Bus ${prev.serviceNo} to Bus ${leg.serviceNo}: ${leg.board.name} (${leg.board.code})`
+          : `Board Bus ${leg.serviceNo} at ${leg.board.name} (${leg.board.code}) after changing`
+        : `Board Bus ${leg.serviceNo} at ${leg.board.name} (${leg.board.code})`;
       L.marker([leg.board.lat, leg.board.lng], {
-        title: `Board Bus ${leg.serviceNo} at ${leg.board.name} (${leg.board.code})`,
+        title,
         zIndexOffset: 1150,
         icon: L.divIcon({
-          html: `<div class="px-1.5 h-6 min-w-8 rounded-lg bg-helvetia text-white border-2 border-lemon shadow-md flex items-center justify-center text-[11px] font-black whitespace-nowrap">${escapeHtml(leg.serviceNo)}</div>`,
+          html: pill(prev ? `${changeSvg(11)}${escapeHtml(leg.serviceNo)}` : escapeHtml(leg.serviceNo), color),
           className: 'journey-board-marker',
-          iconSize: [40, 24],
-          iconAnchor: [20, 12],
+          iconSize: [prev ? 52 : 40, 24],
+          iconAnchor: [prev ? 26 : 20, 12],
         }),
       })
         .bindPopup(
-          `<div class="font-sans text-xs"><div class="font-black text-helvetia-950 text-sm">Board Bus ${escapeHtml(leg.serviceNo)}</div>
-          <div class="text-warm-700">${escapeHtml(leg.board.name)} · ${leg.board.code}</div></div>`
+          prev
+            ? `<div class="font-sans text-xs"><div class="font-black text-helvetia-950 text-sm">Change buses</div>
+              <div class="text-warm-700">${changeAtSameStop ? 'Get off' : `Get off at ${escapeHtml(prev.alight.name)} · ${prev.alight.code}, then walk to`} Bus ${escapeHtml(prev.serviceNo)}${changeAtSameStop ? ' and take' : ''}</div>
+              <div class="text-warm-700">${changeAtSameStop ? '' : 'board '}Bus ${escapeHtml(leg.serviceNo)} at ${escapeHtml(leg.board.name)} · ${leg.board.code}</div></div>`
+            : `<div class="font-sans text-xs"><div class="font-black text-helvetia-950 text-sm">Board Bus ${escapeHtml(leg.serviceNo)}</div>
+              <div class="text-warm-700">${escapeHtml(leg.board.name)} · ${leg.board.code}</div></div>`
         )
         .addTo(group);
+
+      // Getting off: skipped where the change pill already marks the stop
+      const next = journey.legs[i + 1];
+      if (next && next.board.code === leg.alight.code) return;
       L.marker([leg.alight.lat, leg.alight.lng], {
-        title: `Get off at ${leg.alight.name} (${leg.alight.code})`,
+        title: `Get off Bus ${leg.serviceNo} at ${leg.alight.name} (${leg.alight.code})`,
         zIndexOffset: 1100,
         icon: L.divIcon({
-          html: `<div class="w-4 h-4 m-[3px] rounded-full bg-lemon border-[3px] border-helvetia-950 shadow-md"></div>`,
+          html: `<div class="w-4 h-4 m-[3px] rounded-full border-[3px] border-helvetia-950 shadow-md" style="background:${color}"></div>`,
           className: 'journey-alight-marker',
           iconSize: [22, 22],
           iconAnchor: [11, 11],
@@ -226,7 +253,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
       })
         .bindPopup(
           `<div class="font-sans text-xs"><div class="font-black text-helvetia-950 text-sm">Get off Bus ${escapeHtml(leg.serviceNo)}</div>
-          <div class="text-warm-700">${escapeHtml(leg.alight.name)} · ${leg.alight.code}</div></div>`
+          <div class="text-warm-700">${escapeHtml(leg.alight.name)} · ${leg.alight.code}${next ? ` (walk to Bus ${escapeHtml(next.serviceNo)})` : ''}</div></div>`
         )
         .addTo(group);
     });
@@ -316,7 +343,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
 
       if (isAlight) {
         size = 28;
-        iconHtml = `<div class="w-6 h-6 m-[2px] rounded-full bg-lemon border-[3px] border-helvetia-950 text-helvetia-950 shadow-md flex items-center justify-center">${flagSvg(11)}</div>`;
+        iconHtml = `<div class="w-6 h-6 m-[2px] rounded-full bg-lemon border-[3px] border-helvetia-950 text-helvetia-950 shadow-md flex items-center justify-center">${nextBus ? changeSvg(11) : flagSvg(11)}</div>`;
       } else if (isNearest) {
         size = 28;
         iconHtml = `
@@ -350,7 +377,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
           <div class="font-black text-helvetia-950 text-sm">${escapeHtml(stop.name)}</div>
           <div class="text-warm-500 text-[11px] font-mono mb-1">Stop ${stop.code} • ${escapeHtml(stop.road)}</div>
           ${isNearest ? '<span class="bg-lemon-soft text-helvetia-950 text-[10px] font-bold px-1.5 py-0.5 rounded">Nearest Stop to You</span><br/>' : ''}
-          ${isAlight && alightStop ? `<span class="bg-helvetia-950 text-lemon text-[10px] font-bold px-1.5 py-0.5 rounded">${escapeHtml(alightStop.change ? `Get off to change to Bus ${alightStop.change.serviceNo}` : `Get off here for ${alightStop.destinationName}`)}</span><br/>` : ''}
+          ${isAlight && alightStop ? `<span class="bg-helvetia-950 text-lemon text-[10px] font-bold px-1.5 py-0.5 rounded">${escapeHtml(nextBus ? `Get off to change to Bus ${nextBus.serviceNo}` : `Get off here for ${alightStop.destinationName}`)}</span><br/>` : ''}
           <div class="mt-2 text-right">
             <button id="select-stop-${stop.code}" class="bg-helvetia text-white text-xs font-bold px-3 py-1.5 rounded-md">View Arrivals</button>
           </div>
@@ -369,7 +396,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
 
       stopsGroup.addLayer(marker);
     });
-  }, [routeDir, nearestStop, selectedStop, showStops, onSelectStop, alightStop]);
+  }, [routeDir, nearestStop, selectedStop, showStops, onSelectStop, alightStop, nextBus]);
 
   // Update incoming bus markers from real LTA GPS positions
   useEffect(() => {
@@ -543,10 +570,12 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
             <span className="w-3.5 h-3.5 rounded-full bg-lemon text-helvetia-950 ring-1 ring-helvetia flex items-center justify-center text-[8px] font-bold shrink-0">★</span>
             <span className="text-warm-700 font-medium truncate">Nearest stop ({nearestStop.code})</span>
           </div>
-          {alightStop && (
+          {alightStop && !journey && (
             <div className="flex items-center gap-2">
               <span className="w-3.5 h-3.5 rounded-full bg-lemon border-2 border-helvetia-950 inline-block shrink-0" />
-              <span className="text-warm-700 font-medium truncate">Get off ({alightStop.stop.code})</span>
+              <span className="text-warm-700 font-medium truncate">
+                {nextBus ? 'Change buses' : 'Get off'} ({alightStop.stop.code})
+              </span>
             </div>
           )}
           <div className="flex items-center gap-2">
@@ -555,12 +584,17 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
           </div>
           {journey && (
             <>
-              {journey.legs.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="w-4 h-[5px] rounded-full bg-lemon ring-2 ring-helvetia-950 inline-block shrink-0" />
-                  <span className="text-warm-700">Your bus</span>
+              {journey.legs.map((leg, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span
+                    className="w-4 h-[5px] rounded-full ring-2 ring-helvetia-950 inline-block shrink-0"
+                    style={{ background: legStyle(i).line }}
+                  />
+                  <span className="text-warm-700 truncate">
+                    {journey.legs.length > 1 ? `${i === 0 ? '1st' : '2nd'} bus: ${leg.serviceNo}` : `Your bus: ${leg.serviceNo}`}
+                  </span>
                 </div>
-              )}
+              ))}
               <div className="flex items-center gap-2">
                 <span className="w-4 h-0 border-t-[3px] border-dotted border-green-blue-ink inline-block shrink-0" />
                 <span className="text-warm-700">Walk (straight line)</span>
