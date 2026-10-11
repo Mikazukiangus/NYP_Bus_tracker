@@ -487,3 +487,44 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
 - **Validation**: TypeScript, app build and 27 tests pass. The 3 new tests in `tests/route-shape.test.ts` use a 269-like loop and check that stops are placed on the right pass, that rides follow the road they're on, and that a stop far from the line is left out. The loop test fails on the old code. In the browser (375 px, from Kebun Baru Link to AMK Hub), the 269 line now runs from Bef Mayflower Stn Exit 3 along the roads to Ang Mo Kio Int.
 
 ---
+
+### Turn 28: Tabs at the Bottom, and One Job per Tab (11 October 2026)
+- **User Prompt**:
+  > *"Bring the 4 tabs "Arrival", "Map", "Stops" and "Weather" to the bottom as buttons like a mobile app for easy navigation. Check that each tab does not have duplicated information to reduce excess scrolling further on each tab. Basically improve on the user interface and user experience."*
+- **Tab bar** (`AppTabs.tsx`, phones narrower than 640 px): Arrivals, Map, Stops and Weather are a bar of icon buttons pinned to the bottom of the screen. The open tab has a lemon pill behind its icon. The Weather tab gets a dot in the alert's colour when there's a weather alert worth a look (rain near you, lightning, unhealthy air, heat stress, UV 8+). The tab row under the header is gone on phones, and the header (logo and Favourites) now scrolls away instead of staying pinned, so the content gets the screen. The tab list is shared with the desktop tab row (`APP_TABS`).
+- **Tab behaviour** (`App.tsx`, all screen sizes): each tab opens at the top, and tapping the open tab again scrolls back to the top. On phones, the tab bar and the next-bus bar step aside while a text field has focus (`useTextEntry.ts`), so they don't cover the "Where to?" suggestions above the keyboard. `viewport-fit=cover` with safe-area padding keeps the bar clear of the iPhone home indicator.
+- **What each tab repeated, and what changed** (phones unless noted):
+
+  | Tab | Repeated before | Now |
+  |---|---|---|
+  | Arrivals | The stop's name three times: the nearest-stop banner, the arrivals card, and "All buses at Opp Nanyang Poly 55321". The banner's Map and "Other stops on this route" buttons did what the tabs do. A refresh button in both the header and the card. The trip card's "From Kebun Baru Link" repeated the From field just above it. | The banner is folded into the arrivals card: "★ Nearest stop · 1.3 km, ~16 min walk" (or "Not your nearest stop · Go to nearest") with a Save button. The services board reads "All buses at this stop" (all sizes). The header refresh is gone on phones, since the card's has the countdown. The trip card shows only the distance under "Buses to …" (all sizes), and "From …" only on the Map tab. |
+  | Map | The From / Where to box, the bus search, and the full arrivals card that's on the Arrivals tab. | The map first, filling the screen down to the bars, then the trip options. The next-bus bar stays on screen and opens the Arrivals tab. |
+  | Stops | The From / Where to box, trip options, bus search and nearest-stop banner above the list (the list already marks the nearest stop and the trip's stops), and the arrivals card and services board below it. | Only the route's stop list, sized to the screen, with an "Other direction" button (the bus search with its direction buttons is on the Arrivals tab). Tapping a stop updates the next-bus bar. On wider screens the banner is gone from this tab too. |
+  | Weather | The From / Where to box and the whole bus search above the weather (all sizes). | Only the weather (all sizes). Its alerts now come before the readings, as they say what to do and the readings back them up. |
+
+- **Next-bus bar** (`LiveArrivalsBar.tsx`): sits on top of the tab bar. It shows on the Map and Stops tabs all the time, and on Arrivals while the card is scrolled away. Tapping it on another tab opens Arrivals at the card.
+- **Find Bus Service** (`BusSearchBox.tsx`): when it is folded (phones, with a destination), picking a bus folds it again so the bus's arrivals are right below. It stays open without a destination, because its nearest-stops list is how people near a stop other than the default bus's find their bus.
+- **Result at 375 × 812** (from Kebun Baru Link; page height including the footer):
+
+  | Page | Before | After |
+  |---|---|---|
+  | Arrivals, no destination | 1,953 px | 1,795 px |
+  | Map, no destination | 2,047 px | 986 px (the map is 524 px tall, up from 487) |
+  | Stops, no destination | 2,443 px | 954 px |
+  | Weather | 2,335 px | 1,598 px |
+  | Map, to AMK Hub | 2,167 px | 1,423 px |
+  | Stops, to AMK Hub | 2,897 px | 1,088 px |
+
+  The header takes 57 px at the top and scrolls away, instead of a pinned 96 px with the tabs. The tab bar takes 56 px at the bottom.
+- **Wider screens**: Arrival Times and Live Bus Map are unchanged; at 1280 × 900 the local build and the live site measure the same section by section. Route Stops is 211 px shorter (no banner) and NEA Weather is 626 px shorter.
+- **Validation**: TypeScript, app build and 27 tests pass. Checked in headless Chrome at 375 × 812:
+  - The tab bar switches tabs and opens each one at the top, and tapping the open tab goes back to the top.
+  - The bars hide while typing in "Where to?" or the bus number, and come back after.
+  - The next-bus bar on the Stops tab opens Arrivals with the card at the top of the screen.
+  - "Other direction" flips the list, and the bar follows the new stop.
+  - The stop list ends above the bars.
+  - The arrivals card's refresh button no longer overlaps the stop line.
+
+  At 1280 × 900 there is no tab bar or next-bus bar.
+
+---

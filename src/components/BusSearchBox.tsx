@@ -49,10 +49,12 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
     setInputVal(busNumber);
   }, [busNumber]);
 
+  // Once a bus is picked, a foldable box folds away again so its arrivals are right below
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputVal.trim()) {
       onSearch(inputVal.trim());
+      if (foldable) setUnfolded(false);
     }
   };
 
@@ -190,7 +192,10 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
                           <button
                             key={svc.serviceNo}
                             type="button"
-                            onClick={() => onSelectStopService(nearby, svc)}
+                            onClick={() => {
+                              onSelectStopService(nearby, svc);
+                              if (foldable) setUnfolded(false);
+                            }}
                             title={`Bus ${svc.serviceNo} towards ${svc.towards}`}
                             aria-label={`Bus ${svc.serviceNo} from ${stop.name}, towards ${svc.towards}`}
                             aria-pressed={isActive}

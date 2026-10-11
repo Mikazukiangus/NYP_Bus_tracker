@@ -1,14 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { ChevronUp } from 'lucide-react';
 import { AlightHint, ArrivalDataSource, BusServiceArrivals, BusStop } from '../types/bus';
+import { BOTTOM_BAR_HEIGHT } from './AppTabs';
 
 interface LiveArrivalsBarProps {
   arrivals: BusServiceArrivals;
   stop: BusStop;
   dataSource: ArrivalDataSource;
   alight?: AlightHint | null;
-  targetId: string; // the element holding the full arrivals card
+  targetId: string; // the element holding the full arrivals card, when the tab has one
   watchKey: string; // changes when that element is swapped (e.g. the tab), to watch the new one
+  onOpen: () => void; // show the full arrivals card
 }
 
 // Share of the arrivals card that must be on screen for the bar to step aside
@@ -16,27 +18,28 @@ const VISIBLE_SHARE = 0.35;
 
 const eta = (min: number) => (min <= 0 ? 'Arr' : `${min} min`);
 
-// Phones: the tracked bus's next arrivals pinned to the bottom of the screen while its card is scrolled away.
-// Tapping it scrolls back to the card.
-export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({ arrivals, stop, dataSource, alight, targetId, watchKey }) => {
+// Phones: the tracked bus's next arrivals pinned above the tab bar, on tabs without the arrivals card and while
+// the card is scrolled away. Tapping it shows the card.
+export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({ arrivals, stop, dataSource, alight, targetId, watchKey, onOpen }) => {
   const [hasCard, setHasCard] = useState(false);
   const [cardOnScreen, setCardOnScreen] = useState(true);
 
-  useEffect(() => {
+  // Before paint, so switching tabs doesn't flash the bar over a card that is on screen
+  useLayoutEffect(() => {
     const card = document.getElementById(targetId);
     setHasCard(!!card);
     setCardOnScreen(true);
     if (!card || typeof IntersectionObserver === 'undefined') return;
     const observer = new IntersectionObserver(
       ([entry]) => setCardOnScreen(entry.isIntersecting && entry.intersectionRatio >= VISIBLE_SHARE),
-      // Leave out the sticky header at the top and the bar itself at the bottom
-      { rootMargin: '-96px 0px -72px 0px', threshold: [0, VISIBLE_SHARE] }
+      // Leave out the tab bar and this bar at the bottom (the header isn't pinned on phones)
+      { rootMargin: '0px 0px -120px 0px', threshold: [0, VISIBLE_SHARE] }
     );
     observer.observe(card);
     return () => observer.disconnect();
   }, [targetId, watchKey]);
 
-  if (!hasCard || cardOnScreen) return null;
+  if (hasCard && cardOnScreen) return null;
 
   const later = [arrivals.nextBus2, arrivals.nextBus3].filter((b) => b !== null).map((b) => (b.estimatedMinutes <= 0 ? 'Arr' : b.estimatedMinutes));
   const offAt = alight?.status === 'alight' ? ` · off at ${alight.stop.name}` : '';
@@ -53,10 +56,13 @@ export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({ arrivals, stop
             : 'Scheduled';
 
   return (
-    <div className="sm:hidden fixed inset-x-0 bottom-0 z-30 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pointer-events-none">
+    <div
+      className="sm:hidden fixed inset-x-0 z-30 px-3 pb-2 pointer-events-none"
+      style={{ bottom: `calc(${BOTTOM_BAR_HEIGHT} + env(safe-area-inset-bottom))` }}
+    >
       <button
         type="button"
-        onClick={() => document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        onClick={onOpen}
         aria-label={`Bus ${arrivals.serviceNo} at ${stop.name}: show live arrivals`}
         className="pointer-events-auto w-full bg-helvetia-950 text-white rounded-2xl shadow-lg ring-1 ring-white/10 px-3 py-2 flex items-center gap-3 text-left"
       >

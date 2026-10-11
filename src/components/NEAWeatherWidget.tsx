@@ -321,6 +321,13 @@ export const NEAWeatherWidget: React.FC<NEAWeatherWidgetProps> = ({
         </div>
       </div>
 
+      {/* Commuter alerts (Weather tab: first, as they say what to do; the readings back them up) */}
+      {full && (
+        <div className="mt-3">
+          <Alerts alerts={w.alerts} />
+        </div>
+      )}
+
       {/* Readings */}
       <div className={`mt-3 grid gap-2 ${full ? 'grid-cols-2 @lg:grid-cols-3 @3xl:grid-cols-4' : 'grid-cols-3'}`}>
         {tiles.map((t) => (
@@ -328,10 +335,11 @@ export const NEAWeatherWidget: React.FC<NEAWeatherWidgetProps> = ({
         ))}
       </div>
 
-      {/* Commuter alerts */}
-      <div className="mt-3">
-        <Alerts alerts={w.alerts} limit={full ? undefined : 2} onShowAll={onShowAll} />
-      </div>
+      {!full && (
+        <div className="mt-3">
+          <Alerts alerts={w.alerts} limit={2} onShowAll={onShowAll} />
+        </div>
+      )}
 
       {full && (w.today || w.outlook) && (
         <div className="mt-4 grid grid-cols-1 @3xl:grid-cols-2 gap-4">

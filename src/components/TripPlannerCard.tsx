@@ -20,7 +20,7 @@ export type TripPlannerState =
 
 interface TripPlannerCardProps {
   destination: PlaceResult;
-  fromName: string;
+  fromName?: string; // left out where the "From" field is right above
   state: TripPlannerState;
   selectedId: string | null;
   canShowMap: boolean;
@@ -272,8 +272,9 @@ export const TripPlannerCard: React.FC<TripPlannerCardProps> = ({
           <div className="min-w-0">
             <h3 className="text-sm font-black text-helvetia-950 truncate">Buses to {destination.name}</h3>
             <p className="text-xs text-warm-500 truncate">
-              From {fromName.split('(')[0].trim()}
-              {plan && ` · ${formatMetres(plan.straightDistanceM)} away`}
+              {[fromName && `From ${fromName.split('(')[0].trim()}`, plan && `${formatMetres(plan.straightDistanceM)} away`]
+                .filter(Boolean)
+                .join(' · ')}
             </p>
           </div>
         </div>

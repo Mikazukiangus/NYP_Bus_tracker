@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlightHint, BusStop, BusRoute } from '../types/bus';
-import { Search, ChevronRight, ChevronDown, Check, Flag, ArrowLeftRight, ArrowRight } from 'lucide-react';
+import { Search, ChevronRight, ChevronDown, Check, Flag, ArrowLeftRight, ArrowRight, ArrowRightLeft } from 'lucide-react';
 import { ServiceChoice } from './ServiceChoice';
 import { TripLegView, legStyle, tripLegs } from './tripLegs';
 
@@ -14,6 +14,7 @@ interface RouteStopsListProps {
   alight?: AlightHint | null; // where to get off for the destination in "Where to?"
   onTrackLeg?: (legIndex: number) => void; // show another bus of the trip
   onChooseService?: (legIndex: number, serviceNo: string) => void; // take another bus between the same stops
+  onSwitchDirection?: () => void; // phones, where the bus search with its direction buttons is on the Arrivals tab
 }
 
 const minutes = (min: number) => Math.max(1, Math.round(min));
@@ -157,6 +158,7 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
   alight = null,
   onTrackLeg,
   onChooseService,
+  onSwitchDirection,
 }) => {
   const [filterQuery, setFilterQuery] = useState('');
   const listRef = useRef<HTMLDivElement>(null);
@@ -215,10 +217,23 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
   return (
     <div className="bg-white rounded-2xl border border-warm-200 shadow-sm p-4 sm:p-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-warm-100">
-        <div>
-          <h3 className="text-base font-bold text-helvetia">
-            Route Stops: Bus {route.serviceNo}
-          </h3>
+        <div className="min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-base font-bold text-helvetia">
+              Route Stops: Bus {route.serviceNo}
+            </h3>
+            {onSwitchDirection && route.direction2 && (
+              <button
+                type="button"
+                onClick={onSwitchDirection}
+                aria-label={`Show the stops in the other direction, towards ${(direction === 2 ? route.direction1 : route.direction2).destination}`}
+                className="shrink-0 flex items-center gap-1 text-xs font-bold text-helvetia bg-helvetia-50 border border-helvetia-200 hover:bg-helvetia-100 px-2.5 py-1 rounded-lg"
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5" />
+                Other direction
+              </button>
+            )}
+          </div>
           <p className="text-xs text-warm-500 font-medium">
             From {routeDir.origin} to {routeDir.destination} ({routeDir.stops.length} stops)
           </p>
@@ -282,7 +297,11 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
       </div>
 
       {/* Sequential Stop List */}
-      <div ref={listRef} className="mt-3 divide-y divide-warm-100 max-h-[500px] overflow-y-auto pr-1">
+      {/* Phones: the list is the whole tab, so it fills the screen above the bars at the bottom */}
+      <div
+        ref={listRef}
+        className="mt-3 divide-y divide-warm-100 max-h-[500px] max-sm:max-h-[max(16rem,calc(100dvh-24rem))] overflow-y-auto pr-1"
+      >
         {filteredStops.map((stop) => {
           const isNearest = stop.code === nearestStop.code;
           const isSelected = stop.code === selectedStop.code;

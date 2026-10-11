@@ -1,14 +1,15 @@
 import React from 'react';
 import { Bus, MapPin, Heart, Clock, RefreshCw } from 'lucide-react';
 import { UserLocation } from '../types/bus';
+import { APP_TABS, AppTab } from './AppTabs';
 
 interface HeaderProps {
   userLocation: UserLocation;
   onOpenLocationPicker: () => void;
   favoritesCount: number;
   onOpenFavorites: () => void;
-  activeTab: 'arrivals' | 'map' | 'stops' | 'weather';
-  setActiveTab: (tab: 'arrivals' | 'map' | 'stops' | 'weather') => void;
+  activeTab: AppTab;
+  setActiveTab: (tab: AppTab) => void;
   onRefreshAll: () => void;
   isRefreshing: boolean;
 }
@@ -43,8 +44,9 @@ export const Header: React.FC<HeaderProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  // Phones: the tabs are in a bar at the bottom, so the header scrolls away and leaves the screen to the content
   return (
-    <header className="bg-white border-t-4 border-t-green-blue border-b border-b-warm-200 sticky top-0 z-40 shadow-xs">
+    <header className="bg-white border-t-4 border-t-green-blue border-b border-b-warm-200 sm:sticky sm:top-0 z-40 shadow-xs">
       {/* Top corporate bar */}
       <div className="hidden sm:flex bg-helvetia text-white text-xs px-4 py-1.5 flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -98,11 +100,11 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
 
-          {/* Refresh button */}
+          {/* Refresh button (phones: the arrivals card has one, with the countdown) */}
           <button
             onClick={onRefreshAll}
             disabled={isRefreshing}
-            className="p-2.5 sm:px-2.5 sm:py-1.5 rounded-lg border border-warm-200 hover:bg-warm-50 text-warm-700 transition-colors flex items-center gap-1 text-xs"
+            className="hidden sm:flex px-2.5 py-1.5 rounded-lg border border-warm-200 hover:bg-warm-50 text-warm-700 transition-colors items-center gap-1 text-xs"
             title="Refresh arrival timings"
             aria-label="Refresh arrival timings"
           >
@@ -128,53 +130,23 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Navigation tabs */}
-      <nav className="max-w-7xl mx-auto px-2 sm:px-4 border-t border-warm-100 flex items-center overflow-x-auto no-scrollbar sm:gap-2">
-        <button
-          onClick={() => setActiveTab('arrivals')}
-          className={`flex-1 sm:flex-none justify-center py-2.5 sm:py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'arrivals'
-              ? 'border-helvetia text-helvetia font-semibold'
-              : 'border-transparent text-warm-600 hover:text-warm-900'
-          }`}
-        >
-          <span className="sm:hidden">Arrivals</span>
-          <span className="hidden sm:inline">Arrival Times</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('map')}
-          className={`flex-1 sm:flex-none justify-center py-2.5 sm:py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
-            activeTab === 'map'
-              ? 'border-helvetia text-helvetia font-semibold'
-              : 'border-transparent text-warm-600 hover:text-warm-900'
-          }`}
-        >
-          <span className="sm:hidden">Map</span>
-          <span className="hidden sm:inline">Live Bus Map</span>
-          <span className="w-2 h-2 rounded-full bg-green-blue animate-ping inline-block" />
-        </button>
-        <button
-          onClick={() => setActiveTab('stops')}
-          className={`flex-1 sm:flex-none justify-center py-2.5 sm:py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'stops'
-              ? 'border-helvetia text-helvetia font-semibold'
-              : 'border-transparent text-warm-600 hover:text-warm-900'
-          }`}
-        >
-          <span className="sm:hidden">Stops</span>
-          <span className="hidden sm:inline">Route Stops</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('weather')}
-          className={`flex-1 sm:flex-none justify-center py-2.5 sm:py-2 px-2 sm:px-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'weather'
-              ? 'border-helvetia text-helvetia font-semibold'
-              : 'border-transparent text-warm-600 hover:text-warm-900'
-          }`}
-        >
-          <span className="sm:hidden">Weather</span>
-          <span className="hidden sm:inline">NEA Weather</span>
-        </button>
+      {/* Navigation tabs (phones: BottomTabBar) */}
+      <nav className="hidden sm:flex max-w-7xl mx-auto px-4 border-t border-warm-100 items-center gap-2 overflow-x-auto no-scrollbar">
+        {APP_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            aria-current={activeTab === tab.id ? 'page' : undefined}
+            className={`py-2 px-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === tab.id
+                ? 'border-helvetia text-helvetia font-semibold'
+                : 'border-transparent text-warm-600 hover:text-warm-900'
+            }`}
+          >
+            {tab.label}
+            {tab.id === 'map' && <span className="w-2 h-2 rounded-full bg-green-blue animate-ping inline-block" />}
+          </button>
+        ))}
       </nav>
     </header>
   );

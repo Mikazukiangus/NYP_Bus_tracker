@@ -39,6 +39,10 @@
   body {
     background: var(--color-warm-50);
     color: var(--color-warm-900);
+    /* The page runs edge to edge (viewport-fit=cover, so the tab bar can clear the iPhone home indicator);
+       keep content clear of the notch in landscape */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   h1, h2, h3, h4 {

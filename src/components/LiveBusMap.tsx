@@ -563,8 +563,8 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
         </div>
       </div>
 
-      {/* Map Canvas */}
-      <div className="relative w-full h-[60vh] min-h-[320px] max-h-[520px] sm:h-[460px] lg:h-[520px] bg-warm-100 z-10">
+      {/* Map Canvas (phones: the map is the whole Map tab, so it fills the screen down to the bars at the bottom) */}
+      <div className="relative w-full h-[calc(100dvh-18rem)] min-h-[320px] max-h-[520px] max-sm:max-h-none sm:h-[460px] lg:h-[520px] bg-warm-100 z-10">
         <div ref={mapContainerRef} className="w-full h-full" />
 
         {/* Legend Overlay (compact on phones) */}

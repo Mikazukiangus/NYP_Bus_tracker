@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RefreshCw, Accessibility, Info, Clock, CalendarClock, ChevronDown, Satellite, Flag, ArrowLeftRight, ChevronRight, ChevronLeft } from 'lucide-react';
+import { RefreshCw, Accessibility, Info, Clock, CalendarClock, ChevronDown, Satellite, Flag, ArrowLeftRight, ChevronRight, ChevronLeft, Heart } from 'lucide-react';
 import { AlightHint, ArrivalDataSource, BusArrivalInfo, BusLoad, BusServiceArrivals, BusStop, FirstLastTimes } from '../types/bus';
 import { TrackingBadge } from './ArrivalBits';
 import { BUS_TYPE_NAME, BUS_TYPE_SHORT, BusTypeIcon } from './BusTypeIcon';
@@ -16,6 +16,10 @@ interface ArrivalDisplayProps {
   alight?: AlightHint | null; // where to get off for the destination in "Where to?"
   onTrackLeg?: (legIndex: number) => void; // switch to another bus of the trip
   onChooseService?: (legIndex: number, serviceNo: string) => void; // take another bus between the same stops
+  // Phones, where this card also does the nearest-stop banner's job: how far the stop is, and saving it
+  stopInfo?: { distanceM: number; isNearest: boolean; onShowNearest: () => void };
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
 }
 
 // "0530" -> "5:30 am"
@@ -153,6 +157,9 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   alight = null,
   onTrackLeg,
   onChooseService,
+  stopInfo,
+  isFavorite = false,
+  onToggleFavorite,
 }) => {
   const [showAllDays, setShowAllDays] = useState(false);
   const [showGuide, setShowGuide] = useState(false); // phones: the capacity guide is folded away
@@ -269,15 +276,15 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
 
   return (
     <div className="@container bg-white rounded-2xl border border-warm-200 shadow-sm p-3.5 sm:p-6">
-      {/* Header bar */}
-      <div className="flex flex-col max-sm:flex-row max-sm:items-start @xl:flex-row @xl:items-center justify-between gap-3 pb-3 @2xl:pb-4 border-b border-warm-100">
+      {/* Header bar (phones: the refresh button sits in the top corner so the lines under the title get the full width) */}
+      <div className="relative flex flex-col @xl:flex-row @xl:items-center justify-between gap-3 pb-3 @2xl:pb-4 border-b border-warm-100">
         <div className="flex items-center gap-3 min-w-0">
           {/* Phones: the title already names the bus, so the badge makes room for the refresh button */}
           <div className="max-sm:hidden w-11 h-11 @2xl:w-12 @2xl:h-12 rounded-xl bg-helvetia text-white flex items-center justify-center font-black text-xl shadow-xs shrink-0">
             {arrivals.serviceNo}
           </div>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 max-sm:pr-20 max-sm:min-h-[1.875rem]">
               <h3 className="text-base sm:text-lg font-black text-helvetia leading-tight">
                 Bus {arrivals.serviceNo} Arrivals
               </h3>
@@ -307,10 +314,42 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
             <p className="text-xs text-warm-500 font-medium">
               at <strong className="text-warm-800">{activeStop.name}</strong> ({activeStop.code}) • Towards {arrivals.destination}
             </p>
+            {(stopInfo || onToggleFavorite) && (
+              <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-warm-600">
+                {stopInfo && (
+                  <span className="min-w-0">
+                    {stopInfo.isNearest ? <strong className="text-warm-800">★ Nearest stop</strong> : 'Not your nearest stop'}
+                    {' · '}
+                    {formatMetres(stopInfo.distanceM)}, ~{Math.max(1, Math.round(stopInfo.distanceM / 80))}&nbsp;min walk
+                    {!stopInfo.isNearest && (
+                      <>
+                        {' · '}
+                        <button onClick={stopInfo.onShowNearest} className="font-semibold text-helvetia underline">
+                          Go to nearest
+                        </button>
+                      </>
+                    )}
+                  </span>
+                )}
+                {onToggleFavorite && (
+                  <button
+                    onClick={onToggleFavorite}
+                    aria-pressed={isFavorite}
+                    title={isFavorite ? 'Remove from favourites' : 'Save to favourites'}
+                    className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg border font-semibold ${
+                      isFavorite ? 'bg-lemon border-lemon text-helvetia-950' : 'border-warm-200 text-warm-700 hover:bg-warm-50'
+                    }`}
+                  >
+                    <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-helvetia-950' : ''}`} />
+                    {isFavorite ? 'Saved' : 'Save'}
+                  </button>
+                )}
+              </div>
+            )}
             {firstLast && (
               <button
                 onClick={() => setShowAllDays((v) => !v)}
-                className="mt-1 flex items-center gap-1 text-[11px] text-warm-500 hover:text-warm-700"
+                className="mt-1 flex items-center gap-1 text-[11px] text-left text-warm-500 hover:text-warm-700"
                 aria-expanded={showAllDays}
               >
                 <CalendarClock className="w-3.5 h-3.5 text-helvetia shrink-0" />
@@ -345,7 +384,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         </div>
 
         {/* Refresh timer & button */}
-        <div className="flex items-center gap-3 self-end max-sm:self-start @xl:self-center shrink-0">
+        <div className="flex items-center gap-3 self-end @xl:self-center shrink-0 max-sm:absolute max-sm:top-0 max-sm:right-0">
           <div className="text-right text-xs max-sm:hidden">
             <div className="text-warm-500 text-[11px]">Auto-refresh in</div>
             <div className="font-mono font-bold text-helvetia-900">{isRefreshing ? 'Updating...' : `${secondsUntilRefresh}s`}</div>
@@ -354,7 +393,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
           <button
             onClick={onRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-1.5 px-3 py-2 bg-helvetia-50 hover:bg-helvetia-100 text-helvetia font-semibold text-xs rounded-xl transition-all border border-helvetia-200"
+            className="flex items-center gap-1.5 px-3 py-2 max-sm:py-1.5 bg-helvetia-50 hover:bg-helvetia-100 text-helvetia font-semibold text-xs rounded-xl transition-all border border-helvetia-200"
             title="Refresh bus arrivals now"
             aria-label={`Refresh bus arrivals now (auto-refresh in ${secondsUntilRefresh} seconds)`}
           >

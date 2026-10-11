@@ -38,13 +38,14 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
     return `${(meters / 1000).toFixed(1)}km`;
   };
 
+  // Wider screens only: on phones the arrivals card shows how far the stop is
   return (
-    <div className="nearest-stop-banner bg-helvetia rounded-2xl text-white p-3.5 sm:p-5 shadow-md relative overflow-hidden border-t-4 border-green-blue">
+    <div className="nearest-stop-banner bg-helvetia rounded-2xl text-white p-5 shadow-md relative overflow-hidden border-t-4 border-green-blue">
       <div aria-hidden="true" className="absolute right-0 bottom-0 w-20 h-2 bg-lemon pointer-events-none" />
 
       <div className="relative z-10">
         {/* Top badge row */}
-        <div className="flex items-center justify-between gap-2 mb-1.5 sm:mb-2.5">
+        <div className="flex items-center justify-between gap-2 mb-2.5">
           <div className="flex items-center gap-2 min-w-0">
             <span className="bg-lemon text-helvetia-950 text-[11px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs shrink-0">
               <span className="w-2 h-2 rounded-full bg-helvetia animate-ping inline-block" />
@@ -57,7 +58,7 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
 
           <button
             onClick={onToggleFavorite}
-            className={`p-1.5 sm:p-2 rounded-xl transition-all flex items-center gap-1.5 text-xs font-semibold shrink-0 ${
+            className={`p-2 rounded-xl transition-all flex items-center gap-1.5 text-xs font-semibold shrink-0 ${
               isFavorite
                 ? 'bg-lemon text-helvetia-950 shadow-xs'
                 : 'bg-white/10 hover:bg-white/20 text-white'
@@ -66,9 +67,7 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
             aria-label={isFavorite ? 'Remove from favourites' : 'Save to favourites'}
           >
             <Heart className={`w-4 h-4 ${isFavorite ? 'fill-helvetia-950' : ''}`} />
-            <span className="hidden sm:inline">
-              {isFavorite ? 'Favourited' : 'Add to Favs'}
-            </span>
+            <span>{isFavorite ? 'Favourited' : 'Add to Favs'}</span>
           </button>
         </div>
 
@@ -76,24 +75,20 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-baseline gap-2">
-              <h2 className="text-lg sm:text-2xl font-black text-white tracking-tight max-sm:leading-tight">
+              <h2 className="text-2xl font-black text-white tracking-tight">
                 {nearestStop.name}
               </h2>
               <span className="bg-white/20 text-white font-mono font-bold text-xs px-2 py-0.5 rounded-md">
                 {nearestStop.code}
               </span>
             </div>
-            <p className="text-helvetia-200 text-xs sm:text-sm mt-0.5 font-medium">
+            <p className="text-helvetia-200 text-sm mt-0.5 font-medium">
               Along {nearestStop.road}
-              {/* Phones: the distance goes on this line instead of in its own pill */}
-              <span className="sm:hidden">
-                {' '}· <strong className="text-white">{formatDistance(distanceMeters)}</strong> · ~{walkingMin} min walk
-              </span>
             </p>
           </div>
 
           {/* Distance & Walk pill */}
-          <div className="hidden sm:flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <div className="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl px-3.5 py-2 flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-lemon/15 text-lemon flex items-center justify-center shrink-0">
                 <Navigation className="w-4 h-4" />
@@ -133,26 +128,8 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
           </div>
         )}
 
-        {/* Phones: the map and the route's other stops as one row of buttons */}
-        <div className="sm:hidden mt-2.5 flex gap-2 text-xs font-bold">
-          <button
-            onClick={onViewOnMap}
-            className="bg-lemon text-helvetia-950 hover:bg-lemon-hover px-3 py-2 rounded-xl flex items-center gap-1.5 shrink-0"
-          >
-            <MapIcon className="w-3.5 h-3.5 text-helvetia" />
-            Map
-          </button>
-          <button
-            onClick={onOpenStopsList}
-            className="flex-1 min-w-0 bg-white/10 hover:bg-white/20 px-3 py-2 rounded-xl flex items-center justify-between gap-1"
-          >
-            <span className="truncate">Other stops on this route</span>
-            <ChevronRight className="w-3.5 h-3.5 shrink-0" />
-          </button>
-        </div>
-
         {/* Route stops browsing hint */}
-        <div className="hidden mt-3 pt-2.5 border-t border-white/15 sm:flex items-center justify-between text-xs text-helvetia-200">
+        <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between text-xs text-helvetia-200">
           <div className="flex items-center gap-1 min-w-0">
             <MapPin className="w-3.5 h-3.5 text-helvetia-300 shrink-0" />
             <span>Looking for another stop along this bus route?</span>

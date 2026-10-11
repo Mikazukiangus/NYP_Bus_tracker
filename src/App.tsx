@@ -40,6 +40,7 @@ import { LiveBusMap } from './components/LiveBusMap';
 import { RouteStopsList } from './components/RouteStopsList';
 import { NEAWeatherWidget, WeatherStrip } from './components/NEAWeatherWidget';
 import { LiveArrivalsBar } from './components/LiveArrivalsBar';
+import { AppTab, BottomTabBar } from './components/AppTabs';
 import { FavoritesModal, NextBusLabel } from './components/FavoritesModal';
 import { LocationPickerModal } from './components/LocationPickerModal';
 import { LocationBar } from './components/LocationBar';
@@ -47,6 +48,7 @@ import { RankedTrip, TripPlannerCard, TripPlannerState } from './components/Trip
 import { useFavoriteArrivals } from './services/favoriteArrivals';
 import { useStopArrivals } from './services/useStopArrivals';
 import { useIsPhone } from './services/useIsPhone';
+import { useTextEntry } from './services/useTextEntry';
 import { loadSavedLocation, locationFromGps, saveUserLocation } from './services/userLocation';
 import { Heart, AlertCircle } from 'lucide-react';
 
@@ -76,10 +78,20 @@ export default function App() {
   const currentRouteRef = useRef(currentRoute);
   currentRouteRef.current = currentRoute;
 
-  // UI Active Tab: 'arrivals' | 'map' | 'stops' | 'weather'
-  const [activeTab, setActiveTab] = useState<'arrivals' | 'map' | 'stops' | 'weather'>('arrivals');
-  // Phones get a shorter page: folded sections, no map preview on the arrivals tab, and a bar with the next bus
+  const [activeTab, setActiveTab] = useState<AppTab>('arrivals');
+  // Phones get a shorter page: the tabs in a bar at the bottom, each tab showing only what it's for, folded
+  // sections, and a bar with the next bus
   const isPhone = useIsPhone();
+  const isTyping = useTextEntry();
+
+  // Each tab opens at the top, as in an app; choosing the open tab again goes back to the top
+  const selectTab = useCallback(
+    (tab: AppTab) => {
+      window.scrollTo({ top: 0, behavior: tab === activeTab ? 'smooth' : 'auto' });
+      setActiveTab(tab);
+    },
+    [activeTab]
+  );
 
   // Selected stop code (null = follow the nearest stop; user can pick any other stop)
   const [selectedStopCode, setSelectedStopCode] = useState<string | null>(null);
@@ -716,7 +728,7 @@ export default function App() {
   const tripCard = destination && (
     <TripPlannerCard
       destination={destination}
-      fromName={userLocation.name}
+      fromName={activeTab === 'map' ? userLocation.name : undefined}
       state={tripState}
       selectedId={selectedTrip?.id ?? null}
       canShowMap={!!journey}
@@ -731,14 +743,22 @@ export default function App() {
     />
   );
 
-  const openWeatherTab = () => {
-    setActiveTab('weather');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const openWeatherTab = () => selectTab('weather');
+
+  // The next-bus bar on phones opens the full arrivals card, which is on the Arrivals tab
+  const showArrivalsCard = () => {
+    const scroll = () => document.getElementById(ARRIVALS_CARD_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (activeTab === 'arrivals') return scroll();
+    selectTab('arrivals');
+    setTimeout(scroll, 50); // after the tab renders
   };
 
-  // The live arrivals card (on the arrivals, map and stops tabs); the phone bar scrolls back to it
+  const selectedStopDistance = stopsWithDistance.find((s) => s.code === selectedStop.code)?.distanceMeters ?? distanceMeters;
+
+  // The live arrivals card (wider screens: on the arrivals, map and stops tabs; phones: on the arrivals tab, where
+  // it also shows how far the stop is and saves it, in place of the nearest-stop banner)
   const arrivalsCard = (
-    <div id={ARRIVALS_CARD_ID} className="scroll-mt-28">
+    <div id={ARRIVALS_CARD_ID} className="scroll-mt-4 sm:scroll-mt-28">
       <ArrivalDisplay
         arrivals={arrivals}
         activeStop={selectedStop}
@@ -749,9 +769,28 @@ export default function App() {
         alight={alightHint}
         onTrackLeg={trackTripLegAt}
         onChooseService={chooseTripServiceAt}
+        {...(isPhone
+          ? {
+              stopInfo: {
+                distanceM: selectedStopDistance,
+                isNearest: selectedStop.code === nearestStop.code,
+                onShowNearest: () => handleSelectStop(nearestStop),
+              },
+              isFavorite: isCurrentFavorite,
+              onToggleFavorite: handleToggleFavorite,
+            }
+          : {})}
       />
     </div>
   );
+
+  // The most serious weather alert worth a look, for a dot on the Weather tab on phones (alerts come most serious first)
+  const topWeatherAlert = weather?.alerts[0];
+  const weatherAlertTone =
+    topWeatherAlert && ['warn', 'bad', 'severe'].includes(topWeatherAlert.tone) ? topWeatherAlert.tone : null;
+
+  // Where from and to, and the bus search: on the Arrivals tab (wider screens: on every bus tab)
+  const showTripInputs = activeTab === 'arrivals' || (!isPhone && activeTab !== 'weather');
 
   // Keep the saved location if GPS fails; a late fix must not override a new manual choice.
   useEffect(() => {
@@ -781,7 +820,7 @@ export default function App() {
         favoritesCount={favorites.length}
         onOpenFavorites={() => setIsFavoritesModalOpen(true)}
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={selectTab}
         onRefreshAll={handleRefresh}
         isRefreshing={isRefreshing}
       />
@@ -789,35 +828,40 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Where the user is starting from and where they're going */}
-        <LocationBar
-          location={userLocation}
-          onOpenPicker={() => setIsLocationModalOpen(true)}
-          onLocationChange={applyUserLocation}
-          network={network}
-          destination={destination}
-          onSetDestination={handleSetDestination}
-          onClearDestination={handleClearDestination}
-          recentPlaces={recentPlaces}
-        />
+        {showTripInputs && (
+          <LocationBar
+            location={userLocation}
+            onOpenPicker={() => setIsLocationModalOpen(true)}
+            onLocationChange={applyUserLocation}
+            network={network}
+            destination={destination}
+            onSetDestination={handleSetDestination}
+            onClearDestination={handleClearDestination}
+            recentPlaces={recentPlaces}
+          />
+        )}
 
-        {/* Trip options follow the destination, except on the map tab where the map comes first */}
-        {(activeTab === 'arrivals' || activeTab === 'stops') && tripCard}
+        {/* Trip options follow the destination, except on the map tab where the map comes first (phones: the stop
+            list shows the trip itself) */}
+        {(activeTab === 'arrivals' || (activeTab === 'stops' && !isPhone)) && tripCard}
 
         {/* Bus Search Box & Direction Selector */}
-        <BusSearchBox
-          busNumber={busNumber}
-          onSearch={handleSearchBus}
-          currentRoute={currentRoute}
-          direction={direction}
-          setDirection={handleSetDirection}
-          nearbyStops={nearbyStops}
-          locationName={userLocation.name.split('(')[0].trim()}
-          trackedStopCode={selectedStop.code}
-          onSelectStopService={handleSelectStopService}
-          foldable={isPhone && !!destination}
-        />
+        {showTripInputs && (
+          <BusSearchBox
+            busNumber={busNumber}
+            onSearch={handleSearchBus}
+            currentRoute={currentRoute}
+            direction={direction}
+            setDirection={handleSetDirection}
+            nearbyStops={nearbyStops}
+            locationName={userLocation.name.split('(')[0].trim()}
+            trackedStopCode={selectedStop.code}
+            onSelectStopService={handleSelectStopService}
+            foldable={isPhone && !!destination}
+          />
+        )}
 
-        {(isRouteLoading || routeNotice) && (
+        {activeTab !== 'weather' && (isRouteLoading || routeNotice) && (
           <div
             className={`rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs border ${
               routeNotice && !isRouteLoading
@@ -830,8 +874,8 @@ export default function App() {
           </div>
         )}
 
-        {/* Nearest Bus Stop Highlight Banner */}
-        {(activeTab === 'arrivals' || activeTab === 'stops') && (
+        {/* Nearest Bus Stop Highlight Banner (phones: in the arrivals card; the Stops tab marks the nearest stop) */}
+        {activeTab === 'arrivals' && !isPhone && (
           <NearestStopBanner
             nearestStop={nearestStop}
             selectedStop={selectedStop}
@@ -840,8 +884,8 @@ export default function App() {
             userLocation={userLocation}
             isFavorite={isCurrentFavorite}
             onToggleFavorite={handleToggleFavorite}
-            onViewOnMap={() => setActiveTab('map')}
-            onOpenStopsList={() => setActiveTab('stops')}
+            onViewOnMap={() => selectTab('map')}
+            onOpenStopsList={() => selectTab('stops')}
           />
         )}
 
@@ -930,7 +974,7 @@ export default function App() {
         )}
 
         {activeTab === 'map' && (
-          <div id="trip-map" className="space-y-4 scroll-mt-32">
+          <div id="trip-map" className="space-y-4 scroll-mt-4 sm:scroll-mt-32">
             <LiveBusMap
               route={currentRoute}
               direction={direction}
@@ -944,8 +988,8 @@ export default function App() {
               alight={alightHint}
             />
             {tripCard}
-            {/* Quick arrival summary card below the map */}
-            {arrivalsCard}
+            {/* Quick arrival summary card below the map (phones: the next-bus bar) */}
+            {!isPhone && arrivalsCard}
           </div>
         )}
 
@@ -962,18 +1006,22 @@ export default function App() {
                 alight={alightHint}
                 onTrackLeg={trackTripLegAt}
                 onChooseService={chooseTripServiceAt}
+                onSwitchDirection={isPhone ? () => handleSetDirection(direction === 2 ? 1 : 2) : undefined}
               />
             </div>
-            <div className="lg:col-span-5 space-y-4">
-              {arrivalsCard}
-              <StopServicesBoard
-                stop={selectedStop}
-                services={stopServices}
-                dataSource={dataSource}
-                currentServiceNo={currentRoute.serviceNo}
-                onSelectService={(serviceNo) => trackService(serviceNo, { stopCode: selectedStop.code })}
-              />
-            </div>
+            {/* Phones: the next-bus bar shows the arrivals at the stop chosen in the list */}
+            {!isPhone && (
+              <div className="lg:col-span-5 space-y-4">
+                {arrivalsCard}
+                <StopServicesBoard
+                  stop={selectedStop}
+                  services={stopServices}
+                  dataSource={dataSource}
+                  currentServiceNo={currentRoute.serviceNo}
+                  onSelectService={(serviceNo) => trackService(serviceNo, { stopCode: selectedStop.code })}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -988,19 +1036,26 @@ export default function App() {
         )}
       </main>
 
-      {isPhone && activeTab !== 'weather' && (
-        <LiveArrivalsBar
-          arrivals={arrivals}
-          stop={selectedStop}
-          dataSource={dataSource}
-          alight={alightHint}
-          targetId={ARRIVALS_CARD_ID}
-          watchKey={activeTab}
-        />
+      {/* Phones: the next bus and the tabs pinned to the bottom of the screen (out of the way while typing) */}
+      {isPhone && !isTyping && (
+        <>
+          {activeTab !== 'weather' && (
+            <LiveArrivalsBar
+              arrivals={arrivals}
+              stop={selectedStop}
+              dataSource={dataSource}
+              alight={alightHint}
+              targetId={ARRIVALS_CARD_ID}
+              watchKey={activeTab}
+              onOpen={showArrivalsCard}
+            />
+          )}
+          <BottomTabBar activeTab={activeTab} onSelect={selectTab} weatherAlert={weatherAlertTone} />
+        </>
       )}
 
-      {/* Corporate Footer (room at the bottom on phones for the next-bus bar) */}
-      <footer className="mt-12 bg-white border-t border-warm-200 pt-6 pb-24 sm:pb-6 text-xs text-warm-500">
+      {/* Corporate Footer (room at the bottom on phones for the next-bus bar and the tabs) */}
+      <footer className="mt-12 bg-white border-t border-warm-200 pt-6 pb-[calc(8rem+env(safe-area-inset-bottom))] sm:pb-6 text-xs text-warm-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-helvetia flex items-center justify-center text-lemon font-bold text-[10px]">
