@@ -2,8 +2,9 @@ import React from 'react';
 import { ArrowRight, BusFront, ChevronRight, Flag, Footprints, Loader2, Map as MapIcon, Route, X } from 'lucide-react';
 import type { PlaceResult } from '../services/placeSearch';
 import type { LiveDeparture, TripLeg, TripOption, TripPlan } from '../services/tripPlanner';
-import { expectedTotalMin } from '../services/tripPlanner';
+import { expectedTotalMin, legServiceNos } from '../services/tripPlanner';
 import { TrackingBadge } from './ArrivalBits';
+import { ServiceChoice } from './ServiceChoice';
 import { legStyle } from './tripLegs';
 
 export interface RankedTrip {
@@ -23,7 +24,9 @@ interface TripPlannerCardProps {
   selectedId: string | null;
   canShowMap: boolean;
   onSelect: (option: TripOption) => void;
-  onTrackLeg: (leg: TripLeg) => void;
+  onTrackLeg: (option: TripOption, legIndex: number) => void;
+  onChooseService: (option: TripOption, legIndex: number, serviceNo: string) => void;
+  notDueAt: (leg: TripLeg) => string[]; // buses between a leg's stops with none due now
   trackedServiceNo: string;
   trackedStopCode: string;
   onShowMap: () => void;
@@ -39,19 +42,20 @@ const clockIn = (minutes: number) =>
     timeZone: 'Asia/Singapore',
   });
 
-const ServiceBadge: React.FC<{ leg: TripLeg; size?: 'sm' | 'md' }> = ({ leg, size = 'md' }) => (
-  <span className="inline-flex items-baseline gap-1 shrink-0">
-    <span
-      className={`bg-helvetia text-white font-black rounded-lg text-center ${
-        size === 'md' ? 'text-sm px-2 py-0.5 min-w-[2.5rem]' : 'text-xs px-1.5 py-0.5 min-w-[2.25rem]'
-      }`}
-    >
-      {leg.serviceNo}
-    </span>
-    {leg.alsoServiceNos.length > 0 && (
-      <span className="text-[11px] font-semibold text-warm-600">or {leg.alsoServiceNos.join(', ')}</span>
-    )}
-  </span>
+// A leg's bus, or every bus between the same stops with the chosen one filled in
+const LegServices: React.FC<{ leg: TripLeg; notDue: string[]; onChoose?: (serviceNo: string) => void }> = ({
+  leg,
+  notDue,
+  onChoose,
+}) => (
+  <ServiceChoice
+    serviceNos={legServiceNos(leg)}
+    chosen={leg.serviceNo}
+    notDue={notDue}
+    onChoose={onChoose}
+    size="fit"
+    label={`Buses from ${leg.board.name} to ${leg.alight.name}`}
+  />
 );
 
 function LiveLine({ trip }: { trip: RankedTrip }) {
@@ -68,15 +72,19 @@ function LiveLine({ trip }: { trip: RankedTrip }) {
     return <span className="text-rose-700 font-semibold">No bus due at {option.legs[0].board.name} now (may not be running)</span>;
   }
   const leaveIn = live.catchEtaMin === null ? null : Math.round(live.catchEtaMin - option.walkStartMin);
+  // With more than one bus to choose from, say which bus each time is for
+  const severalServices = new Set(live.nextBuses.map((b) => b.serviceNo)).size > 1;
+  const caught = live.nextBuses.findIndex((b) => b.etaMin === live.catchEtaMin);
   return (
     <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
       <span className="text-warm-700">
-        Bus{option.legs[0].alsoServiceNos.length ? 'es' : ''} in{' '}
-        {live.nextEtas.map((eta, i) => (
+        {severalServices ? 'Next: ' : `Bus${option.legs[0].alsoServiceNos.length ? 'es' : ''} in `}
+        {live.nextBuses.map((bus, i) => (
           <React.Fragment key={i}>
             {i > 0 && ', '}
-            <strong className={eta === live.catchEtaMin ? 'text-warm-900' : 'font-normal text-warm-500'}>
-              {eta <= 0 ? 'Arr' : eta}
+            {severalServices && <span className="font-semibold text-warm-700">{bus.serviceNo} in </span>}
+            <strong className={i === caught ? 'text-warm-900' : 'font-normal text-warm-500'}>
+              {bus.etaMin <= 0 ? 'Arr' : bus.etaMin}
             </strong>
           </React.Fragment>
         ))}{' '}
@@ -114,12 +122,16 @@ function TotalTime({ trip }: { trip: RankedTrip }) {
 function Steps({
   option,
   onTrackLeg,
+  onChooseService,
+  notDueAt,
   trackedServiceNo,
   trackedStopCode,
   destinationName,
 }: {
   option: TripOption;
-  onTrackLeg: (leg: TripLeg) => void;
+  onTrackLeg: (option: TripOption, legIndex: number) => void;
+  onChooseService: (option: TripOption, legIndex: number, serviceNo: string) => void;
+  notDueAt: (leg: TripLeg) => string[];
   trackedServiceNo: string;
   trackedStopCode: string;
   destinationName: string;
@@ -146,6 +158,7 @@ function Steps({
         walkStep(option.transferWalkMin, option.transferWalkM, <><strong className="text-warm-900">{leg.board.name}</strong> · {leg.board.code} to change buses</>, `walk-${i}`)
       );
     }
+    const notDue = notDueAt(leg);
     const isTracked =
       trackedServiceNo.toUpperCase() === leg.serviceNo.toUpperCase() && trackedStopCode === leg.board.code;
     steps.push(
@@ -158,9 +171,15 @@ function Steps({
           <div className="text-xs text-warm-700 min-w-0 space-y-0.5">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-0.5">
               {i > 0 && option.transferWalkM === 0 && <span className="text-warm-600">Change at the same stop to</span>}
-              <ServiceBadge leg={leg} size="sm" />
+              <LegServices leg={leg} notDue={notDue} onChoose={(serviceNo) => onChooseService(option, i, serviceNo)} />
               <span className="text-warm-600">towards {leg.towards}</span>
             </div>
+            {leg.alsoServiceNos.length > 0 && (
+              <div className="text-[11px] text-warm-500">
+                {leg.alsoServiceNos.length === 1 ? 'Both buses go' : 'All these buses go'} between these stops. Tap a
+                number to take that bus.{notDue.length > 0 && ' Greyed-out numbers have no bus due now.'}
+              </div>
+            )}
             <div>
               Ride {leg.stopCount} stop{leg.stopCount === 1 ? '' : 's'} · {formatMetres(leg.distanceM)} · ~{round(leg.rideMin)} min
               {i > 0 && <span className="text-warm-500"> (+ ~5 min wait)</span>}
@@ -175,7 +194,7 @@ function Steps({
             </span>
           ) : (
             <button
-              onClick={() => onTrackLeg(leg)}
+              onClick={() => onTrackLeg(option, i)}
               className="text-[11px] font-bold text-helvetia bg-white border border-helvetia-200 hover:bg-helvetia-50 px-2 py-1 rounded-lg shrink-0 flex items-center gap-0.5"
             >
               Live times <ChevronRight className="w-3 h-3" />
@@ -211,6 +230,8 @@ export const TripPlannerCard: React.FC<TripPlannerCardProps> = ({
   canShowMap,
   onSelect,
   onTrackLeg,
+  onChooseService,
+  notDueAt,
   trackedServiceNo,
   trackedStopCode,
   onShowMap,
@@ -311,7 +332,7 @@ export const TripPlannerCard: React.FC<TripPlannerCardProps> = ({
                           {legs.map((leg, i) => (
                             <React.Fragment key={i}>
                               {i > 0 && <ArrowRight className="w-3.5 h-3.5 text-warm-400" />}
-                              <ServiceBadge leg={leg} />
+                              <LegServices leg={leg} notDue={notDueAt(leg)} />
                             </React.Fragment>
                           ))}
                           <span className="text-[11px] font-semibold text-warm-500 ml-1">
@@ -340,6 +361,8 @@ export const TripPlannerCard: React.FC<TripPlannerCardProps> = ({
                         <Steps
                           option={option}
                           onTrackLeg={onTrackLeg}
+                          onChooseService={onChooseService}
+                          notDueAt={notDueAt}
                           trackedServiceNo={trackedServiceNo}
                           trackedStopCode={trackedStopCode}
                           destinationName={destination.name}

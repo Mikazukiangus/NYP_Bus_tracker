@@ -3,6 +3,7 @@ import { BusFront, ChevronDown, ChevronRight } from 'lucide-react';
 import { ArrivalDataSource, BusLoad, BusStop, StopServiceArrivals } from '../types/bus';
 import { fetchStopNames } from '../services/busTrackerService';
 import { formatEta, TrackingBadge } from './ArrivalBits';
+import { BusTypeTag } from './BusTypeIcon';
 
 interface StopServicesBoardProps {
   stop: BusStop;
@@ -95,7 +96,7 @@ export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
                       {destination ? `To ${destination}` : svc.operator}
                     </div>
                     {svc.nextBus ? (
-                      <div className="flex items-center gap-2 text-xs">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
                         <span
                           className={`w-2 h-2 rounded-full shrink-0 ${LOAD_DOT[svc.nextBus.load].className}`}
                           title={LOAD_DOT[svc.nextBus.load].label}
@@ -103,6 +104,7 @@ export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
                         <strong className={svc.nextBus.estimatedMinutes <= 0 ? 'text-green-blue-ink' : 'text-warm-900'}>
                           {formatEta(svc.nextBus.estimatedMinutes)}
                         </strong>
+                        <BusTypeTag type={svc.nextBus.type} />
                         {svc.nextBus2 && <span className="text-warm-500">then {formatEta(svc.nextBus2.estimatedMinutes)}</span>}
                         <TrackingBadge bus={svc.nextBus} compact />
                       </div>

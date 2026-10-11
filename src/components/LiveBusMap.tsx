@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { AlightHint, BusRoute, BusStop, IncomingBus, JourneyOverlay, TrafficIncident, UserLocation } from '../types/bus';
 import { Navigation, Locate, Maximize2, TriangleAlert, Route } from 'lucide-react';
+import { BUS_TYPE_NAME, busTypeSvg } from './BusTypeIcon';
 import { legStyle, tripLegs } from './tripLegs';
 
 interface LiveBusMapProps {
@@ -36,7 +37,6 @@ const ALIGHT_FIT: L.FitBoundsOptions = { paddingTopLeft: [50, 150], paddingBotto
 const ORDINAL_LABEL = { 1: '1st', 2: '2nd', 3: '3rd' } as const;
 const LOAD_LABEL = { SEA: 'Seats available', SDA: 'Standing available', LSD: 'Limited standing' } as const;
 const LOAD_COLOR = { SEA: 'var(--color-green-blue)', SDA: '#f59e0b', LSD: '#ef4444' } as const;
-const TYPE_LABEL = { SD: 'Single deck', DD: 'Double deck', BD: 'Bendy' } as const;
 
 // Lucide "flag" icon, for the destination and get-off markers
 const flagSvg = (size: number) =>
@@ -418,7 +418,9 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
               <div class="w-4 h-1 rounded-full mt-0.5" style="background-color: ${LOAD_COLOR[bus.load]}"></div>
               <span class="absolute -top-2 -right-2 bg-white text-helvetia border border-helvetia-200 text-[8px] font-black px-1 rounded-full">${bus.ordinal}</span>
             </div>
-            <span class="mt-0.5 bg-warm-900/85 text-white text-[10px] font-bold px-1.5 rounded whitespace-nowrap">${eta}</span>
+            <span class="mt-0.5 bg-warm-900/85 text-white text-[10px] font-bold px-1.5 rounded whitespace-nowrap flex items-center gap-1">${eta}${
+              bus.type ? `<span title="${BUS_TYPE_NAME[bus.type]}" class="flex">${busTypeSvg(bus.type, 13)}</span>` : ''
+            }</span>
           </div>
         `,
         className: 'live-bus-marker',
@@ -435,7 +437,12 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
             <span class="text-[10px] font-bold bg-helvetia-50 text-helvetia-900 px-1.5 py-0.5 rounded">${ORDINAL_LABEL[bus.ordinal]} bus</span>
           </div>
           <div class="text-warm-700">Arriving at <strong>${escapeHtml(selectedStop.name)}</strong>: <strong>${eta}</strong></div>
-          <div class="text-[11px] text-warm-600 mt-1">${LOAD_LABEL[bus.load]} • ${TYPE_LABEL[bus.type]}${bus.feature === 'WAB' ? ' • Wheelchair accessible' : ''}</div>
+          ${
+            bus.type
+              ? `<div class="mt-1 flex items-center gap-1 font-bold text-warm-800">${busTypeSvg(bus.type, 16)}${BUS_TYPE_NAME[bus.type]}</div>`
+              : ''
+          }
+          <div class="text-[11px] text-warm-600 mt-0.5">${LOAD_LABEL[bus.load]}${bus.feature === 'WAB' ? ' • Wheelchair accessible' : ''}</div>
           <div class="text-[10px] text-warm-500 mt-1.5">GPS position from LTA DataMall</div>
         </div>`
       );
@@ -592,6 +599,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
                   />
                   <span className="text-warm-700 truncate">
                     {journey.legs.length > 1 ? `${i === 0 ? '1st' : '2nd'} bus: ${leg.serviceNo}` : `Your bus: ${leg.serviceNo}`}
+                    {leg.otherServiceNos.length > 0 && <span className="text-warm-500"> (or {leg.otherServiceNos.join(', ')})</span>}
                   </span>
                 </div>
               ))}

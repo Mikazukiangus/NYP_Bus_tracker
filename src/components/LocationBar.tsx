@@ -1,17 +1,34 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, Locate, MapPin } from 'lucide-react';
+import { Flag, Loader2, Locate, MapPin } from 'lucide-react';
 import type { UserLocation } from '../types/bus';
+import type { BusNetwork } from '../services/busNetwork';
+import type { PlaceResult } from '../services/placeSearch';
 import { requestGpsLocation } from '../services/userLocation';
-import { PlaceKindIcon } from './PlaceSearch';
+import { PlaceKindIcon, PlaceSearch } from './PlaceSearch';
 
 interface LocationBarProps {
   location: UserLocation;
   onOpenPicker: () => void;
   onLocationChange: (location: UserLocation) => void;
+  network: BusNetwork | null;
+  destination: PlaceResult | null;
+  onSetDestination: (place: PlaceResult) => void;
+  onClearDestination: () => void;
+  recentPlaces: PlaceResult[];
 }
 
-// Where the user is starting from: GPS, a searched place / postal code / stop, or a suggested place
-export const LocationBar: React.FC<LocationBarProps> = ({ location, onOpenPicker, onLocationChange }) => {
+// Where the user is starting from (GPS, a searched place / postal code / stop, or a suggested place) and,
+// right under it, where they're going
+export const LocationBar: React.FC<LocationBarProps> = ({
+  location,
+  onOpenPicker,
+  onLocationChange,
+  network,
+  destination,
+  onSetDestination,
+  onClearDestination,
+  recentPlaces,
+}) => {
   const [isLocating, setIsLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isGps = !location.isSimulated;
@@ -38,7 +55,7 @@ export const LocationBar: React.FC<LocationBarProps> = ({ location, onOpenPicker
     : location.address;
 
   return (
-    <div>
+    <section aria-label="Your trip" className="bg-white rounded-2xl border border-warm-200/90 shadow-sm p-2 sm:p-2.5 space-y-2">
       <div className="bg-green-blue-soft border border-green-blue/25 rounded-xl px-3 sm:px-4 py-2 flex items-center justify-between gap-2 text-xs">
         <button
           onClick={onOpenPicker}
@@ -78,10 +95,24 @@ export const LocationBar: React.FC<LocationBarProps> = ({ location, onOpenPicker
         </div>
       </div>
       {error && (
-        <p role="alert" className="mt-1.5 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-1.5">
+        <p role="alert" className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-1.5">
           {error}
         </p>
       )}
-    </div>
+      <div className="px-1 pb-0.5">
+        <span className="block text-[11px] font-semibold text-warm-600 mb-1">Where to?</span>
+        <PlaceSearch
+          network={network}
+          onSelect={onSetDestination}
+          onClear={onClearDestination}
+          value={destination?.name ?? ''}
+          recent={recentPlaces}
+          label="Where to?"
+          placeholder="Place, address or postal code"
+          icon={<Flag className="w-5 h-5" />}
+          inputClassName="py-3 text-base font-semibold"
+        />
+      </div>
+    </section>
   );
 };

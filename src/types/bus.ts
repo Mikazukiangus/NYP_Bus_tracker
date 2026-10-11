@@ -20,7 +20,7 @@ export interface BusStop {
 export interface BusArrivalInfo {
   estimatedMinutes: number; // 0 means "Arr"
   load: BusLoad;
-  type: BusType;
+  type?: BusType; // LTA gives each bus's type; missing if it didn't
   feature: 'WAB' | '';
   lat?: number;
   lng?: number;
@@ -68,7 +68,7 @@ export interface IncomingBus {
   lng: number;
   etaMinutes: number;
   load: BusLoad;
-  type: BusType;
+  type?: BusType;
   feature: 'WAB' | '';
 }
 
@@ -106,6 +106,7 @@ export interface JourneyOverlay {
   to: { lat: number; lng: number; name: string };
   legs: {
     serviceNo: string;
+    otherServiceNos: string[]; // other buses between the same two stops
     board: { code: string; name: string; lat: number; lng: number };
     alight: { code: string; name: string; lat: number; lng: number };
     path: [number, number][];
@@ -122,8 +123,9 @@ export interface TripView {
   destinationName: string;
   legIndex: number; // the leg on the bus being tracked
   legs: {
-    serviceNo: string;
-    alsoServiceNos: string[];
+    serviceNo: string; // the bus chosen for this leg
+    serviceNos: string[]; // every bus between the same two stops, in number order (including the chosen one)
+    notDueServiceNos: string[]; // those with no bus due at the boarding stop now
     towards: string;
     board: StopRef;
     alight: StopRef;

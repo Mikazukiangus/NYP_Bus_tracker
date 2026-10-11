@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { RefreshCw, Accessibility, Layers, Info, Clock, CalendarClock, ChevronDown, Satellite, Flag, ArrowLeftRight, ChevronRight, ChevronLeft } from 'lucide-react';
+import { RefreshCw, Accessibility, Info, Clock, CalendarClock, ChevronDown, Satellite, Flag, ArrowLeftRight, ChevronRight, ChevronLeft } from 'lucide-react';
 import { AlightHint, ArrivalDataSource, BusArrivalInfo, BusLoad, BusServiceArrivals, BusStop, FirstLastTimes } from '../types/bus';
 import { TrackingBadge } from './ArrivalBits';
+import { BUS_TYPE_NAME, BUS_TYPE_SHORT, BusTypeIcon } from './BusTypeIcon';
+import { ServiceChoice } from './ServiceChoice';
 import { legStyle, tripLegs } from './tripLegs';
 
 interface ArrivalDisplayProps {
@@ -13,9 +15,8 @@ interface ArrivalDisplayProps {
   secondsUntilRefresh: number;
   alight?: AlightHint | null; // where to get off for the destination in "Where to?"
   onTrackLeg?: (legIndex: number) => void; // switch to another bus of the trip
+  onChooseService?: (legIndex: number, serviceNo: string) => void; // take another bus between the same stops
 }
-
-const BUS_TYPE_LABEL = { SD: 'Single Deck', DD: 'Double Deck', BD: 'Bendy Bus' } as const;
 
 // "0530" -> "5:30 am"
 function formatHHmm(hhmm: string) {
@@ -41,11 +42,12 @@ const minutes = (min: number) => Math.max(1, Math.round(min));
 const formatMetres = (m: number) => (m < 1000 ? `${Math.round(m / 10) * 10}\u00a0m` : `${(m / 1000).toFixed(1)}\u00a0km`);
 
 // The stop to get off at for the destination, or a note that this bus doesn't go near it
-const AlightStrip: React.FC<{ alight: AlightHint; serviceNo: string; onTrackLeg?: (legIndex: number) => void }> = ({
-  alight,
-  serviceNo,
-  onTrackLeg,
-}) => {
+const AlightStrip: React.FC<{
+  alight: AlightHint;
+  serviceNo: string;
+  onTrackLeg?: (legIndex: number) => void;
+  onChooseService?: (legIndex: number, serviceNo: string) => void;
+}> = ({ alight, serviceNo, onTrackLeg, onChooseService }) => {
   if (alight.status === 'not-near') {
     return (
       <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 flex items-start gap-2.5 text-xs text-amber-900">
@@ -65,9 +67,7 @@ const AlightStrip: React.FC<{ alight: AlightHint; serviceNo: string; onTrackLeg?
   const legIndex = trip?.legIndex ?? 0;
   const style = legStyle(legIndex);
   const legButton = 'shrink-0 self-start @md:self-center flex items-center gap-1 text-xs font-bold text-helvetia bg-white border border-helvetia-200 hover:bg-helvetia-50 px-2.5 py-1.5 rounded-lg';
-  const serviceChip = (no: string, index: number) => (
-    <span className={`${legStyle(index).badge} font-black text-[11px] px-1.5 py-px rounded`}>{no}</span>
-  );
+  const current = trip?.legs[legIndex];
 
   return (
     <div className={`mt-3 rounded-xl border ${style.border} ${style.soft} px-3 py-2.5 flex flex-col @md:flex-row @md:items-start gap-2.5`}>
@@ -94,7 +94,15 @@ const AlightStrip: React.FC<{ alight: AlightHint; serviceNo: string; onTrackLeg?
                 {alight.walkM > 0
                   ? <>walk ~{minutes(alight.walkMin)}&nbsp;min to {next.board.name} ({next.board.code}) for </>
                   : 'take '}
-                {serviceChip(next.serviceNo, legIndex + 1)}
+                <ServiceChoice
+                  serviceNos={next.serviceNos}
+                  chosen={next.serviceNo}
+                  notDue={next.notDueServiceNos}
+                  onChoose={onChooseService && ((no) => onChooseService(legIndex + 1, no))}
+                  chosenClassName={legStyle(legIndex + 1).badge}
+                  size="sm"
+                  label={`Buses from ${next.board.name} to ${next.alight.name}`}
+                />
                 {alight.walkM > 0 ? '' : ' from the same stop'}, {next.stops.length - 1}&nbsp;stops to{' '}
                 <strong className="text-warm-900">{next.alight.name}</strong>
               </>
@@ -102,6 +110,23 @@ const AlightStrip: React.FC<{ alight: AlightHint; serviceNo: string; onTrackLeg?
               `walk ~${minutes(alight.walkMin)}\u00a0min (${formatMetres(alight.walkM)}) to ${alight.destinationName}`
             )}
           </p>
+          {current && current.serviceNos.length > 1 && (
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+              <ServiceChoice
+                serviceNos={current.serviceNos}
+                chosen={current.serviceNo}
+                notDue={current.notDueServiceNos}
+                onChoose={onChooseService && ((no) => onChooseService(legIndex, no))}
+                chosenClassName={style.badge}
+                size="sm"
+                label={`Buses from ${current.board.name} to ${current.alight.name}`}
+              />
+              <span>
+                {current.serviceNos.length === 2 ? 'both go' : 'all go'} from this stop to {stop.name}
+                {onChooseService ? ' · tap one to track it' : ''}
+              </span>
+            </p>
+          )}
         </div>
       </div>
       {onTrackLeg && next && trip && (
@@ -127,6 +152,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   secondsUntilRefresh,
   alight = null,
   onTrackLeg,
+  onChooseService,
 }) => {
   const [showAllDays, setShowAllDays] = useState(false);
   const isLive = dataSource === 'LTA_DATAMALL_V3';
@@ -224,15 +250,17 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         <div className="mt-2 @2xl:mt-3 flex flex-wrap items-center gap-1.5 @2xl:gap-2">
           {renderLoadBadge(bus.load)}
 
-          {/* Bus Type */}
-          <span
-            className="inline-flex items-center gap-1 text-[11px] font-bold px-1.5 @2xl:px-2 py-0.5 rounded-md bg-warm-100 text-warm-700 border border-warm-200"
-            title={BUS_TYPE_LABEL[bus.type]}
-          >
-            <Layers className="w-3 h-3 text-warm-500" />
-            <span className="@2xl:hidden">{bus.type}</span>
-            <span className="hidden @2xl:inline">{BUS_TYPE_LABEL[bus.type]}</span>
-          </span>
+          {/* Single deck, double deck or bendy: LTA gives it for each bus */}
+          {bus.type && (
+            <span
+              className="inline-flex items-center gap-1 text-[11px] font-bold px-1.5 @2xl:px-2 py-0.5 rounded-md bg-warm-100 text-warm-700 border border-warm-200"
+              title={BUS_TYPE_NAME[bus.type]}
+            >
+              <BusTypeIcon type={bus.type} className="w-4 h-4 text-warm-600" />
+              <span className="@2xl:hidden">{BUS_TYPE_SHORT[bus.type]}</span>
+              <span className="hidden @2xl:inline">{BUS_TYPE_NAME[bus.type]}</span>
+            </span>
+          )}
         </div>
       </div>
     );
@@ -323,7 +351,9 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         </div>
       </div>
 
-      {alight && <AlightStrip alight={alight} serviceNo={arrivals.serviceNo} onTrackLeg={onTrackLeg} />}
+      {alight && (
+        <AlightStrip alight={alight} serviceNo={arrivals.serviceNo} onTrackLeg={onTrackLeg} onChooseService={onChooseService} />
+      )}
 
       {/* Grid of 3 Arrival timings */}
       <div className="grid grid-cols-3 gap-2 @2xl:gap-3.5 mt-3 @2xl:mt-4">

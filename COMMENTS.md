@@ -416,3 +416,27 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - At 375 px nothing overflows the page width. NYP → AMK Hub (direct 265) is unchanged apart from the legend label.
 
 ---
+
+### Turn 25: Where To First, a Choice of Buses, and Bus Deck Types (11 October 2026)
+- **User Prompt**:
+  > *"1. Bring the "Where to?" field to be under the current location, and above the bus number field so it is obvious to users the destination. 2. For bus routes with more than one bus service numbers, also highight those and make it selectable in case users want to choose other bus service numbers. 3. Also if possible, figure if there is a way to identify if it is a single-deck bus or double-deck bus."*
+- **1. Where to? under From** (`LocationBar.tsx`, `BusSearchBox.tsx`, `App.tsx`): the location bar is now a card with **From** (GPS / Change) and, right under it, the **Where to?** field. On the Arrival Times and Route Stops tabs the "Buses to …" trip options follow it directly; **Find Bus Service** (bus number, nearest stops, direction) comes after. On the map tab the map still comes before the trip options.
+- **2. A choice of buses for each step of a trip**:
+  - **Which buses count** (`tripPlanner.ts`): every service that runs between a step's boarding and alighting stops, not only ones that happened to be planned for the same stops. A service that takes much longer to get there (more than 5 min or 30% extra, e.g. round a loop) is left out. Each `TripLeg` keeps these as `alternatives` (full legs, quickest first) as well as `alsoServiceNos`. `withServices(option, serviceNos)` gives the trip with another bus chosen for any step, timed for that bus and keeping the trip's id.
+  - **How it looks** (`ServiceChoice.tsx`): the bus numbers of a step sit together on a light blue tint, in number order; the chosen bus is filled in (blue in the trip list, the bus's lemon / green-blue colour elsewhere) and the others are white. Buses with no bus due at the boarding stop right now are greyed out but can still be chosen. The group wraps on narrow screens.
+  - **Where you can choose**: in a selected trip's steps (with "All these buses go between these stops. Tap a number to take that bus."), in the arrivals strip (the next bus after a change, and "both/all go from this stop to …" for the bus being tracked), and in the Route Stops list (the header, and the next / previous bus blocks). Choosing the tracked bus's step tracks the chosen bus; choosing for the other step changes the plan without leaving the tracked bus. The map draws the chosen bus's route and the legend reads e.g. "2nd bus: 851 (or 851e, 852, 853, 853M)".
+  - **Defaults** (`App.tsx`): a step nobody has chosen for uses its quickest bus, unless none of that is due at the boarding stop and another one is (e.g. the 851e express outside peak hours), in which case it uses the quickest bus that is. Live arrivals are now fetched for every boarding stop of every option (including where you change) to know this. The chosen buses are kept per trip while the destination stays the same, and the list keeps its order when you change a choice.
+  - **Live times**: when the next buses at a stop are of different services, the trip option names the bus for each time ("Next: <bus> in <min>, <bus> in <min> …") instead of "Buses in 3, 8, 12 min".
+- **3. Single deck, double deck or bendy**: LTA's BusArrival API gives the type of **each arriving bus** (`SD`, `DD` or `BD`), not of a service: many services run a mix (on 11 October at noon, 72 at Nanyang Poly had a single-deck bus followed by two double-deckers, and 912 ran bendy buses). The app already read it; it is now shown with side-view icons (`BusTypeIcon.tsx`: one row of windows, two rows, or two joined carriages):
+  - **Arrival cards**: "Single deck" / "Double deck" / "Bendy bus" with the icon ("Single" / "Double" / "Bendy" on narrow cards), replacing the old "SD"/"DD" badge.
+  - **All buses at this stop**: the next bus of every service shows its type.
+  - **Map**: the bus markers' ETA tag has the icon and the popup names the type.
+  - A bus whose type LTA leaves blank no longer shows as single deck.
+- **Validation**: TypeScript, app build and 24 tests pass (new: another service between the same stops is listed and can be chosen, a much slower one isn't, and live times say which service each bus is). Browser checks with the local LTA stub and live arrivals at about noon, at desktop size and at 375 px:
+  - NYP → ION Orchard: "851 → [143 | 167]"; choosing 167 changes the step ("towards Bt Merah Int") and the arrivals strip.
+  - NYP → Northpoint City: "72 → [851 | 851e | 852 | 853 | 853M]", with 851e and 853 greyed out and 851 chosen by default. Choosing 852 in the stops list updates the switcher, strip and trip list while 72 stays tracked. Then "Bus 852 stops & times" tracks 852, and choosing 853M in the strip tracks 853M.
+  - "[45 | 668]": choosing 668 tracks 668 at Aft Grandeur 8 (greyed out when no 668 is due).
+  - Deck types show on arrival cards, in the all-buses list and in map markers and popups.
+  - At 375 px nothing overflows the page width.
+
+---

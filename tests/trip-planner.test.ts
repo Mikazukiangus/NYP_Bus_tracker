@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import type { NetworkFile } from '../src/types/network';
 import type { StopServiceArrivals } from '../src/types/bus';
 import { buildBusNetwork, nearestStops, searchStops } from '../src/services/busNetwork';
-import { alightFor, expectedTotalMin, liveDeparture, planTrips } from '../src/services/tripPlanner';
+import { alightFor, expectedTotalMin, legServiceNos, liveDeparture, planTrips, withServices } from '../src/services/tripPlanner';
 import { addRecentPlace, loadRecentPlaces, parseOneMapResults, titleCase } from '../src/services/placeSearch';
 
 // A small made-up network: an east-west line A-F along lat 1.30 (~550 m apart) served by 10 and 10A,
@@ -66,6 +66,40 @@ test('direct trips merge services that share the same stops', () => {
   assert.equal(leg.towards, 'Stop E');
 });
 
+test('every other bus between the same stops can be chosen instead, unless it takes much longer', () => {
+  // 30 and 31 both run stops 0 to 3 (31 goes on to 4); 39 also gets from 0 to 3, but by way of a stop 5 km away
+  const stop = (i: number): NetworkFile['stops'][number] => [`3000${i}`, `Stop ${i}`, 'West Rd', LAT, lng(i)];
+  const lineNet = buildBusNetwork({
+    generatedAt: '2026-10-10T00:00:00Z',
+    stops: [stop(0), stop(1), stop(2), stop(3), stop(4), ['30009', 'Far Stop', 'Far Rd', 1.35, lng(1)]],
+    patterns: [
+      ['30', 1, [0, 1, 2, 3], [0, 6, 6, 6]],
+      ['31', 1, [0, 1, 2, 3, 4], [0, 6, 6, 6, 6]],
+      ['39', 1, [0, 5, 3], [0, 55, 55]],
+    ],
+  });
+  // Between stops 3 and 4: 31's own best trip gets off at 4, but it also runs 30's stops
+  const plan = planTrips(lineNet, { lat: LAT, lng: lng(0) }, { lat: LAT, lng: lng(3.6) });
+  const option = plan.options.find((o) => o.legs[0].serviceNo === '30');
+  assert.ok(option);
+  const [leg] = option.legs;
+  assert.deepEqual([leg.board.code, leg.alight.code], ['30000', '30003']);
+  assert.deepEqual(leg.alsoServiceNos, ['31']);
+  assert.deepEqual(leg.alternatives.map((a) => [a.serviceNo, a.stopCount, a.alight.code]), [['31', 3, '30003']]);
+
+  // Choosing 31 keeps the trip (same id) with 31's leg; 30 becomes the other choice
+  const chosen = withServices(option, ['31']);
+  assert.equal(chosen.id, option.id);
+  assert.equal(chosen.legs[0].serviceNo, '31');
+  assert.deepEqual(chosen.legs[0].alsoServiceNos, ['30']);
+  assert.equal(chosen.legs[0].towards, 'Stop 4');
+  assert.deepEqual(legServiceNos(chosen.legs[0]), ['30', '31']);
+  assert.equal(withServices(chosen, ['30']).legs[0].serviceNo, '30');
+  // Unknown or unchanged choices keep the trip as it is
+  assert.equal(withServices(option, ['99']), option);
+  assert.equal(withServices(option, [undefined]), option);
+});
+
 test('a change of bus is found when no single bus goes there', () => {
   const plan = planTrips(net, at('10001'), at('20003'));
   assert.ok(plan.options.length >= 1);
@@ -117,7 +151,11 @@ test('live departures pick the first bus you can still catch, across merged serv
   // The 1-minute bus leaves before you can walk ~3 minutes to the stop
   assert.equal(live.catchEtaMin, 5);
   assert.equal(live.catchServiceNo, '10');
-  assert.deepEqual(live.nextEtas, [1, 5, 9]);
+  assert.deepEqual(live.nextBuses, [
+    { serviceNo: '10A', etaMin: 1 },
+    { serviceNo: '10', etaMin: 5 },
+    { serviceNo: '10A', etaMin: 9 },
+  ]);
   assert.ok(Math.abs(expectedTotalMin(option, live) - (option.travelMin + 5 - option.walkStartMin)) < 1e-9);
 
   assert.equal(liveDeparture(option, undefined).status, 'loading');

@@ -89,6 +89,8 @@ export function generateArrivalTimings(
   return { nextBus, nextBus2, nextBus3 };
 }
 
+const BUS_TYPES: unknown[] = ['SD', 'DD', 'BD'];
+
 // Parse LTA ISO EstimatedArrival string to countdown minutes
 function parseLTAEstimatedMinutes(isoString?: string): number {
   if (!isoString) return 99;
@@ -106,7 +108,7 @@ function parseBus(raw?: any): BusArrivalInfo | null {
   return {
     estimatedMinutes: parseLTAEstimatedMinutes(raw.EstimatedArrival),
     load: (raw.Load as BusLoad) || 'SEA',
-    type: (raw.Type as BusType) || 'SD',
+    type: BUS_TYPES.includes(raw.Type) ? (raw.Type as BusType) : undefined,
     feature: raw.Feature === 'WAB' ? 'WAB' : '',
     lat,
     lng,

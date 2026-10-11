@@ -27,7 +27,7 @@ import {
 } from './services/busTrackerService';
 import { applyRouteShapes, distanceToPathMeters, fetchRouteShapes, legPath } from './services/routeShape';
 import { BusNetwork, NearbyStop, StopService, loadBusNetwork, nearestStops } from './services/busNetwork';
-import { TripLeg, TripOption, alightFor, liveDeparture, planTrips, tripScore } from './services/tripPlanner';
+import { TripLeg, TripOption, alightFor, legServiceNos, liveDeparture, planTrips, tripScore, withServices } from './services/tripPlanner';
 import { PlaceResult, addRecentPlace, loadRecentPlaces } from './services/placeSearch';
 import { useStopsArrivals } from './services/useStopsArrivals';
 import { fetchWeatherSnapshot, summarizeWeather } from './services/neaWeather';
@@ -193,15 +193,30 @@ export default function App() {
   // Trip planning: buses from the user's location to a destination
   const [destination, setDestination] = useState<PlaceResult | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  // The bus chosen for each leg of a trip where more than one service runs between the same stops (trip id -> service per leg)
+  const [tripServices, setTripServices] = useState<Record<string, string[]>>({});
 
   const tripPlan = useMemo(
     () => (network && destination ? planTrips(network, userLocation, destination) : null),
     [network, destination, userLocation.lat, userLocation.lng]
   );
 
-  // Live departures at each option's boarding stop, refreshed while a destination is set
-  const tripBoardStops = useMemo(() => tripPlan?.options.map((o) => o.legs[0].board.code) ?? [], [tripPlan]);
+  // Live arrivals where each bus of each option is boarded (the first bus's for departure times, all of them
+  // to see which of the buses that run between the same stops are due), refreshed while a destination is set
+  const tripBoardStops = useMemo(
+    () => tripPlan?.options.flatMap((o) => o.legs.map((l) => l.board.code)) ?? [],
+    [tripPlan]
+  );
   const tripArrivals = useStopsArrivals(tripBoardStops, !!tripPlan);
+
+  // Services with a bus due at a trip's boarding stop (upper case), or null if not known
+  const servicesDueAt = useCallback(
+    (stopCode: string) => {
+      const services = tripArrivals[stopCode];
+      return services ? new Set(services.filter((s) => s.nextBus).map((s) => s.serviceNo.toUpperCase())) : null;
+    },
+    [tripArrivals]
+  );
 
   // Ranked by door-to-door time using live waits where known; options with no bus due go last
   const rankedTrips = useMemo<RankedTrip[]>(() => {
@@ -234,14 +249,32 @@ export default function App() {
   // The trip shown with the tracked bus: the one chosen in the trip list, or else a suggested trip that uses
   // the tracked bus from the tracked stop (direct trips first), so a bus picked another way still shows the
   // whole trip, including the bus after a change
-  const selectedTrip = useMemo(() => {
+  const plannedTrip = useMemo(() => {
     if (!tripPlan) return null;
     const chosen = tripPlan.options.find((o) => o.id === selectedTripId);
     if (chosen) return chosen;
     const fewestChanges = [...tripPlan.options].sort((a, b) => a.legs.length - b.legs.length);
     return fewestChanges.find((o) => legOfTrackedBus(o) >= 0) ?? null;
   }, [tripPlan, selectedTripId, legOfTrackedBus]);
-  const trackedLeg = selectedTrip ? legOfTrackedBus(selectedTrip) : -1;
+  const trackedLeg = plannedTrip ? legOfTrackedBus(plannedTrip) : -1;
+
+  // A trip with the bus chosen for each leg. The tracked bus is the one chosen for its leg; a leg nobody chose a
+  // bus for gets its quickest bus, or if none of that is due, the quickest of the others that is.
+  const withChosenBuses = useCallback(
+    (option: TripOption) => {
+      const chosen = option.legs.map((leg, i) => {
+        const picked = tripServices[option.id]?.[i];
+        if (picked) return picked;
+        const due = servicesDueAt(leg.board.code);
+        if (!due || due.has(leg.serviceNo.toUpperCase())) return leg.serviceNo;
+        return leg.alternatives.find((a) => due.has(a.serviceNo.toUpperCase()))?.serviceNo ?? leg.serviceNo;
+      });
+      if (option.id === plannedTrip?.id && trackedLeg >= 0) chosen[trackedLeg] = currentRoute.serviceNo;
+      return withServices(option, chosen);
+    },
+    [tripServices, servicesDueAt, plannedTrip?.id, trackedLeg, currentRoute.serviceNo]
+  );
+  const selectedTrip = useMemo(() => plannedTrip && withChosenBuses(plannedTrip), [plannedTrip, withChosenBuses]);
 
   // Track the first bus of a trip at its boarding stop
   const selectTrip = useCallback(
@@ -253,20 +286,51 @@ export default function App() {
     [loadRoute]
   );
 
-  // Track one bus of the shown trip (e.g. the bus after a change) at its boarding stop, keeping the trip shown
+  // Track one bus of a trip (e.g. the bus after a change) at its boarding stop, keeping the trip shown and the
+  // buses chosen for its other legs
   const trackTripLeg = useCallback(
-    (leg: TripLeg) => {
-      if (selectedTrip?.legs.includes(leg)) setSelectedTripId(selectedTrip.id);
+    (option: TripOption, index: number) => {
+      const leg = option.legs[index];
+      if (!leg) return;
+      setTripServices((current) => ({ ...current, [option.id]: option.legs.map((l) => l.serviceNo) }));
+      setSelectedTripId(option.id);
       loadRoute(leg.serviceNo, { direction: leg.direction, stopCode: leg.board.code });
     },
-    [loadRoute, selectedTrip]
+    [loadRoute]
   );
   const trackTripLegAt = useCallback(
     (index: number) => {
-      const leg = selectedTrip?.legs[index];
-      if (leg) trackTripLeg(leg);
+      if (selectedTrip) trackTripLeg(selectedTrip, index);
     },
     [selectedTrip, trackTripLeg]
+  );
+
+  // Take another bus that runs between the same stops for one leg of a trip; when it's the leg of the tracked
+  // bus, track the chosen bus instead
+  const chooseTripService = useCallback(
+    (option: TripOption, index: number, serviceNo: string) => {
+      const services = option.legs.map((l) => l.serviceNo);
+      services[index] = serviceNo;
+      const chosen = withServices(option, services);
+      if (option.id === plannedTrip?.id && index === trackedLeg) trackTripLeg(chosen, index);
+      else {
+        setTripServices((current) => ({ ...current, [option.id]: services }));
+        setSelectedTripId(option.id);
+      }
+    },
+    [plannedTrip?.id, trackedLeg, trackTripLeg]
+  );
+  const chooseTripServiceAt = useCallback(
+    (index: number, serviceNo: string) => {
+      if (selectedTrip) chooseTripService(selectedTrip, index, serviceNo);
+    },
+    [selectedTrip, chooseTripService]
+  );
+
+  // The trip list with the buses chosen in it (ranked by the main buses, so choosing one doesn't reorder the list)
+  const shownTrips = useMemo<RankedTrip[]>(
+    () => rankedTrips.map((trip) => ({ ...trip, option: withChosenBuses(trip.option) })),
+    [rankedTrips, withChosenBuses]
   );
 
   // Choosing a bus some other way (search, nearby, favourites...) leaves the trip list and drops the chosen
@@ -288,16 +352,17 @@ export default function App() {
     if (!tripPlanKey || autoSelectedPlanKey.current === tripPlanKey) return;
     if (rankedTrips.some((t) => t.live.status === 'loading')) return;
     autoSelectedPlanKey.current = tripPlanKey;
-    const best = rankedTrips[0];
+    const best = shownTrips[0];
     if (best && best.live.status !== 'not-running') selectTrip(best.option);
     else setSelectedTripId(null);
-  }, [tripPlanKey, rankedTrips, selectTrip]);
+  }, [tripPlanKey, rankedTrips, shownTrips, selectTrip]);
 
   const handleSetDestination = useCallback(
     (place: PlaceResult) => {
       rememberPlace(place);
       setDestination(place);
       setSelectedTripId(null);
+      setTripServices({});
     },
     [rememberPlace]
   );
@@ -305,22 +370,25 @@ export default function App() {
   const handleClearDestination = useCallback(() => {
     setDestination(null);
     setSelectedTripId(null);
+    setTripServices({});
   }, []);
 
   const tripState = useMemo<TripPlannerState>(() => {
-    if (tripPlan) return { status: 'ready', plan: tripPlan, trips: rankedTrips };
+    if (tripPlan) return { status: 'ready', plan: tripPlan, trips: shownTrips };
     return { status: networkStatus === 'unavailable' ? 'unavailable' : 'loading' };
-  }, [tripPlan, rankedTrips, networkStatus]);
+  }, [tripPlan, shownTrips, networkStatus]);
 
   // Road-following lines for the chosen trip's bus legs (straight stop-to-stop lines until they load)
   const [tripRoadPaths, setTripRoadPaths] = useState<{
-    tripId: string;
+    key: string;
     legs: ({ path: [number, number][]; followsRoads: boolean } | null)[];
   } | null>(null);
+  const tripPathKey = selectedTrip ? `${selectedTrip.id}|${selectedTrip.legs.map((l) => l.serviceNo).join('>')}` : '';
 
   useEffect(() => {
     if (!selectedTrip) return;
     let active = true;
+    const key = tripPathKey;
     Promise.all(
       selectedTrip.legs.map(async (leg) => {
         const result = await fetchBusRoute(leg.serviceNo);
@@ -330,12 +398,13 @@ export default function App() {
         return legPath(dir, leg.board.code, leg.alight.code);
       })
     ).then((legs) => {
-      if (active) setTripRoadPaths({ tripId: selectedTrip.id, legs });
+      if (active) setTripRoadPaths({ key, legs });
     });
     return () => {
       active = false;
     };
-  }, [selectedTrip]);
+    // Only when the trip or the buses chosen for it change, not on every new trip object
+  }, [tripPathKey]);
 
   const journey = useMemo<JourneyOverlay | null>(() => {
     if (!network || !destination) return null;
@@ -346,7 +415,7 @@ export default function App() {
       return { id: `walk@${from.lat},${from.lng}>${destination.id}`, from, to, legs: [] };
     }
     if (!selectedTrip) return null;
-    const road = tripRoadPaths?.tripId === selectedTrip.id ? tripRoadPaths.legs : [];
+    const road = tripRoadPaths?.key === tripPathKey ? tripRoadPaths.legs : [];
     const pick = ({ code, name, lat, lng }: TripLeg['board']) => ({ code, name, lat, lng });
     return {
       id: `${selectedTrip.id}@${from.lat},${from.lng}>${destination.id}`,
@@ -356,6 +425,7 @@ export default function App() {
         const stops = network.patterns[leg.patternIndex].stops.slice(leg.boardPos, leg.alightPos + 1);
         return {
           serviceNo: leg.serviceNo,
+          otherServiceNos: leg.alsoServiceNos,
           board: pick(leg.board),
           alight: pick(leg.alight),
           path: road[i]?.path ?? stops.map((s): [number, number] => [network.stops[s].lat, network.stops[s].lng]),
@@ -364,7 +434,16 @@ export default function App() {
       }),
       ...(trackedLeg >= 0 ? { activeLeg: trackedLeg } : {}),
     };
-  }, [selectedTrip, trackedLeg, tripPlan, network, destination, tripRoadPaths, userLocation]);
+  }, [selectedTrip, trackedLeg, tripPlan, network, destination, tripRoadPaths, tripPathKey, userLocation]);
+
+  // Which of the buses that run a leg's stops have no bus due at its boarding stop now (none if not known)
+  const notDueAt = useCallback(
+    (leg: TripLeg) => {
+      const due = servicesDueAt(leg.board.code);
+      return due ? legServiceNos(leg).filter((no) => !due.has(no.toUpperCase())) : [];
+    },
+    [servicesDueAt]
+  );
 
   // The shown trip with the stops of each bus, for showing the other bus of a trip with a change alongside
   // the tracked one (null unless the tracked bus is part of it)
@@ -376,7 +455,8 @@ export default function App() {
       legIndex: trackedLeg,
       legs: selectedTrip.legs.map((leg) => ({
         serviceNo: leg.serviceNo,
-        alsoServiceNos: leg.alsoServiceNos,
+        serviceNos: legServiceNos(leg),
+        notDueServiceNos: notDueAt(leg),
         towards: leg.towards,
         board: stopRef(leg.board),
         alight: stopRef(leg.alight),
@@ -388,7 +468,7 @@ export default function App() {
       walkEndM: selectedTrip.walkEndM,
       walkEndMin: selectedTrip.walkEndMin,
     };
-  }, [network, destination, selectedTrip, trackedLeg]);
+  }, [network, destination, selectedTrip, trackedLeg, notDueAt]);
 
   // Where to get off the bus being tracked, when a destination is set
   const alightHint = useMemo<AlightHint | null>(() => {
@@ -637,6 +717,8 @@ export default function App() {
       canShowMap={!!journey}
       onSelect={selectTrip}
       onTrackLeg={trackTripLeg}
+      onChooseService={chooseTripService}
+      notDueAt={notDueAt}
       trackedServiceNo={currentRoute.serviceNo}
       trackedStopCode={selectedStop.code}
       onShowMap={showTripOnMap}
@@ -679,12 +761,20 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {/* Where the user is starting from */}
+        {/* Where the user is starting from and where they're going */}
         <LocationBar
           location={userLocation}
           onOpenPicker={() => setIsLocationModalOpen(true)}
           onLocationChange={applyUserLocation}
+          network={network}
+          destination={destination}
+          onSetDestination={handleSetDestination}
+          onClearDestination={handleClearDestination}
+          recentPlaces={recentPlaces}
         />
+
+        {/* Trip options follow the destination, except on the map tab where the map comes first */}
+        {(activeTab === 'arrivals' || activeTab === 'stops') && tripCard}
 
         {/* Bus Search Box & Direction Selector */}
         <BusSearchBox
@@ -697,15 +787,7 @@ export default function App() {
           locationName={userLocation.name.split('(')[0].trim()}
           trackedStopCode={selectedStop.code}
           onSelectStopService={handleSelectStopService}
-          network={network}
-          destination={destination}
-          onSetDestination={handleSetDestination}
-          onClearDestination={handleClearDestination}
-          recentPlaces={recentPlaces}
         />
-
-        {/* Trip options sit above the stop details, except on the map tab where the map comes first */}
-        {(activeTab === 'arrivals' || activeTab === 'stops') && tripCard}
 
         {(isRouteLoading || routeNotice) && (
           <div
@@ -748,6 +830,7 @@ export default function App() {
               secondsUntilRefresh={secondsUntilRefresh}
               alight={alightHint}
               onTrackLeg={trackTripLegAt}
+              onChooseService={chooseTripServiceAt}
             />
 
             <StopServicesBoard
@@ -850,6 +933,7 @@ export default function App() {
               secondsUntilRefresh={secondsUntilRefresh}
               alight={alightHint}
               onTrackLeg={trackTripLegAt}
+              onChooseService={chooseTripServiceAt}
             />
           </div>
         )}
@@ -866,6 +950,7 @@ export default function App() {
                 stopsWithDistance={stopsWithDistance}
                 alight={alightHint}
                 onTrackLeg={trackTripLegAt}
+                onChooseService={chooseTripServiceAt}
               />
             </div>
             <div className="lg:col-span-5 space-y-4">
@@ -878,6 +963,7 @@ export default function App() {
                 secondsUntilRefresh={secondsUntilRefresh}
                 alight={alightHint}
                 onTrackLeg={trackTripLegAt}
+                onChooseService={chooseTripServiceAt}
               />
               <StopServicesBoard
                 stop={selectedStop}

@@ -17,6 +17,9 @@ const MIN_TRANSFER_GAIN_MIN = 8; // only suggest a change if it beats the best d
 const ASSUMED_FIRST_WAIT_MIN = 5; // ranking only, until live times arrive
 const MAX_DIRECT = 5;
 const MAX_TRANSFER = 3;
+// Another service between the same two stops counts as an alternative unless it takes much longer (e.g. round a loop)
+const ALTERNATIVE_EXTRA_MIN = 5;
+const ALTERNATIVE_EXTRA_SHARE = 0.3;
 
 export const walkMinutesFor = (straightM: number) => (straightM * WALK_DETOUR) / WALK_M_PER_MIN;
 export const rideMinutesFor = (distanceM: number, stopCount: number) =>
@@ -25,6 +28,7 @@ export const rideMinutesFor = (distanceM: number, stopCount: number) =>
 export interface TripLeg {
   serviceNo: string;
   alsoServiceNos: string[]; // other services between the same two stops (e.g. 159 and 159A)
+  alternatives: TripLeg[]; // those services' legs, quickest first
   direction: number;
   towards: string; // last stop of this direction
   patternIndex: number;
@@ -71,6 +75,7 @@ function makeLeg(net: BusNetwork, p: NetPattern, boardPos: number, alightPos: nu
   return {
     serviceNo: p.serviceNo,
     alsoServiceNos: [],
+    alternatives: [],
     direction: p.direction,
     towards: net.stops[p.stops[p.stops.length - 1]].name,
     patternIndex: p.index,
@@ -237,26 +242,62 @@ function findTransfers(net: BusNetwork, origin: Map<number, number>, dest: Map<n
 
 const score = (o: TripOption) => o.travelMin + (o.legs.length - 1) * TRANSFER_PENALTY_MIN;
 
-// Merge options that use the same stops on different services into one ("Bus 50, 159 or 159A");
-// expects the fastest first, which becomes the main service
-function mergeSameStops(options: TripOption[]): TripOption[] {
+// Other services that run between a leg's two stops, quickest first ("Bus 50, 159 or 159A")
+function alternativesFor(net: BusNetwork, leg: TripLeg): TripLeg[] {
+  const maxRideMin = leg.rideMin + Math.max(ALTERNATIVE_EXTRA_MIN, leg.rideMin * ALTERNATIVE_EXTRA_SHARE);
+  const bestByService = new Map<string, TripLeg>();
+  for (const index of net.patternsAtStop[leg.board.index]) {
+    const p = net.patterns[index];
+    const key = p.serviceNo.toUpperCase();
+    if (key === leg.serviceNo.toUpperCase()) continue;
+    for (let i = 0; i < p.stops.length - 1; i++) {
+      if (p.stops[i] !== leg.board.index) continue;
+      const j = p.stops.indexOf(leg.alight.index, i + 1);
+      if (j < 0) continue;
+      const alt = makeLeg(net, p, i, j);
+      const best = bestByService.get(key);
+      if (alt.rideMin <= maxRideMin && (!best || alt.rideMin < best.rideMin)) bestByService.set(key, alt);
+    }
+  }
+  return [...bestByService.values()].sort((a, b) => a.rideMin - b.rideMin);
+}
+
+// One option per set of stops: the fastest becomes the main service and every other service between the
+// same stops is listed with it; expects the fastest first
+function mergeSameStops(net: BusNetwork, options: TripOption[]): TripOption[] {
   const merged = new Map<string, TripOption>();
   for (const o of options) {
     const key = o.legs.map((l) => `${l.board.code}-${l.alight.code}`).join('|');
-    const main = merged.get(key);
-    if (!main) {
-      merged.set(key, { ...o, legs: o.legs.map((l) => ({ ...l, alsoServiceNos: [...l.alsoServiceNos] })) });
-      continue;
-    }
-    o.legs.forEach((leg, i) => {
-      const target = main.legs[i];
-      if (leg.serviceNo !== target.serviceNo && !target.alsoServiceNos.includes(leg.serviceNo)) {
-        target.alsoServiceNos.push(leg.serviceNo);
-      }
+    if (merged.has(key)) continue;
+    const legs = o.legs.map((leg) => {
+      const alternatives = alternativesFor(net, leg);
+      return { ...leg, alternatives, alsoServiceNos: alternatives.map((a) => a.serviceNo) };
     });
+    merged.set(key, { ...o, legs });
   }
   return [...merged.values()];
 }
+
+// An option with another of its services chosen for some legs (null or unknown keeps the main one),
+// with the timings of the buses chosen
+export function withServices(option: TripOption, serviceNos: (string | null | undefined)[]): TripOption {
+  let changed = false;
+  const legs = option.legs.map((leg, i) => {
+    const wanted = serviceNos[i]?.toUpperCase();
+    if (!wanted || wanted === leg.serviceNo.toUpperCase()) return leg;
+    const chosen = leg.alternatives.find((a) => a.serviceNo.toUpperCase() === wanted);
+    if (!chosen) return leg;
+    changed = true;
+    const others = [leg, ...leg.alternatives].filter((l) => l !== chosen);
+    return { ...chosen, alternatives: others, alsoServiceNos: others.map((l) => l.serviceNo) };
+  });
+  if (!changed) return option;
+  return { ...makeOption(legs, option.walkStartM, option.transferWalkM, option.walkEndM), id: option.id };
+}
+
+// Every service of a leg in number order, so the choice of bus is always shown the same way
+export const legServiceNos = (leg: Pick<TripLeg, 'serviceNo' | 'alsoServiceNos'>) =>
+  [leg.serviceNo, ...leg.alsoServiceNos].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
 
 export function planTrips(net: BusNetwork, from: Point, to: Point): TripPlan {
   const straightDistanceM = calculateDistanceMeters(from.lat, from.lng, to.lat, to.lng);
@@ -273,11 +314,11 @@ export function planTrips(net: BusNetwork, from: Point, to: Point): TripPlan {
 
     // A bus has to beat walking (with a typical wait) to be worth suggesting
     const worthIt = (o: TripOption) => o.travelMin + ASSUMED_FIRST_WAIT_MIN < walkOnlyMin;
-    const direct = mergeSameStops(findDirect(net, origin, dest).filter(worthIt));
+    const direct = mergeSameStops(net, findDirect(net, origin, dest).filter(worthIt));
     const bestDirect = direct[0]?.travelMin ?? Infinity;
 
     const perFirstService = new Map<string, number>();
-    const transfers = mergeSameStops(findTransfers(net, origin, dest).filter(worthIt))
+    const transfers = mergeSameStops(net, findTransfers(net, origin, dest).filter(worthIt))
       .filter((o) => o.travelMin <= bestDirect - MIN_TRANSFER_GAIN_MIN)
       // Keep the suggestions varied: at most two changes starting with the same bus
       .filter((o) => {
@@ -353,7 +394,7 @@ export type LiveDeparture =
       monitored: boolean;
       waitMin: number; // at the stop, after walking there
       arriveInMin: number; // estimated arrival at the destination
-      nextEtas: number[];
+      nextBuses: { serviceNo: string; etaMin: number }[]; // the next few, of any of the first leg's services
     };
 
 export function liveDeparture(option: TripOption, services: StopServiceArrivals[] | null | undefined): LiveDeparture {
@@ -380,7 +421,7 @@ export function liveDeparture(option: TripOption, services: StopServiceArrivals[
     monitored: !!catchable?.monitored,
     waitMin,
     arriveInMin: option.travelMin + waitMin,
-    nextEtas: buses.slice(0, 3).map((b) => b.estimatedMinutes),
+    nextBuses: buses.slice(0, 3).map((b) => ({ serviceNo: b.serviceNo, etaMin: b.estimatedMinutes })),
   };
 }
 

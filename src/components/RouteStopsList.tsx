@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlightHint, BusStop, BusRoute } from '../types/bus';
 import { Search, ChevronRight, ChevronDown, Check, Flag, ArrowLeftRight, ArrowRight } from 'lucide-react';
+import { ServiceChoice } from './ServiceChoice';
 import { TripLegView, legStyle, tripLegs } from './tripLegs';
 
 interface RouteStopsListProps {
@@ -12,12 +13,30 @@ interface RouteStopsListProps {
   stopsWithDistance: (BusStop & { distanceMeters: number })[];
   alight?: AlightHint | null; // where to get off for the destination in "Where to?"
   onTrackLeg?: (legIndex: number) => void; // show another bus of the trip
+  onChooseService?: (legIndex: number, serviceNo: string) => void; // take another bus between the same stops
 }
 
 const minutes = (min: number) => Math.max(1, Math.round(min));
 
 const ServiceChip: React.FC<{ serviceNo: string; legIndex: number }> = ({ serviceNo, legIndex }) => (
   <span className={`${legStyle(legIndex).badge} font-black text-[11px] px-1.5 py-px rounded`}>{serviceNo}</span>
+);
+
+// Every bus that runs this leg's stops, with the chosen one filled in in the leg's colour
+const LegServices: React.FC<{ leg: TripLegView; legIndex: number; onChoose?: (legIndex: number, serviceNo: string) => void }> = ({
+  leg,
+  legIndex,
+  onChoose,
+}) => (
+  <ServiceChoice
+    serviceNos={leg.serviceNos}
+    chosen={leg.serviceNo}
+    notDue={leg.notDueServiceNos}
+    onChoose={onChoose && ((no) => onChoose(legIndex, no))}
+    chosenClassName={legStyle(legIndex).badge}
+    size="sm"
+    label={`Buses from ${leg.board.name} to ${leg.alight.name}`}
+  />
 );
 
 // The bus after a change, shown under the stop where you change: where to board it, the stops it rides
@@ -31,7 +50,8 @@ const NextLegBlock: React.FC<{
   destinationName: string;
   walkEndMin: number;
   onShow?: () => void;
-}> = ({ leg, legIndex, fromStopName, transferWalkM, transferWalkMin, destinationName, walkEndMin, onShow }) => {
+  onChoose?: (legIndex: number, serviceNo: string) => void;
+}> = ({ leg, legIndex, fromStopName, transferWalkM, transferWalkMin, destinationName, walkEndMin, onShow, onChoose }) => {
   const [showAll, setShowAll] = useState(false);
   const style = legStyle(legIndex);
   const between = leg.stops.slice(1, -1);
@@ -52,8 +72,7 @@ const NextLegBlock: React.FC<{
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-warm-700 flex flex-wrap items-center gap-1.5">
           <span className="font-semibold">Then</span>
-          <ServiceChip serviceNo={leg.serviceNo} legIndex={legIndex} />
-          {leg.alsoServiceNos.length > 0 && <span className="font-semibold">or {leg.alsoServiceNos.join(', ')}</span>}
+          <LegServices leg={leg} legIndex={legIndex} onChoose={onChoose} />
           <span>
             towards {leg.towards} · {leg.stops.length - 1}&nbsp;stops · ~{minutes(leg.rideMin)}&nbsp;min
           </span>
@@ -101,11 +120,16 @@ const NextLegBlock: React.FC<{
 };
 
 // The bus before a change, shown above the stop where you board this one
-const PrevLegBlock: React.FC<{ leg: TripLegView; legIndex: number; onShow?: () => void }> = ({ leg, legIndex, onShow }) => (
+const PrevLegBlock: React.FC<{
+  leg: TripLegView;
+  legIndex: number;
+  onShow?: () => void;
+  onChoose?: (legIndex: number, serviceNo: string) => void;
+}> = ({ leg, legIndex, onShow, onChoose }) => (
   <div className={`my-1.5 ml-3 pl-3 pr-2 py-2 border-l-4 ${legStyle(legIndex).border} ${legStyle(legIndex).soft} rounded-r-xl flex flex-wrap items-center justify-between gap-2`}>
     <p className="text-xs text-warm-700 flex flex-wrap items-center gap-1.5">
       <span className="font-semibold">First</span>
-      <ServiceChip serviceNo={leg.serviceNo} legIndex={legIndex} />
+      <LegServices leg={leg} legIndex={legIndex} onChoose={onChoose} />
       <span>
         from <strong className="text-warm-900">{leg.board.name}</strong> · {leg.stops.length - 1}&nbsp;stops · get off at{' '}
         <strong className="text-warm-900">{leg.alight.name}</strong>
@@ -132,6 +156,7 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
   stopsWithDistance,
   alight = null,
   onTrackLeg,
+  onChooseService,
 }) => {
   const [filterQuery, setFilterQuery] = useState('');
   const listRef = useRef<HTMLDivElement>(null);
@@ -139,6 +164,7 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
   const { trip, prev, next } = tripLegs(alight);
   const legIndex = trip?.legIndex ?? 0;
   const style = legStyle(legIndex);
+  const current = trip?.legs[legIndex];
 
   const routeDir = direction === 2 && route.direction2 ? route.direction2 : route.direction1;
 
@@ -218,6 +244,15 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
               ))}
             </div>
           )}
+          {current && current.serviceNos.length > 1 && (
+            <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-warm-600">
+              <LegServices leg={current} legIndex={legIndex} onChoose={onChooseService} />
+              <span>
+                {current.serviceNos.length === 2 ? 'both go' : 'all go'} from {current.board.name} to {current.alight.name}
+                {onChooseService ? ' · tap one to see its stops' : ''}
+              </span>
+            </p>
+          )}
           {alight?.status === 'alight' && alightSeq > 0 && (
             <button
               type="button"
@@ -260,7 +295,12 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
           return (
             <React.Fragment key={`${stop.code}-${stop.sequence}`}>
             {isBoard && showingTrip && prev && trip && (
-              <PrevLegBlock leg={prev} legIndex={legIndex - 1} onShow={onTrackLeg && (() => onTrackLeg(legIndex - 1))} />
+              <PrevLegBlock
+                leg={prev}
+                legIndex={legIndex - 1}
+                onShow={onTrackLeg && (() => onTrackLeg(legIndex - 1))}
+                onChoose={onChooseService}
+              />
             )}
             <button
               type="button"
@@ -326,7 +366,8 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
                       {next ? (
                         <>
                           {alight.walkM > 0 ? `Walk ~${minutes(alight.walkMin)} min to ${next.board.name} for` : 'Take'}
-                          <ServiceChip serviceNo={next.serviceNo} legIndex={legIndex + 1} />
+                          {/* Shown only: the row is a button, so the bus is chosen in the block below */}
+                          <LegServices leg={next} legIndex={legIndex + 1} />
                           {alight.walkM > 0 ? '' : 'from this stop'}
                         </>
                       ) : (
@@ -358,6 +399,7 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
                 destinationName={trip.destinationName}
                 walkEndMin={trip.walkEndMin}
                 onShow={onTrackLeg && (() => onTrackLeg(legIndex + 1))}
+                onChoose={onChooseService}
               />
             )}
             </React.Fragment>
