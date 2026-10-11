@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { BusFront, ChevronDown, ChevronRight } from 'lucide-react';
 import { ArrivalDataSource, BusLoad, BusStop, StopServiceArrivals } from '../types/bus';
 import { fetchStopNames } from '../services/busTrackerService';
+import { useIsPhone } from '../services/useIsPhone';
 import { formatEta, TrackingBadge } from './ArrivalBits';
 import { BusTypeTag } from './BusTypeIcon';
 
@@ -13,7 +14,9 @@ interface StopServicesBoardProps {
   onSelectService: (serviceNo: string) => void;
 }
 
+// Services shown before "Show all": fewer on phones, where they stack in one column
 const COLLAPSED_COUNT = 8;
+const PHONE_COLLAPSED_COUNT = 4;
 const LOAD_DOT: Record<BusLoad, { className: string; label: string }> = {
   SEA: { className: 'bg-green-blue', label: 'Seats available' },
   SDA: { className: 'bg-amber-500', label: 'Standing available' },
@@ -30,6 +33,7 @@ export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
 }) => {
   const [stopNames, setStopNames] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState(false);
+  const collapsedCount = useIsPhone() ? PHONE_COLLAPSED_COUNT : COLLAPSED_COUNT;
 
   useEffect(() => {
     fetchStopNames().then(setStopNames);
@@ -41,7 +45,7 @@ export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
     () => [...(services ?? [])].sort((a, b) => a.serviceNo.localeCompare(b.serviceNo, 'en', { numeric: true })),
     [services]
   );
-  const shown = expanded ? sorted : sorted.slice(0, COLLAPSED_COUNT);
+  const shown = expanded ? sorted : sorted.slice(0, collapsedCount);
 
   return (
     <div className="@container bg-white rounded-2xl border border-warm-200 shadow-sm p-3.5 sm:p-5">
@@ -117,7 +121,7 @@ export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
               );
             })}
           </div>
-          {sorted.length > COLLAPSED_COUNT && (
+          {sorted.length > collapsedCount && (
             <button
               onClick={() => setExpanded((e) => !e)}
               className="mt-2 text-xs font-semibold text-helvetia hover:underline flex items-center gap-1"

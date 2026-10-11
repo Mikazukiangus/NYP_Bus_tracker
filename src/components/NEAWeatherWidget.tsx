@@ -3,6 +3,7 @@ import type { Tone, WeatherSummary } from '../types/weather';
 import { forecastIconType, formatSgTime, toneClasses } from '../services/neaWeather';
 import {
   CalendarDays,
+  ChevronRight,
   CircleCheck,
   Cloud,
   CloudFog,
@@ -112,6 +113,43 @@ function Alerts({ alerts, limit, onShowAll }: { alerts: WeatherSummary['alerts']
     </div>
   );
 }
+
+// Phones on the arrivals tab: the forecast, temperature and top alert in one row that opens the Weather tab
+export const WeatherStrip: React.FC<{ weather: WeatherSummary | null; error?: boolean; onOpen: () => void }> = ({
+  weather,
+  error,
+  onOpen,
+}) => {
+  const alert = weather?.alerts[0];
+  return (
+    <button
+      onClick={onOpen}
+      className="w-full bg-white rounded-2xl border border-warm-200 shadow-sm px-3.5 py-2.5 flex items-center gap-3 text-left"
+    >
+      {weather ? (
+        <ForecastIcon type={weather.iconType} className="w-6 h-6 shrink-0" />
+      ) : (
+        <Umbrella className="w-5 h-5 text-green-blue-ink shrink-0" />
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-bold text-warm-900 truncate">
+          {weather ? (weather.forecast2h?.text ?? 'Weather') : error ? 'Weather unavailable' : 'Loading weather…'}
+          {weather?.temperature && <span className="font-black"> · {weather.temperature.value}°C</span>}
+        </span>
+        {alert ? (
+          <span className={`block text-[11px] font-semibold truncate ${alert.tone === 'good' ? 'text-warm-500' : toneClasses[alert.tone].text}`}>
+            {alert.title}
+          </span>
+        ) : (
+          weather && <span className="block text-[11px] text-warm-500 truncate">Near {weather.area} · 2-hr forecast</span>
+        )}
+      </span>
+      <span className="text-xs font-semibold text-helvetia flex items-center gap-0.5 shrink-0">
+        Weather <ChevronRight className="w-3.5 h-3.5" />
+      </span>
+    </button>
+  );
+};
 
 const near = (station?: string, km?: number) =>
   station ? `${station}${km !== undefined ? ` · ${km} km` : ''}` : undefined;

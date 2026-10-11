@@ -14,6 +14,8 @@ interface BusSearchBoxProps {
   locationName: string;
   trackedStopCode: string;
   onSelectStopService: (stop: NearbyStop, service: StopService) => void;
+  // Starts folded into one line (on phones once a destination is set, since the trip card picks the bus)
+  foldable?: boolean;
 }
 
 // Nearest stops shown before "Show more"
@@ -31,9 +33,13 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
   locationName,
   trackedStopCode,
   onSelectStopService,
+  foldable = false,
 }) => {
   const [inputVal, setInputVal] = useState(busNumber);
   const [showAllStops, setShowAllStops] = useState(false);
+  const [unfolded, setUnfolded] = useState(false);
+
+  useEffect(() => setUnfolded(false), [foldable]);
 
   // A new location starts with just the nearest few stops again
   useEffect(() => setShowAllStops(false), [nearbyStops?.[0]?.stop.code]);
@@ -56,10 +62,49 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
   const dir2 = currentRoute.direction2;
 
   const currentDirData = direction === 2 && dir2 ? dir2 : dir1;
+  const shortName = (name: string) => name.replace(' Bus Interchange', '').replace(' Interchange', '');
+
+  if (foldable && !unfolded) {
+    return (
+      <div className="bg-white rounded-2xl border border-warm-200/90 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setUnfolded(true)}
+          aria-expanded={false}
+          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left"
+        >
+          <Search className="w-4 h-4 text-warm-500 shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs font-semibold text-warm-700 uppercase tracking-wider">Find Bus Service</span>
+            <span className="block text-xs text-warm-600 truncate">Another bus number or a nearby stop</span>
+          </span>
+          <span
+            className="bg-helvetia text-white font-extrabold text-xs px-2 py-1 rounded-lg shrink-0"
+            title={`Tracking Bus ${currentRoute.serviceNo} to ${currentDirData.destination}`}
+          >
+            Bus {currentRoute.serviceNo}
+          </span>
+          <ChevronDown className="w-4 h-4 text-helvetia shrink-0" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-warm-200/90 shadow-sm p-3.5 sm:p-5">
-      <h2 className="text-xs font-semibold text-warm-700 uppercase tracking-wider mb-2">Find Bus Service</h2>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <h2 className="text-xs font-semibold text-warm-700 uppercase tracking-wider">Find Bus Service</h2>
+        {foldable && (
+          <button
+            type="button"
+            onClick={() => setUnfolded(false)}
+            aria-expanded={true}
+            className="text-xs font-semibold text-helvetia flex items-center gap-1 -my-1 py-1"
+          >
+            Hide <ChevronDown className="w-3.5 h-3.5 rotate-180" />
+          </button>
+        )}
+      </div>
       {/* Bus number */}
       <form onSubmit={handleSubmit} className="relative md:max-w-md">
         <label htmlFor="bus-search-input" className="block text-[11px] font-semibold text-warm-600 mb-1">
@@ -178,12 +223,13 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
 
       {/* Route Direction Switcher */}
       <div className="mt-2.5 pt-3 sm:mt-4 sm:pt-3.5 border-t border-warm-100">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2 min-w-0">
             <span className="bg-helvetia text-white font-extrabold text-sm px-2.5 py-1 rounded-lg shadow-2xs shrink-0">
               Bus {currentRoute.serviceNo}
             </span>
-            <div className="text-xs">
+            {/* On phones the direction buttons share this row (the operator is on the arrivals card) */}
+            <div className={`text-xs ${dir2 ? 'hidden sm:block' : ''}`}>
               <span className="text-warm-500">Operator: </span>
               <span className="font-semibold text-warm-800">{currentRoute.operator}</span>
               <span className="text-warm-300 mx-1.5">•</span>
@@ -192,7 +238,7 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
           </div>
 
           {dir2 && (
-            <div className="flex items-center bg-warm-100 p-1 rounded-xl gap-1 text-xs font-semibold w-full sm:w-auto sm:max-w-[60%]">
+            <div className="flex items-center bg-warm-100 p-1 rounded-xl gap-1 text-xs font-semibold flex-1 min-w-0 sm:flex-none sm:max-w-[60%]">
               <button
                 type="button"
                 onClick={() => setDirection(1)}
@@ -202,7 +248,7 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
                     : 'text-warm-600 hover:text-warm-900'
                 }`}
               >
-                <span className="truncate">To {dir1.destination.replace(' Bus Interchange', '').replace(' Interchange', '')}</span>
+                <span className="truncate">To {shortName(dir1.destination)}</span>
               </button>
               <button
                 type="button"
@@ -214,7 +260,7 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
                 }`}
               >
                 <ArrowRightLeft className="w-3 h-3 opacity-60 shrink-0" />
-                <span className="truncate">To {dir2.destination.replace(' Bus Interchange', '').replace(' Interchange', '')}</span>
+                <span className="truncate">To {shortName(dir2.destination)}</span>
               </button>
             </div>
           )}

@@ -440,3 +440,29 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - At 375 px nothing overflows the page width.
 
 ---
+
+### Turn 26: Less Scrolling on Phones (11 October 2026)
+- **User Prompt**:
+  > *"Figure out how to improve on the UI/UX for mobile users to minimise alot of scrolling."*
+- **What was measured first** (375 × 812, Arrival Times tab): the page was **3,304 px** tall with no destination and **4,884 px** with one (NYP → Northpoint City). The tracked bus's live times started about 2,350 px down. The biggest blocks were the map preview and full weather widget (≈ 1,100 px together), the selected trip's steps (≈ 600 px), Find Bus Service (530 px) and the nearest-stop banner (260 px).
+- **Phones only** (narrower than 640 px, `useIsPhone.ts`; CSS `max-sm:` / `sm:` classes). Desktop and tablet layouts are unchanged: at 1280 px the local build and the live site give the same page height (2,350 px).
+- **Next-bus bar** (`LiveArrivalsBar.tsx`): while the arrivals card is scrolled out of view, a bar is pinned to the bottom of the screen with the tracked bus, the stop, "Live GPS" / "Scheduled", where to get off for a destination, and the next three times (e.g. "45 · at Aft Grandeur 8 · Live GPS · off at Aft Blk 648 · 7 min, then 16, 35"). Tapping it scrolls to the arrivals card. It shows on the Arrival Times, Live Bus Map and Route Stops tabs, and steps aside when a third or more of the card is on screen.
+- **Trip options** (`TripPlannerCard.tsx`): the selected trip's steps start folded behind "Show steps and where to get off". The best two trips are listed, plus the chosen one, with "Show 1 more trip" for the rest. The walk / board / live lines use the full card width instead of wrapping beside the total time. The estimates note sits behind "How times are estimated".
+- **Find Bus Service** (`BusSearchBox.tsx`): once a destination is set (the trip card picks the bus), it folds to one row ("Another bus number or a nearby stop" with the tracked bus) that opens the full box. When open, the bus badge and the direction buttons share one row.
+- **Nearest bus stop** (`NearestStopBanner.tsx`): the distance and walking time join the "Along …" line, and Map and "Other stops on this route" are one row of buttons (260 → 150 px).
+- **Arrivals card** (`ArrivalDisplay.tsx`): the header is one row with a small refresh button showing the countdown ("⟳ 8s"). The big service badge is hidden, since the title names the bus. The live badge reads "● Live", and the capacity guide is folded behind "What do Seats, Standing and Live GPS mean?".
+- **All buses at a stop** (`StopServicesBoard.tsx`): 4 services before "Show all" instead of 8.
+- **Bottom of the Arrival Times tab** (`App.tsx`, `NEAWeatherWidget.tsx`): the map preview is not loaded on phones (the Map tab and the Map buttons open it), and the weather is one row (`WeatherStrip`: forecast, temperature and the top alert) that opens the Weather tab. Saved Favourites stays.
+- **Result at 375 px** (same places, live arrivals in the afternoon):
+
+  | Page | Before | After |
+  |---|---|---|
+  | Arrival Times, no destination | 3,304 px | 1,928 px |
+  | Arrival Times, to Northpoint City | 4,884 px | 2,327 px |
+  | Route Stops, to Northpoint City | 4,443 px | 3,497 px |
+  | Live Bus Map, to Northpoint City | 3,702 px | 2,357 px |
+
+  The next bus's time is on screen from the moment the page opens (in the bar), and the arrivals card starts at about 1,100 px instead of 2,350 px with a destination.
+- **Validation**: TypeScript, app build and 24 tests pass. Checked in headless Chrome at 375 × 812 (because the app's preview pane was hidden): the bar appears, hides over the card, and its tap lands the card just under the header; steps open and close; the capacity guide toggles. At 1280 × 900 the layout matches the live site, and there is no bar.
+
+---

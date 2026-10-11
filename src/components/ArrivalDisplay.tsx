@@ -155,6 +155,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   onChooseService,
 }) => {
   const [showAllDays, setShowAllDays] = useState(false);
+  const [showGuide, setShowGuide] = useState(false); // phones: the capacity guide is folded away
   const isLive = dataSource === 'LTA_DATAMALL_V3';
   const isLoading = dataSource === 'LOADING';
   const firstLast = activeStop.firstLastBus;
@@ -269,9 +270,10 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   return (
     <div className="@container bg-white rounded-2xl border border-warm-200 shadow-sm p-3.5 sm:p-6">
       {/* Header bar */}
-      <div className="flex flex-col @xl:flex-row @xl:items-center justify-between gap-3 pb-3 @2xl:pb-4 border-b border-warm-100">
+      <div className="flex flex-col max-sm:flex-row max-sm:items-start @xl:flex-row @xl:items-center justify-between gap-3 pb-3 @2xl:pb-4 border-b border-warm-100">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-11 h-11 @2xl:w-12 @2xl:h-12 rounded-xl bg-helvetia text-white flex items-center justify-center font-black text-xl shadow-xs shrink-0">
+          {/* Phones: the title already names the bus, so the badge makes room for the refresh button */}
+          <div className="max-sm:hidden w-11 h-11 @2xl:w-12 @2xl:h-12 rounded-xl bg-helvetia text-white flex items-center justify-center font-black text-xl shadow-xs shrink-0">
             {arrivals.serviceNo}
           </div>
           <div className="min-w-0">
@@ -289,7 +291,17 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
                   ? 'bg-green-blue-soft text-green-blue-ink border-green-blue/30'
                   : 'bg-amber-50 text-amber-800 border-amber-300'
               }`}>
-                {isLoading ? 'Loading live arrivals...' : isLive ? '● LTA DataMall v3 Live' : '● Simulated (live feed unavailable)'}
+                {isLoading ? (
+                  'Loading live arrivals...'
+                ) : isLive ? (
+                  <>
+                    ● <span className="max-sm:hidden">LTA DataMall v3 </span>Live
+                  </>
+                ) : (
+                  <>
+                    ● Simulated<span className="max-sm:hidden"> (live feed unavailable)</span>
+                  </>
+                )}
               </span>
             </div>
             <p className="text-xs text-warm-500 font-medium">
@@ -333,8 +345,8 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         </div>
 
         {/* Refresh timer & button */}
-        <div className="flex items-center gap-3 self-end @xl:self-center shrink-0">
-          <div className="text-right text-xs">
+        <div className="flex items-center gap-3 self-end max-sm:self-start @xl:self-center shrink-0">
+          <div className="text-right text-xs max-sm:hidden">
             <div className="text-warm-500 text-[11px]">Auto-refresh in</div>
             <div className="font-mono font-bold text-helvetia-900">{isRefreshing ? 'Updating...' : `${secondsUntilRefresh}s`}</div>
           </div>
@@ -344,9 +356,12 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
             disabled={isRefreshing}
             className="flex items-center gap-1.5 px-3 py-2 bg-helvetia-50 hover:bg-helvetia-100 text-helvetia font-semibold text-xs rounded-xl transition-all border border-helvetia-200"
             title="Refresh bus arrivals now"
+            aria-label={`Refresh bus arrivals now (auto-refresh in ${secondsUntilRefresh} seconds)`}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>Update</span>
+            <span className="max-sm:hidden">Update</span>
+            {/* Phones: the countdown sits in the button */}
+            <span className="sm:hidden font-mono font-bold tabular-nums">{isRefreshing ? '…' : `${secondsUntilRefresh}s`}</span>
           </button>
         </div>
       </div>
@@ -367,8 +382,20 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         </p>
       )}
 
-      {/* Official Singapore LTA / SBS Transit Load legend */}
-      <div className="mt-3 @2xl:mt-5 p-3 bg-warm-50 rounded-xl border border-warm-200/80 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-warm-600 gap-2">
+      {/* Official Singapore LTA / SBS Transit Load legend (folded away on phones) */}
+      <button
+        type="button"
+        onClick={() => setShowGuide((v) => !v)}
+        aria-expanded={showGuide}
+        className="sm:hidden mt-2 flex items-center gap-1 text-[11px] font-semibold text-warm-600 py-1"
+      >
+        <Info className="w-3.5 h-3.5 text-helvetia-700 shrink-0" />
+        What do Seats, Standing and Live GPS mean?
+        <ChevronDown className={`w-3 h-3 transition-transform ${showGuide ? 'rotate-180' : ''}`} />
+      </button>
+      <div
+        className={`${showGuide ? 'flex' : 'hidden sm:flex'} mt-1.5 sm:mt-3 @2xl:mt-5 p-3 bg-warm-50 rounded-xl border border-warm-200/80 flex-col sm:flex-row sm:items-center justify-between text-[11px] text-warm-600 gap-2`}
+      >
         <div className="flex items-center gap-1 font-semibold text-warm-700">
           <Info className="w-3.5 h-3.5 text-helvetia-700 shrink-0" />
           <span>Bus Capacity Guide:</span>
