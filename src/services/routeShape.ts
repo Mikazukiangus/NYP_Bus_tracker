@@ -30,14 +30,7 @@ export async function fetchRouteShapes(serviceNo: string): Promise<RouteShape[]>
 
 // Approximate metres from a point to a line segment (equirectangular projection; fine at city scale)
 function distanceToSegmentMeters(p: [number, number], a: [number, number], b: [number, number]): number {
-  const k = Math.cos((p[0] * Math.PI) / 180);
-  const ax = a[1] * k, ay = a[0];
-  const bx = b[1] * k, by = b[0];
-  const px = p[1] * k, py = p[0];
-  const dx = bx - ax, dy = by - ay;
-  const lenSq = dx * dx + dy * dy;
-  const t = lenSq ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq)) : 0;
-  return Math.hypot(ax + t * dx - px, ay + t * dy - py) * 111320;
+  return projectOnSegment(p, a, b).offsetM;
 }
 
 // Shortest distance in metres from a point to a polyline
@@ -102,8 +95,117 @@ export function applyRouteShapes(route: BusRoute, shapes: RouteShape[]): BusRout
   };
 }
 
+// A point on a line: the segment it falls on and how far along it (0–1), so points compare in riding order
+interface PathPosition {
+  seg: number;
+  t: number;
+  point: [number, number];
+  offsetM: number; // from the stop to this point
+}
+
+// Stops this far from a pass of the line count as served on that pass
+const PASS_RADIUS_M = MAX_STOP_OFFSET_M;
+// Farther passes considered for a stop (beyond PASS_RADIUS_M)
+const FALLBACK_CANDIDATES = 3;
+// Cost (as metres of offset) of leaving a stop unplaced; above it a stop is skipped rather than forced onto the line
+const SKIP_COST_M = 300;
+// How many stops back an in-order match may come from (skipping the ones between)
+const MAX_SKIPPED_STOPS = 8;
+
+const along = (p: PathPosition) => p.seg + p.t;
+
+// Closest point of a segment to p (equirectangular projection; fine at city scale)
+function projectOnSegment(p: [number, number], a: [number, number], b: [number, number]) {
+  const k = Math.cos((p[0] * Math.PI) / 180);
+  const ax = a[1] * k, ay = a[0];
+  const dx = b[1] * k - ax, dy = b[0] - ay;
+  const lenSq = dx * dx + dy * dy;
+  const t = lenSq ? Math.max(0, Math.min(1, ((p[1] * k - ax) * dx + (p[0] - ay) * dy) / lenSq)) : 0;
+  const point: [number, number] = [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
+  return { t, point, offsetM: Math.hypot(ax + t * dx - p[1] * k, ay + t * dy - p[0]) * 111320 };
+}
+
+// Where a stop could sit on the line: the closest point of each pass that goes near it, plus the few closest
+// points of passes that come within skipping distance (e.g. a line ending a little short of the interchange).
+// A loop route that uses the same road twice gives two candidates.
+function candidatePositions(stop: BusStop, path: [number, number][]): PathPosition[] {
+  const p: [number, number] = [stop.lat, stop.lng];
+  const onSegs = path.slice(1).map((b, i) => ({ seg: i, ...projectOnSegment(p, path[i], b) }));
+
+  const passes: PathPosition[] = [];
+  let pass: PathPosition | null = null;
+  for (const s of onSegs) {
+    if (s.offsetM <= PASS_RADIUS_M) {
+      if (!pass || s.offsetM < pass.offsetM) pass = s;
+    } else if (pass) {
+      passes.push(pass);
+      pass = null;
+    }
+  }
+  if (pass) passes.push(pass);
+
+  // Farther passes: where the line turns back towards the stop without coming near
+  const dips = onSegs.filter(
+    (s, i) =>
+      s.offsetM > PASS_RADIUS_M &&
+      s.offsetM <= SKIP_COST_M &&
+      s.offsetM <= (onSegs[i - 1]?.offsetM ?? Infinity) &&
+      s.offsetM <= (onSegs[i + 1]?.offsetM ?? Infinity)
+  );
+  return [...passes, ...dips.sort((a, b) => a.offsetM - b.offsetM).slice(0, FALLBACK_CANDIDATES)];
+}
+
+// Places every stop on the line in riding order, as close to it as possible overall (one pass per stop).
+// Matching each stop to its nearest point on its own goes wrong on loop routes, where the way out and the way
+// back share roads: a stop can be a few metres nearer the return pass, and every later stop is then pushed past
+// it. A stop that can't be placed in order (or only far from the line) is left out as null.
+export function matchStopsToPath(stops: BusStop[], path: [number, number][]): (PathPosition | null)[] {
+  const n = stops.length;
+  if (n === 0 || path.length < 2) return stops.map(() => null);
+  const cands = stops.map((stop) => candidatePositions(stop, path));
+  // best[k][c]: lowest total cost with stop k placed at its candidate c (and earlier stops placed or skipped)
+  const best: { cost: number; prev: [number, number] | null }[][] = cands.map((cs) => cs.map(() => ({ cost: Infinity, prev: null })));
+
+  for (let k = 0; k < n; k++) {
+    cands[k].forEach((c, ci) => {
+      let cost = SKIP_COST_M * k; // every earlier stop skipped
+      let prev: [number, number] | null = null;
+      for (let j = k - 1; j >= Math.max(0, k - 1 - MAX_SKIPPED_STOPS); j--) {
+        const skipped = SKIP_COST_M * (k - j - 1);
+        cands[j].forEach((cj, cji) => {
+          const total = best[j][cji].cost + skipped;
+          if (along(cj) <= along(c) && total < cost) {
+            cost = total;
+            prev = [j, cji];
+          }
+        });
+      }
+      best[k][ci] = { cost: cost + c.offsetM, prev };
+    });
+  }
+
+  let end: [number, number] | null = null;
+  let endCost = SKIP_COST_M * n; // nothing placed
+  for (let k = 0; k < n; k++) {
+    best[k].forEach((b, ci) => {
+      const total = b.cost + SKIP_COST_M * (n - 1 - k);
+      if (total < endCost) {
+        endCost = total;
+        end = [k, ci];
+      }
+    });
+  }
+
+  const matched: (PathPosition | null)[] = stops.map(() => null);
+  for (let at: [number, number] | null = end; at; at = best[at[0]][at[1]].prev) {
+    const c = cands[at[0]][at[1]];
+    if (c.offsetM <= SKIP_COST_M) matched[at[0]] = c;
+  }
+  return matched;
+}
+
 // The part of a direction's line ridden between two of its stops, following the roads when the line does.
-// Stops are matched to the line in order, so loop services are cut at the right pass.
+// Stops are placed on the line in riding order, so loop services are cut at the right pass.
 export function legPath(
   dir: RouteDirection,
   boardCode: string,
@@ -116,27 +218,13 @@ export function legPath(
   const straight = stops.slice(from, to + 1).map((s): [number, number] => [s.lat, s.lng]);
   if (dir.pathSource !== 'OPENSTREETMAP' || dir.path.length < 2) return { path: straight, followsRoads: false };
 
-  const path = dir.path;
-  let cursor = 0;
-  let startIdx = 0;
-  let endIdx = 0;
-  for (let k = 0; k <= to; k++) {
-    const stop: [number, number] = [stops[k].lat, stops[k].lng];
-    let best = Infinity;
-    let bestIdx = cursor;
-    for (let i = cursor; i < path.length; i++) {
-      const d = calculateDistanceMeters(stop[0], stop[1], path[i][0], path[i][1]);
-      if (d < best) {
-        best = d;
-        bestIdx = i;
-      } else if (best < MAX_STOP_OFFSET_M && d > best + 1500) {
-        break; // well past this stop
-      }
-    }
-    cursor = bestIdx;
-    if (k === from) startIdx = bestIdx;
-    if (k === to) endIdx = bestIdx;
-  }
-  if (endIdx <= startIdx) return { path: straight, followsRoads: false };
-  return { path: [straight[0], ...path.slice(startIdx, endIdx + 1), straight[straight.length - 1]], followsRoads: true };
+  // A board or alight stop that couldn't be placed starts or ends the line at the nearest placed stop of the leg
+  const matched = matchStopsToPath(stops, dir.path).slice(from, to + 1);
+  const start = matched.find((m) => m !== null);
+  const end = [...matched].reverse().find((m) => m !== null);
+  if (!start || !end || along(end) <= along(start)) return { path: straight, followsRoads: false };
+  return {
+    path: [straight[0], start.point, ...dir.path.slice(start.seg + 1, end.seg + 1), end.point, straight[straight.length - 1]],
+    followsRoads: true,
+  };
 }

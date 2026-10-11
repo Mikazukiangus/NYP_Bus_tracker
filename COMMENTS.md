@@ -466,3 +466,24 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
 - **Validation**: TypeScript, app build and 24 tests pass. Checked in headless Chrome at 375 × 812 (because the app's preview pane was hidden): the bar appears, hides over the card, and its tap lands the card just under the header; steps open and close; the capacity guide toggles. At 1280 × 900 the layout matches the live site, and there is no bar.
 
 ---
+
+### Turn 27: Trip Lines Cutting Across Estates (11 October 2026)
+- **User Prompt**:
+  > *"Some bus route dont follow the stops along the road and shows a straight line cutting across estates as per screenshot. Can you figure out what is the issue?"* (screenshot: trip to AMK Hub on Bus 269, whose yellow line ran diagonally across Ang Mo Kio from near Mayflower Stn)
+- **Cause** (`routeShape.ts`, `legPath`): the road-following OpenStreetMap line for each service was fine. The bug was in how the yellow "your bus" part was cut out of it. Each stop was matched to the nearest *point* of the line, in order. OSM lines only have points where roads bend, so on a long straight road the nearest point can be hundreds of metres away. On a loop that uses the same roads out and back (269: Ang Mo Kio Int ↺ Lentor), a stop on the way out was nearer a point on the way back. For example, Blk 209 was 36 m from a return-pass point but only 12 m from the outbound road itself, which had no point nearby. From then on every later stop could only match points even further along, so the drawn line jumped:
+  - **Straight cuts**: the line ran straight from the boarding stop to a far point. This is the diagonal in the screenshot.
+  - **Detours**: on 268, Bef Mayflower Stn Exit 3 → Blk 700B, a 1.6 km ride was drawn as 10.4 km round an eastern loop.
+- **How common**: checked against the live LTA stop lists for all 602 services. **48% of all possible rides** (285,000 of 593,000 board/alight pairs) and **93% of route directions** had at least one broken ride. It was worst on loop services and on roads drawn with few points.
+- **Fix** (`matchStopsToPath`):
+  - Each stop is matched to the closest point *on the line itself* (any point along a segment, not only the corners).
+  - Every pass of the line within 100 m is kept as a candidate, plus the line ends if they're within 300 m, e.g. a line that stops short of the interchange.
+  - One candidate per stop is then chosen so that all stops are in riding order with the smallest total distance from the line.
+  - A stop that can't be placed in order, or is over 300 m from the line, is left out. That happens where the OSM line is out of date, e.g. Christ Church on 60, or part of 241's loop drawn the other way round. A ride from or to such a stop starts or ends at the next stop that is on the line.
+  - The yellow line now starts and ends exactly beside the boarding and alighting stops, not at the nearest corner.
+- **Result** (same check): broken rides 48% → **0.4%**; route directions with any broken ride 93% → **4.5%** (35 of 779). The rest are places where the OSM line itself disagrees with LTA's stops, e.g. 229 near Bedok South, where three stops are 200–300 m from the line. Bus 269: 228 of 231 rides broken → 0.
+- **Not changed**: 12 services have no usable OSM line and still use straight stop-to-stop lines for the whole route:
+  - No OSM line at all (7): 181A, 182A, 382, 451, 861M, SWA, SWB.
+  - OSM line too different from LTA's stops (5): 138A, 138C, 189, 225W, 861B.
+- **Validation**: TypeScript, app build and 27 tests pass. The 3 new tests in `tests/route-shape.test.ts` use a 269-like loop and check that stops are placed on the right pass, that rides follow the road they're on, and that a stop far from the line is left out. The loop test fails on the old code. In the browser (375 px, from Kebun Baru Link to AMK Hub), the 269 line now runs from Bef Mayflower Stn Exit 3 along the roads to Ang Mo Kio Int.
+
+---
