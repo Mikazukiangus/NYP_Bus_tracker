@@ -30,6 +30,39 @@ function parseStations(raw: any): StationReadings {
   };
 }
 
+// Readings kept for the rain nowcast: the last hour
+const RAIN_HISTORY_READINGS = 13;
+
+// Rainfall comes from the day's readings (newest first), one call giving both the latest reading and the last hour,
+// which shows where rain is moving. The newest reading is often still coming in (a handful of gauges in its first
+// minutes), so start from the newest one most gauges have reported, as the plain latest-reading endpoint does.
+export function parseRainfall(raw: any): NonNullable<WeatherSnapshot['rainfall']> {
+  const d = raw.data;
+  const stations: any[] = d.stations ?? [];
+  const readings = (d.readings ?? []).filter((r: any) => (r.data?.length ?? 0) >= stations.length / 2);
+  if (readings.length === 0) throw new Error('rainfall: no complete reading yet'); // just after midnight
+  const valuesOf = (r: any) => new Map<string, number>(r.data.map((x: any) => [x.stationId, num(x.value)]));
+  return {
+    ...parseStations({ data: { ...d, readings } }),
+    history: {
+      stations: stations.map((s) => ({ id: s.id, name: s.name, lat: s.location.latitude, lng: s.location.longitude })),
+      readings: readings
+        .slice(0, RAIN_HISTORY_READINGS)
+        .reverse()
+        .map((r: any) => {
+          const values = valuesOf(r);
+          return {
+            timestamp: r.timestamp,
+            values: stations.map((s) => (Number.isFinite(values.get(s.id)) ? values.get(s.id)! : null)),
+          };
+        }),
+    },
+  };
+}
+
+// Today's date in Singapore, for the day queries
+const sgToday = () => new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+
 function regionLocations(raw: any): Map<string, LatLng> {
   return new Map(
     (raw.data.regionMetadata ?? []).map((r: any) => [r.name, { lat: r.labelLocation.latitude, lng: r.labelLocation.longitude }])
@@ -37,7 +70,7 @@ function regionLocations(raw: any): Map<string, LatLng> {
 }
 
 // Ordered by importance: when the rate-limit budget runs out, later datasets wait for the next request
-const DATASETS: { key: DatasetKey; path: string; ttlMs: number; parse: (raw: any) => any }[] = [
+const DATASETS: { key: DatasetKey; path: string | (() => string); ttlMs: number; parse: (raw: any) => any }[] = [
   {
     key: 'forecast2h',
     path: 'two-hr-forecast',
@@ -60,7 +93,7 @@ const DATASETS: { key: DatasetKey; path: string; ttlMs: number; parse: (raw: any
     },
   },
   { key: 'temperature', path: 'air-temperature', ttlMs: 2 * MIN, parse: parseStations },
-  { key: 'rainfall', path: 'rainfall', ttlMs: 2 * MIN, parse: parseStations },
+  { key: 'rainfall', path: () => `rainfall?date=${sgToday()}`, ttlMs: 2 * MIN, parse: parseRainfall },
   {
     key: 'psi',
     path: 'psi',
@@ -210,7 +243,8 @@ export default async function handler(req: Request | any, res: Response | any) {
   await Promise.all(
     due.map(async (d) => {
       try {
-        cache.set(d.key, { at: Date.now(), value: d.parse(await fetchDataset(d.path, apiKey)) });
+        const path = typeof d.path === 'function' ? d.path() : d.path;
+        cache.set(d.key, { at: Date.now(), value: d.parse(await fetchDataset(path, apiKey)) });
       } catch (err) {
         console.warn(`NEA ${d.key} refresh failed; serving last good value if any:`, err instanceof Error ? err.message : err);
       }

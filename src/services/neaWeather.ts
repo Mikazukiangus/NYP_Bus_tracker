@@ -2,10 +2,12 @@ import { calculateDistanceMeters } from '../data/singaporeBuses';
 import type {
   LatLng,
   Tone,
+  WeatherAlert,
   WeatherRegion,
   WeatherSnapshot,
   WeatherSummary,
 } from '../types/weather';
+import { rainBand, rainNowcast } from './rainNowcast';
 
 const DIRECT_TWO_HR = 'https://api-open.data.gov.sg/v2/real-time/api/two-hr-forecast';
 
@@ -103,16 +105,6 @@ function heatBand(heatStress: string): Tone {
   return 'good';
 }
 
-// Rain intensity from a 5-minute total, using the standard mm/hour thresholds
-function rainBand(mmPer5Min: number): { label: string; tone: Tone } {
-  const mmPerHour = mmPer5Min * 12;
-  if (mmPerHour <= 0) return { label: 'No rain', tone: 'good' };
-  if (mmPerHour < 2.5) return { label: 'Light rain', tone: 'moderate' };
-  if (mmPerHour < 10) return { label: 'Moderate rain', tone: 'warn' };
-  if (mmPerHour < 50) return { label: 'Heavy rain', tone: 'bad' };
-  return { label: 'Very heavy rain', tone: 'severe' };
-}
-
 export function forecastIconType(forecast: string): WeatherSummary['iconType'] {
   const f = forecast.toLowerCase();
   if (f.includes('thunder')) return 'thunder';
@@ -122,7 +114,11 @@ export function forecastIconType(forecast: string): WeatherSummary['iconType'] {
   return 'cloudy';
 }
 
-const isWetForecast = (forecast?: string) => Boolean(forecast && /rain|shower|thunder|drizzle/i.test(forecast));
+export const isWetForecast = (forecast?: string) => Boolean(forecast && /rain|shower|thunder|drizzle/i.test(forecast));
+
+// NEA's 2-hour forecast for the area nearest a place
+export const forecastAt = (snapshot: WeatherSnapshot, lat: number, lng: number) =>
+  nearest(snapshot.forecast2h?.areas, lat, lng)?.forecast;
 
 export function formatSgTime(iso?: string) {
   if (!iso) return '';
@@ -188,6 +184,7 @@ export function summarizeWeather(snapshot: WeatherSnapshot, lat: number, lng: nu
         wetStations: wet.length,
       };
     }
+    if (snapshot.rainfall.history) summary.nowcast = rainNowcast(snapshot.rainfall.history, lat, lng);
   }
 
   if (psiRegion && Number.isFinite(psiRegion.psi24h)) {
@@ -240,12 +237,13 @@ export function summarizeWeather(snapshot: WeatherSnapshot, lat: number, lng: nu
   return summary;
 }
 
-function buildAlerts(s: WeatherSummary): WeatherSummary['alerts'] {
-  const alerts: WeatherSummary['alerts'] = [];
+function buildAlerts(s: WeatherSummary): WeatherAlert[] {
+  const alerts: WeatherAlert[] = [];
   const place = s.area;
 
   if (s.lightning?.count) {
     alerts.push({
+      kind: 'lightning',
       tone: 'severe',
       title: 'Lightning nearby',
       detail: `${s.lightning.count} strike${s.lightning.count > 1 ? 's' : ''} within ${LIGHTNING_RADIUS_KM} km in the last ${LIGHTNING_WINDOW_MIN} min (closest ${s.lightning.nearestKm} km). Wait under a bus shelter or indoors and avoid open fields.`,
@@ -254,12 +252,24 @@ function buildAlerts(s: WeatherSummary): WeatherSummary['alerts'] {
 
   if (s.rain?.rainingNearby) {
     alerts.push({
+      kind: 'rain',
       tone: s.rain.tone === 'bad' || s.rain.tone === 'severe' ? 'bad' : 'warn',
       title: `${s.rain.label} near you`,
       detail: `${s.rain.wetStations} of ${s.rain.nearbyStations} nearby rain gauge${s.rain.nearbyStations > 1 ? 's' : ''} recorded rain in the last 5 min (${s.rain.value} mm at ${s.rain.station}). Bring an umbrella and allow extra time; buses may run slower.`,
     });
+  } else if (s.nowcast?.status === 'approaching' && isWetForecast(s.forecast2h?.text)) {
+    // Rain moving this way with a wet forecast arrived within the hour 71% of the time (COMMENTS.md, turn 29)
+    const n = s.nowcast;
+    const [lo, hi] = n.etaMin;
+    alerts.push({
+      kind: 'rain',
+      tone: n.likely ? 'warn' : 'moderate',
+      title: 'Rain heading your way',
+      detail: `Rain ${n.distanceKm} km to the ${n.direction} is moving towards ${place} and ${n.likely ? 'should' : 'may'} arrive in ${lo === hi ? `~${lo}` : `${lo}–${hi}`} min. NEA forecasts ${s.forecast2h!.text.toLowerCase()} (${s.forecast2h!.validText}). Pack an umbrella.`,
+    });
   } else if (isWetForecast(s.forecast2h?.text)) {
     alerts.push({
+      kind: 'rain',
       tone: 'moderate',
       title: `${s.forecast2h!.text} forecast`,
       detail: `NEA expects ${s.forecast2h!.text.toLowerCase()} around ${place} (${s.forecast2h!.validText}). Pack an umbrella.`,
@@ -273,9 +283,10 @@ function buildAlerts(s: WeatherSummary): WeatherSummary['alerts'] {
         : s.psi.value > 200
           ? 'Avoid prolonged or strenuous outdoor physical exertion. Elderly, children and people with heart or lung conditions should minimise outdoor activity.'
           : 'Reduce prolonged or strenuous outdoor physical exertion. Elderly, children and people with heart or lung conditions should minimise it.';
-    alerts.push({ tone: s.psi.tone, title: `${s.psi.label} air quality (24-hr PSI ${s.psi.value})`, detail: advice });
+    alerts.push({ kind: 'air', tone: s.psi.tone, title: `${s.psi.label} air quality (24-hr PSI ${s.psi.value})`, detail: advice });
   } else if (s.pm25 && s.pm25.value > 55) {
     alerts.push({
+      kind: 'air',
       tone: s.pm25.tone,
       title: `PM2.5 ${s.pm25.label.toLowerCase()} (${s.pm25.value} µg/m³)`,
       detail: 'Fine particle levels in the past hour are above normal. Consider cutting down on strenuous activity outdoors, especially if you are sensitive to haze.',
@@ -284,6 +295,7 @@ function buildAlerts(s: WeatherSummary): WeatherSummary['alerts'] {
 
   if (s.heatStress && s.heatStress.tone !== 'good') {
     alerts.push({
+      kind: 'heat',
       tone: s.heatStress.tone,
       title: `${s.heatStress.label} heat stress (WBGT ${s.heatStress.value}°C)`,
       detail: 'Drink water regularly, wait in the shade and take breaks if you are walking far to your stop.',
@@ -292,6 +304,7 @@ function buildAlerts(s: WeatherSummary): WeatherSummary['alerts'] {
 
   if (s.uv && s.uv.value >= 8) {
     alerts.push({
+      kind: 'uv',
       tone: s.uv.tone,
       title: `${s.uv.label} UV (index ${s.uv.value})`,
       detail: 'Use sunscreen, a hat or an umbrella while waiting at uncovered stops.',
@@ -300,6 +313,7 @@ function buildAlerts(s: WeatherSummary): WeatherSummary['alerts'] {
 
   if (alerts.length === 0 && s.forecast2h) {
     alerts.push({
+      kind: 'ok',
       tone: 'good',
       title: 'Good conditions for your commute',
       detail: `No rain, lightning or unhealthy air reported around ${place} right now.`,

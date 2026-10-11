@@ -15,6 +15,7 @@ import {
 import type { WeatherSnapshot } from './types/weather';
 import {
   SINGAPORE_LOCATIONS,
+  calculateDistanceMeters,
   getOrCreateBusRoute
 } from './data/singaporeBuses';
 import {
@@ -30,7 +31,9 @@ import { BusNetwork, NearbyStop, StopService, loadBusNetwork, nearestStops } fro
 import { TripLeg, TripOption, alightFor, legServiceNos, liveDeparture, planTrips, tripScore, withServices } from './services/tripPlanner';
 import { PlaceResult, addRecentPlace, loadRecentPlaces } from './services/placeSearch';
 import { useStopsArrivals } from './services/useStopsArrivals';
-import { fetchWeatherSnapshot, summarizeWeather } from './services/neaWeather';
+import { fetchWeatherSnapshot, forecastAt, formatSgTime, summarizeWeather } from './services/neaWeather';
+import { rainNowcast } from './services/rainNowcast';
+import { RainAdviceInput, rainAdvice } from './services/rainAdvice';
 import { Header } from './components/Header';
 import { BusSearchBox } from './components/BusSearchBox';
 import { NearestStopBanner } from './components/NearestStopBanner';
@@ -755,6 +758,66 @@ export default function App() {
 
   const selectedStopDistance = stopsWithDistance.find((s) => s.code === selectedStop.code)?.distanceMeters ?? distanceMeters;
 
+  // Leave now, wait or take an umbrella: the rain around the user (and at the destination) against the walk to the
+  // stop, the next buses and when the bus gets there
+  const rainAdviceNow = useMemo(() => {
+    if (!weatherSnapshot || !weather) return null;
+    // Further than this the stop isn't one you'd walk to from here
+    const walkMin = selectedStopDistance <= 1500 ? Math.round(selectedStopDistance / 80) : undefined;
+    const busMin = [arrivals.nextBus, arrivals.nextBus2, arrivals.nextBus3].flatMap((b) => (b ? [Math.max(0, b.estimatedMinutes)] : []));
+    const boardIn = Math.max(walkMin ?? 0, busMin.find((m) => m >= (walkMin ?? 0)) ?? 0);
+
+    // When the bus gets to the stop for the destination, and the walk from there
+    let end: { arriveInMin: number; walkMin: number } | null = null;
+    if (destination && alightHint?.status === 'alight') {
+      if (selectedTrip && tripView?.legIndex === 0) {
+        end = {
+          arriveInMin: boardIn + selectedTrip.travelMin - selectedTrip.walkStartMin - selectedTrip.walkEndMin,
+          walkMin: selectedTrip.walkEndMin,
+        };
+      } else if (!alightHint.trip || alightHint.trip.legIndex === alightHint.trip.legs.length - 1) {
+        end = { arriveInMin: boardIn + alightHint.rideMin, walkMin: alightHint.walkMin };
+      }
+    }
+    // A destination this close shares the rain gauges around the user, so it would only repeat what's said here
+    const farEnough = destination && calculateDistanceMeters(userLocation.lat, userLocation.lng, destination.lat, destination.lng) > 3000;
+    const atDestination: RainAdviceInput['destination'] =
+      destination && end && farEnough
+        ? {
+            name: destination.name,
+            nowcast: rainNowcast(weatherSnapshot.rainfall?.history, destination.lat, destination.lng),
+            forecast: forecastAt(weatherSnapshot, destination.lat, destination.lng),
+            arriveInMin: Math.round(end.arriveInMin),
+            walkMin: Math.round(end.walkMin),
+          }
+        : undefined;
+
+    return rainAdvice({
+      here: weather.nowcast ?? { status: 'unknown' },
+      area: weather.area,
+      forecast: weather.forecast2h?.text,
+      lightning: weather.lightning,
+      walkMin,
+      busMin,
+      destination: atDestination,
+    });
+  }, [weatherSnapshot, weather, selectedStopDistance, arrivals, destination, alightHint, selectedTrip, tripView, userLocation]);
+
+  const rainSource = weatherSnapshot?.rainfall?.history
+    ? `NEA rain gauges ${formatSgTime(weatherSnapshot.rainfall.timestamp)} & 2-hr forecast`
+    : weather?.forecast2h
+      ? `NEA 2-hr forecast ${formatSgTime(weather.forecast2h.updated)}`
+      : undefined;
+
+  // The advice covers rain and lightning, so the weather beside it on the Arrivals tab leaves those alerts out
+  const arrivalsWeather = useMemo(
+    () =>
+      weather && rainAdviceNow
+        ? { ...weather, alerts: weather.alerts.filter((a) => a.kind !== 'rain' && a.kind !== 'lightning' && a.kind !== 'ok') }
+        : weather,
+    [weather, rainAdviceNow]
+  );
+
   // The live arrivals card (wider screens: on the arrivals, map and stops tabs; phones: on the arrivals tab, where
   // it also shows how far the stop is and saves it, in place of the nearest-stop banner)
   const arrivalsCard = (
@@ -769,6 +832,9 @@ export default function App() {
         alight={alightHint}
         onTrackLeg={trackTripLegAt}
         onChooseService={chooseTripServiceAt}
+        rainAdvice={rainAdviceNow}
+        rainSource={rainSource}
+        onOpenWeather={openWeatherTab}
         {...(isPhone
           ? {
               stopInfo: {
@@ -923,10 +989,10 @@ export default function App() {
               )}
               <div className="lg:col-span-5 space-y-4 sm:space-y-6">
                 {isPhone ? (
-                  <WeatherStrip weather={weather} error={weatherError} onOpen={openWeatherTab} />
+                  <WeatherStrip weather={arrivalsWeather} error={weatherError} onOpen={openWeatherTab} />
                 ) : (
                   <NEAWeatherWidget
-                    weather={weather}
+                    weather={arrivalsWeather}
                     isLoading={isWeatherLoading}
                     error={weatherError}
                     onRefreshWeather={loadWeather}

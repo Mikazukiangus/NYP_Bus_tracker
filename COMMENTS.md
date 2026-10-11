@@ -303,7 +303,7 @@ This application is a real-time Singapore public bus tracking web app inspired b
 | `/bus-routes/<SERVICE>.json`, `/bus-routes/index.json` | GET (static) | Real stop sequences with first/last bus times, and the service list, generated at build time | LTA DataMall, via `scripts/build-bus-routes.ts` |
 | `/bus-routes/network.json` | GET (static) | Every stop (code, name, road, position) and every service direction (stop order + road distances), for stop names, nearest bus stops, stop search and trip planning in the browser (~135 KB gzipped) | LTA DataMall, via `scripts/build-bus-routes.ts` |
 | `/route-shapes/<SERVICE>.json` | GET (static) | Road-following route geometry for a service | OpenStreetMap (ODbL), pre-built by `npm run shapes` |
-| `/api/weather` | GET | Singapore-wide snapshot of 12 NEA datasets (forecasts, station readings, PSI/PM2.5, UV, lightning, WBGT); the client picks the nearest station/region | NEA via data.gov.sg v2 real-time API |
+| `/api/weather` | GET | Singapore-wide snapshot of 12 NEA datasets (forecasts, station readings, PSI/PM2.5, UV, lightning, WBGT), with the last hour of rain gauge readings for the rain nowcast; the client picks the nearest station/region | NEA via data.gov.sg v2 real-time API |
 
 Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/api/common/elastic/search`) are called directly by the browser from OneMap (Singapore Land Authority); no proxy or key needed.
 
@@ -526,5 +526,61 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - The arrivals card's refresh button no longer overlaps the stop line.
 
   At 1280 × 900 there is no tab bar or next-bus bar.
+
+---
+
+### Turn 29: Leave Now, Wait or Take an Umbrella (11 October 2026)
+- **User Prompt**:
+  > *"Under Arrivals, figure out how you can use the nea weather rain data to indicate whether users should leave now (before rain starts), or leave later or bring an umbrella (as raining has started)"*
+- **What NEA offers**: no rain radar in its open data, but 89 rain gauges (about 3 km apart) report the rain of every 5 minutes, and the area 2-hour forecast is updated about every 30 minutes. A day query (`rainfall?date=…`) returns the newest 25 readings in one call, so `/api/weather` now gets the last hour from the same single call it already made (`parseRainfall`), with no extra rate-limit cost. The newest reading in that query is often still coming in (4 of 89 gauges in its first minutes), so it starts from the newest one most gauges have reported, as the plain latest-reading endpoint does.
+- **Rain nowcast** (`rainNowcast.ts`), from the last hour of readings, for a place:
+  - **Raining**: rain at the gauges within 3 km (or the closest one), with how heavy and for how long.
+  - **Stopped**: rain there in the last 15 minutes, but not now.
+  - **Approaching**: the nearest wet gauge within 10 km has been getting closer over the last 30 minutes (at 6 km/h or more). It gives the direction, speed and an arrival window. It is **likely** when the rain is within 5 km and covers 2 or more gauges. A lone gauge's 0.2 mm drizzle doesn't count.
+  - **Nearby** (rain within 20 km, not heading here, or moving away) or **clear**.
+- **Backtest** (scratchpad scripts, not in the repo): 7 rainy days (10–13 Nov 2025; 27, 28 Sep and 10 Oct 2026), about 130,000 gauge-moments. Each gauge was predicted from the *other* gauges only, then checked against what it recorded next, with NEA's 2-hour forecast for its area at that moment.
+  - "Raining near you" was right (that gauge wet now or within 5 min) 74% of the time when the forecast was wet. With a dry forecast it was usually a passing drizzle (16%).
+  - Chance rain started in the next 30 / 60 min, after 15 dry minutes:
+
+    | Nowcast | Wet forecast | Dry forecast |
+    |---|---|---|
+    | Approaching, likely | 74% / 79% | 19% / 21% |
+    | Approaching, possible | 48% / 68% | 4% / 8% |
+    | Stopped | 34% / 43% | 2% / 4% |
+    | Nearby | 15% / 28% | 1% / 4% |
+    | Clear | 4% / 10% | 0% / 1% |
+
+  - When approaching rain did arrive, it came within the given window (±5 min) 67% of the time.
+  - How long rain lasts once it's raining near you: light rain stopped within 30 min 56% of the time. Moderate rain eased to light within 15 min half the time but stopped within 30 min only 22% of the time. Heavy rain eased within 30 min 55% of the time. Very heavy rain eased within 30 min only 16% of the time (median an hour).
+  - Whether rain was "easing" or "getting heavier" over the last half hour did not predict when it stopped, so the nowcast doesn't say it. The forecast mattered more than anything else: "approaching" with a dry forecast seldom arrives, so the advice treats it as dry.
+- **Advice** (`rainAdvice.ts`), shown in the arrivals card under the bus times (`RainAdviceStrip.tsx`):
+
+  | Situation | Advice |
+  |---|---|
+  | Lightning within 10 km in the last 15 min | Wait under shelter |
+  | Rain approaching, the walk to the stop ends before its window starts | **Leave now to beat the rain**, with the next bus you can catch |
+  | Rain approaching, it arrives before you'd reach the stop | Bring an umbrella |
+  | Rain approaching, but you're at the stop | The shelter has you covered; umbrella for the other end |
+  | Light rain | Umbrella, or wait a little: half of light showers stop within 30 min |
+  | Moderate rain | Umbrella: waiting gets a lighter walk, not a dry one |
+  | Heavy rain | **Wait for a later bus** if you can; otherwise umbrella and extra time |
+  | Very heavy rain | Umbrella and extra time: it usually lasts an hour, so waiting won't help much |
+  | Rain just stopped, wet forecast | A good moment to go, with an umbrella |
+  | Rain nearby or none, wet forecast | Umbrella (just in case) |
+  | Dry forecast, no rain around | One short line: no umbrella needed |
+
+  - With a destination at least 3 km away, the nowcast and forecast there are checked for when the bus gets there (walk to the stop, wait for the bus you can catch, the ride). A line with a flag says, for example, "Light rain at Tampines Bus Interchange now. It may have stopped by the time you get there (~74 min), but an umbrella helps for the ~1 min walk at the end." When it's dry here but wet there, the title says to take an umbrella for the destination.
+  - Each advice shows the time of the gauge readings, with a link to the Weather tab.
+- **No repeats**: on the Arrivals tab, the weather row (phones) and weather card (wider screens) leave out the rain, lightning and "good conditions" alerts, as the advice covers them. Alerts now carry a `kind`. The Weather tab keeps all alerts and gains "Rain heading your way", with the arrival window, when rain is approaching and the forecast is wet.
+- **Validation**:
+  - TypeScript, app build and 35 tests pass. The 8 new tests in `tests/rain-nowcast.test.ts` cover:
+    - Synthetic showers: raining, stopped, approaching with its window, far-off rain, a lone drizzle, and rain moving away.
+    - The advice choices.
+    - The server skipping a half-reported newest reading.
+  - In the browser, a test-only stub replayed recorded days from data.gov.sg as if live:
+    - 27 Sep 2026, 6:05 pm, phone, NYP: "Leave now to beat the rain. Rain 4.3 km to the north-west… should arrive in 10–20 min". It rained there 10 minutes later.
+    - The Weather tab showed "Rain heading your way".
+    - 13 Nov 2025, 3:00 pm, 1280 px, to Tampines: "Heavy rain: wait for a later bus if you can", with the Tampines line, and the weather card without the rain alert.
+    - Today's live data: "No rain around: no umbrella needed" on one line.
 
 ---
