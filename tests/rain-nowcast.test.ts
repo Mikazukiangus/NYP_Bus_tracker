@@ -92,12 +92,17 @@ const approaching = (likely: boolean): RainNowcast => ({
 });
 
 test('rain on the way: leave now if the walk to the stop beats it, otherwise take an umbrella', () => {
-  const now = rainAdvice({ here: approaching(true), forecast: 'Thundery Showers', walkMin: 5, busMin: [3, 9, 15] })!;
+  const now = rainAdvice({
+    here: approaching(true), forecast: 'Thundery Showers', walkMin: 5, stopName: 'Nanyang Poly', busServiceNo: '72', busMin: [3, 9, 15],
+  })!;
   assert.equal(now.action, 'leave-now');
-  assert.match(now.detail, /the next bus you can catch comes in 9\u00a0min/);
+  assert.match(now.detail, /Nanyang Poly is a ~5\u00a0min walk, so you'd reach it first; the next Bus 72 you can catch comes in 9\u00a0min/);
 
   const late = rainAdvice({ here: approaching(true), forecast: 'Showers', walkMin: 14, busMin: [3] })!;
   assert.equal(late.action, 'umbrella');
+
+  const atStop = rainAdvice({ here: approaching(true), forecast: 'Showers', walkMin: 0, stopName: 'Bef Cairnhill Rd' })!;
+  assert.match(atStop.detail, /You're at the Bef Cairnhill Rd stop/);
 
   // With a dry forecast, showers drifting closer seldom arrive
   assert.equal(rainAdvice({ here: approaching(true), forecast: 'Cloudy', walkMin: 5 })!.action, 'go');

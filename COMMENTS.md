@@ -584,3 +584,19 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
     - Today's live data: "No rain around: no umbrella needed" on one line.
 
 ---
+
+### Turn 30: Rain Advice Under "Where to?" (11 October 2026)
+- **User Prompt**:
+  > *"On the arrival tab, bring the weather message under "Where to?" and update it based on the gps location or selected location in the first row."*
+- **Where it is now**: the rain advice from turn 29 (leave now, wait or take an umbrella) moved out of the arrivals card and into the "Your trip" box, right under "Where to?" (`LocationBar` takes it as children). It is on the Arrivals tab only, at all screen sizes. On wider screens it no longer shows on the Live Bus Map and Route Stops tabs, where it used to come with the arrivals card.
+- **Follows the From row**: the advice is for the place in the first row, whether a GPS fix or a chosen place, and it changes as soon as that place changes. Its source line names the place, e.g. "For Orchard Rd · NEA rain gauges 6:55 pm & 2-hr forecast".
+  - Now that it sits outside the bus card, it names the stop and the bus: "Nanyang Poly is a ~3 min walk, so you'd reach it first; the next Bus 72 you can catch comes in 13 min."
+  - If the tracked bus's stop is more than 1.5 km from the From place (a bus tracked somewhere else), it uses the walk to the nearest stop to the From place instead, without bus times.
+  - "You're at the stop" is now said only within 50 m; further than that it's at least a minute's walk. Before, anything under 120 m counted, so 110 m from Bef Cairnhill Rd read "You're at the stop".
+- **Validation**: TypeScript, app build and 35 tests pass, including a new case for being at the stop. Replayed rainy moments in the browser:
+  - 13 Nov 2025, 3:00 pm, 375 px: from NYP, "Heavy rain: wait for a later bus if you can". Changing From to Orchard Rd switched it to "Leave now to beat the rain… Bef Cairnhill Rd is a ~1 min walk". Changing back restored the heavy-rain advice.
+  - 27 Sep 2026, 6:05 pm, from NYP: the "leave now" advice named Nanyang Poly and the next Bus 72.
+  - 1280 px: shown under "Where to?" on Arrival Times only, not on Live Bus Map or Route Stops.
+  - The arrivals card no longer contains it.
+
+---

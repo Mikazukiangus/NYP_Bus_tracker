@@ -47,6 +47,7 @@ import { AppTab, BottomTabBar } from './components/AppTabs';
 import { FavoritesModal, NextBusLabel } from './components/FavoritesModal';
 import { LocationPickerModal } from './components/LocationPickerModal';
 import { LocationBar } from './components/LocationBar';
+import { RainAdviceStrip } from './components/RainAdviceStrip';
 import { RankedTrip, TripPlannerCard, TripPlannerState } from './components/TripPlannerCard';
 import { useFavoriteArrivals } from './services/favoriteArrivals';
 import { useStopArrivals } from './services/useStopArrivals';
@@ -60,6 +61,8 @@ const ARRIVALS_CARD_ID = 'live-arrivals';
 const stopRef = ({ code, name, road, lat, lng }: StopRef): StopRef => ({ code, name, road, lat, lng });
 // Incidents within this distance of the route line are shown on the map
 const INCIDENT_ROUTE_DISTANCE_M = 150;
+// Further than this from where the trip starts, a bus stop isn't one you'd walk to (for the rain advice)
+const WALKABLE_STOP_M = 1500;
 
 export default function App() {
   // Restore the last location immediately while requesting a fresh GPS fix.
@@ -762,9 +765,16 @@ export default function App() {
   // stop, the next buses and when the bus gets there
   const rainAdviceNow = useMemo(() => {
     if (!weatherSnapshot || !weather) return null;
-    // Further than this the stop isn't one you'd walk to from here
-    const walkMin = selectedStopDistance <= 1500 ? Math.round(selectedStopDistance / 80) : undefined;
-    const busMin = [arrivals.nextBus, arrivals.nextBus2, arrivals.nextBus3].flatMap((b) => (b ? [Math.max(0, b.estimatedMinutes)] : []));
+    // The walk to the tracked bus's stop; if that stop is too far from where the trip starts to walk to (a bus
+    // tracked elsewhere), the walk to the nearest stop there, without bus times
+    const walkable = selectedStopDistance <= WALKABLE_STOP_M;
+    const nearest = nearbyStops?.[0];
+    const walkM = walkable ? selectedStopDistance : nearest && nearest.distanceM <= WALKABLE_STOP_M ? nearest.distanceM : undefined;
+    // Within 50 m you're at the stop; otherwise at least a minute's walk at 80 m a minute
+    const walkMin = walkM === undefined ? undefined : walkM <= 50 ? 0 : Math.max(1, Math.round(walkM / 80));
+    const busMin = walkable
+      ? [arrivals.nextBus, arrivals.nextBus2, arrivals.nextBus3].flatMap((b) => (b ? [Math.max(0, b.estimatedMinutes)] : []))
+      : [];
     const boardIn = Math.max(walkMin ?? 0, busMin.find((m) => m >= (walkMin ?? 0)) ?? 0);
 
     // When the bus gets to the stop for the destination, and the walk from there
@@ -775,7 +785,7 @@ export default function App() {
           arriveInMin: boardIn + selectedTrip.travelMin - selectedTrip.walkStartMin - selectedTrip.walkEndMin,
           walkMin: selectedTrip.walkEndMin,
         };
-      } else if (!alightHint.trip || alightHint.trip.legIndex === alightHint.trip.legs.length - 1) {
+      } else if (walkable && (!alightHint.trip || alightHint.trip.legIndex === alightHint.trip.legs.length - 1)) {
         end = { arriveInMin: boardIn + alightHint.rideMin, walkMin: alightHint.walkMin };
       }
     }
@@ -798,15 +808,19 @@ export default function App() {
       forecast: weather.forecast2h?.text,
       lightning: weather.lightning,
       walkMin,
+      stopName: walkable ? arrivals.stopName : nearest?.stop.name,
+      busServiceNo: walkable ? arrivals.serviceNo : undefined,
       busMin,
       destination: atDestination,
     });
-  }, [weatherSnapshot, weather, selectedStopDistance, arrivals, destination, alightHint, selectedTrip, tripView, userLocation]);
+  }, [weatherSnapshot, weather, selectedStopDistance, nearbyStops, arrivals, destination, alightHint, selectedTrip, tripView, userLocation]);
 
+  // The advice is for where the trip starts (the From row: GPS or a chosen place), so it says so
+  const fromPlace = userLocation.name.split('(')[0].trim();
   const rainSource = weatherSnapshot?.rainfall?.history
-    ? `NEA rain gauges ${formatSgTime(weatherSnapshot.rainfall.timestamp)} & 2-hr forecast`
+    ? `For ${fromPlace} · NEA rain gauges ${formatSgTime(weatherSnapshot.rainfall.timestamp)} & 2-hr forecast`
     : weather?.forecast2h
-      ? `NEA 2-hr forecast ${formatSgTime(weather.forecast2h.updated)}`
+      ? `For ${fromPlace} · NEA 2-hr forecast ${formatSgTime(weather.forecast2h.updated)}`
       : undefined;
 
   // The advice covers rain and lightning, so the weather beside it on the Arrivals tab leaves those alerts out
@@ -832,9 +846,6 @@ export default function App() {
         alight={alightHint}
         onTrackLeg={trackTripLegAt}
         onChooseService={chooseTripServiceAt}
-        rainAdvice={rainAdviceNow}
-        rainSource={rainSource}
-        onOpenWeather={openWeatherTab}
         {...(isPhone
           ? {
               stopInfo: {
@@ -904,7 +915,12 @@ export default function App() {
             onSetDestination={handleSetDestination}
             onClearDestination={handleClearDestination}
             recentPlaces={recentPlaces}
-          />
+          >
+            {/* Leave now, wait or take an umbrella, for where the trip starts */}
+            {activeTab === 'arrivals' && rainAdviceNow && (
+              <RainAdviceStrip advice={rainAdviceNow} source={rainSource} onOpenWeather={openWeatherTab} />
+            )}
+          </LocationBar>
         )}
 
         {/* Trip options follow the destination, except on the map tab where the map comes first (phones: the stop

@@ -27,8 +27,10 @@ export interface RainAdviceInput {
   area?: string; // NEA forecast area
   forecast?: string; // NEA's 2-hour forecast there
   lightning?: { count: number; nearestKm: number; windowMinutes: number }; // strikes within 10 km
-  walkMin?: number; // walk to the stop
-  busMin?: number[]; // minutes until the next buses at the stop
+  walkMin?: number; // walk to the stop (0 when you're at it)
+  stopName?: string;
+  busServiceNo?: string; // the bus being tracked there
+  busMin?: number[]; // minutes until its next buses
   destination?: {
     name: string;
     nowcast: RainNowcast;
@@ -42,7 +44,7 @@ const range = ([lo, hi]: [number, number]) => (lo === hi ? `~${lo}\u00a0min` : `
 const lower = (forecast: string) => forecast.toLowerCase();
 
 function hereAdvice(input: RainAdviceInput): Omit<RainAdvice, 'cause'> | null {
-  const { here, forecast, area, lightning, walkMin, busMin = [] } = input;
+  const { here, forecast, area, lightning, walkMin, stopName, busServiceNo, busMin = [] } = input;
   const wetForecast = isWetForecast(forecast);
   const forecastFor = area ? ` for ${area}` : '';
 
@@ -135,12 +137,12 @@ function hereAdvice(input: RainAdviceInput): Omit<RainAdvice, 'cause'> | null {
       if (walkMin === undefined) {
         return { action: 'leave-now', tone, title: `Rain ${here.likely ? 'expected' : 'possible'} in ${when}`, detail: `${arrives}. Leave now to stay ahead of it, or take an umbrella.` };
       }
-      if (walkMin <= 1) {
+      if (walkMin === 0) {
         return {
           action: 'umbrella',
           tone,
           title: `Rain ${here.likely ? 'expected' : 'possible'} in ${when}`,
-          detail: `${arrives}. You're at the stop, so the shelter has you covered; take an umbrella for the walk at the other end.`,
+          detail: `${arrives}. You're at ${stopName ? `the ${stopName} stop` : 'the stop'}, so its shelter has you covered; take an umbrella for the walk at the other end.`,
         };
       }
       // Leaving now gets you to the stop (usually sheltered) before the rain, with a couple of minutes to spare
@@ -150,14 +152,16 @@ function hereAdvice(input: RainAdviceInput): Omit<RainAdvice, 'cause'> | null {
           action: 'leave-now',
           tone,
           title: 'Leave now to beat the rain',
-          detail: `${arrives}. The stop is a ~${walkMin}\u00a0min walk, so you'd reach it first${bus !== undefined ? `; the next bus you can catch comes in ${bus}\u00a0min` : ''}.`,
+          detail: `${arrives}. ${stopName ?? 'The stop'} is a ~${walkMin}\u00a0min walk, so you'd reach it first${
+            bus !== undefined ? `; the next ${busServiceNo ? `Bus ${busServiceNo}` : 'bus'} you can catch comes in ${bus}\u00a0min` : ''
+          }.`,
         };
       }
       return {
         action: 'umbrella',
         tone,
         title: 'Bring an umbrella: rain on the way',
-        detail: `${arrives}, before you'd finish the ~${walkMin}\u00a0min walk to the stop.`,
+        detail: `${arrives}, before you'd finish the ~${walkMin}\u00a0min walk to ${stopName ?? 'the stop'}.`,
       };
     }
 

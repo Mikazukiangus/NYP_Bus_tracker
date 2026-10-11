@@ -5,8 +5,6 @@ import { TrackingBadge } from './ArrivalBits';
 import { BUS_TYPE_NAME, BUS_TYPE_SHORT, BusTypeIcon } from './BusTypeIcon';
 import { ServiceChoice } from './ServiceChoice';
 import { legStyle, tripLegs } from './tripLegs';
-import { RainAdviceStrip } from './RainAdviceStrip';
-import type { RainAdvice } from '../services/rainAdvice';
 
 interface ArrivalDisplayProps {
   arrivals: BusServiceArrivals;
@@ -22,10 +20,6 @@ interface ArrivalDisplayProps {
   stopInfo?: { distanceM: number; isNearest: boolean; onShowNearest: () => void };
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
-  // Leave now, wait or take an umbrella, from NEA's rain gauges and forecast
-  rainAdvice?: RainAdvice | null;
-  rainSource?: string;
-  onOpenWeather?: () => void;
 }
 
 // "0530" -> "5:30 am"
@@ -166,9 +160,6 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   stopInfo,
   isFavorite = false,
   onToggleFavorite,
-  rainAdvice = null,
-  rainSource,
-  onOpenWeather,
 }) => {
   const [showAllDays, setShowAllDays] = useState(false);
   const [showGuide, setShowGuide] = useState(false); // phones: the capacity guide is folded away
@@ -429,8 +420,6 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
           Updated {arrivals.lastUpdated.toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore', hour12: false })} SGT
         </p>
       )}
-
-      {rainAdvice && <RainAdviceStrip advice={rainAdvice} source={rainSource} onOpenWeather={onOpenWeather} />}
 
       {/* Official Singapore LTA / SBS Transit Load legend (folded away on phones) */}
       <button

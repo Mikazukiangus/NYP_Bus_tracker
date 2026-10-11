@@ -15,6 +15,7 @@ interface LocationBarProps {
   onSetDestination: (place: PlaceResult) => void;
   onClearDestination: () => void;
   recentPlaces: PlaceResult[];
+  children?: React.ReactNode; // under "Where to?" (the rain advice on the Arrivals tab)
 }
 
 // Where the user is starting from (GPS, a searched place / postal code / stop, or a suggested place) and,
@@ -28,6 +29,7 @@ export const LocationBar: React.FC<LocationBarProps> = ({
   onSetDestination,
   onClearDestination,
   recentPlaces,
+  children,
 }) => {
   const [isLocating, setIsLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +115,7 @@ export const LocationBar: React.FC<LocationBarProps> = ({
           inputClassName="py-3 text-base font-semibold"
         />
       </div>
+      {children}
     </section>
   );
 };

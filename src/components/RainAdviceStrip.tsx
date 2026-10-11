@@ -10,13 +10,14 @@ const ACTION_ICON: Record<RainAction, LucideIcon> = {
   go: CircleCheck,
 };
 
-// Under the bus times: whether to leave now, wait for a later bus or take an umbrella, from NEA's rain gauges and
-// forecast. When there's no rain about it's a single short line.
-export const RainAdviceStrip: React.FC<{ advice: RainAdvice; source?: string; onOpenWeather?: () => void }> = ({
-  advice,
-  source,
-  onOpenWeather,
-}) => {
+// Under "Where to?": whether to leave now, wait for a later bus or take an umbrella where you're starting from,
+// from NEA's rain gauges and forecast. When there's no rain about it's a single short line.
+export const RainAdviceStrip: React.FC<{
+  advice: RainAdvice;
+  source?: string;
+  onOpenWeather?: () => void;
+  className?: string;
+}> = ({ advice, source, onOpenWeather, className = '' }) => {
   const t = toneClasses[advice.tone];
   const Icon = advice.cause === 'lightning' ? Zap : ACTION_ICON[advice.action];
   const quiet = advice.action === 'go' && !advice.destination;
@@ -35,7 +36,7 @@ export const RainAdviceStrip: React.FC<{ advice: RainAdvice; source?: string; on
   );
 
   return (
-    <div className={`mt-3 rounded-xl border px-3 py-2.5 flex items-start gap-2.5 text-xs ${t.bg} ${t.border} ${t.text}`}>
+    <div className={`rounded-xl border px-3 py-2.5 flex items-start gap-2.5 text-xs ${t.bg} ${t.border} ${t.text} ${className}`}>
       <span className="w-7 h-7 rounded-full bg-white/70 flex items-center justify-center shrink-0" aria-hidden="true">
         <Icon className="w-4 h-4" />
       </span>
