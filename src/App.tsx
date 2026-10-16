@@ -412,7 +412,13 @@ export default function App() {
       const top = card.getBoundingClientRect().top;
       if (top >= 0 && top <= window.innerHeight * 0.45) return; // already in view
       const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const startY = window.scrollY;
       card.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      // A smooth scroll can be dropped (a page that isn't drawing frames never runs it): if the page hasn't moved,
+      // go straight there (not if it has, so a scroll of the user's own isn't overridden)
+      setTimeout(() => {
+        if (window.scrollY === startY) card.scrollIntoView({ block: 'start' });
+      }, 600);
     }, 50); // after the new bus renders
   }, [activeTab]);
 
