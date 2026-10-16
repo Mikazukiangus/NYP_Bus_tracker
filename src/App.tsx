@@ -72,6 +72,8 @@ const WALKABLE_STOP_M = 1500;
 export default function App() {
   // Restore the last location immediately while requesting a fresh GPS fix.
   const [userLocation, setUserLocation] = useState<UserLocation>(() => loadSavedLocation() ?? SINGAPORE_LOCATIONS[0]);
+  // A first visit starts at NYP until GPS answers or a place is chosen, so the From row offers the user's own location
+  const [isDefaultLocation, setIsDefaultLocation] = useState(() => !loadSavedLocation());
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const locationRevisionRef = useRef(0);
 
@@ -114,17 +116,17 @@ export default function App() {
 
   // Load a service's real stop sequence from LTA DataMall, falling back to bundled data if offline
   const loadRoute = useCallback(
-    async (serviceNo: string, opts: { direction?: number; stopCode?: string; remember?: boolean } = {}) => {
+    async (serviceNo: string, opts: { direction?: number; stopCode?: string; remember?: boolean } = {}): Promise<boolean> => {
       busChosen.current = true;
       const requestId = ++routeRequestId.current;
       setIsRouteLoading(true);
       const result = await fetchBusRoute(serviceNo);
-      if (requestId !== routeRequestId.current) return;
+      if (requestId !== routeRequestId.current) return false;
       setIsRouteLoading(false);
 
       if (result.status === 'not_found') {
-        setRouteNotice(`Bus ${serviceNo.toUpperCase()} is not a current LTA bus service. Please check the number.`);
-        return;
+        setRouteNotice(`There's no Bus ${serviceNo.toUpperCase()} running in Singapore. Please check the number.`);
+        return false;
       }
 
       const route =
@@ -132,7 +134,7 @@ export default function App() {
       setRouteNotice(
         result.status === 'ok'
           ? null
-          : `Live LTA route data is unavailable right now, so the stops shown for Bus ${route.serviceNo} are approximate.`
+          : `Bus ${route.serviceNo}'s stops can't be loaded right now, so the ones shown are approximate.`
       );
       const loc = userLocationRef.current;
       setCurrentRoute(route);
@@ -149,10 +151,12 @@ export default function App() {
       setSelectedStopCode(opts.stopCode ?? null);
 
       // Upgrade straight stop-to-stop lines to road-following OpenStreetMap geometry when it matches the stops
-      const shapes = await fetchRouteShapes(route.serviceNo);
-      if (requestId !== routeRequestId.current) return;
-      const shaped = applyRouteShapes(route, shapes);
-      if (shaped !== route) setCurrentRoute(shaped);
+      void fetchRouteShapes(route.serviceNo).then((shapes) => {
+        if (requestId !== routeRequestId.current) return;
+        const shaped = applyRouteShapes(route, shapes);
+        if (shaped !== route) setCurrentRoute(shaped);
+      });
+      return true;
     },
     []
   );
@@ -193,6 +197,7 @@ export default function App() {
     locationRevisionRef.current += 1;
     userLocationRef.current = loc;
     setUserLocation(loc);
+    setIsDefaultLocation(false);
     saveUserLocation(loc);
     setSelectedStopCode(null);
     setDirection(pickNearestDirection(currentRouteRef.current, loc.lat, loc.lng));
@@ -392,10 +397,24 @@ export default function App() {
   const trackService = useCallback(
     (serviceNo: string, opts: { direction?: number; stopCode?: string; remember?: boolean } = {}) => {
       setSelectedTripId(null);
-      loadRoute(serviceNo, opts);
+      return loadRoute(serviceNo, opts);
     },
     [loadRoute]
   );
+
+  // A bus picked from the search, a nearby stop, the stop's other buses or the saved ones: bring its times into view
+  // (on phones they're usually below the screen), so the tap visibly does something
+  const revealArrivals = useCallback(() => {
+    if (activeTab !== 'arrivals') return;
+    setTimeout(() => {
+      const card = document.getElementById(ARRIVALS_CARD_ID);
+      if (!card) return;
+      const top = card.getBoundingClientRect().top;
+      if (top >= 0 && top <= window.innerHeight * 0.45) return; // already in view
+      const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      card.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    }, 50); // after the new bus renders
+  }, [activeTab]);
 
   // Once live times are in for a new plan, pick the best option and show it on the map
   const tripPlanKey = tripPlan && destination
@@ -435,7 +454,7 @@ export default function App() {
     setDestination({
       id: `swap-${from.lat.toFixed(5)},${from.lng.toFixed(5)}`,
       kind: from.kind ?? 'address',
-      name: from.isSimulated ? from.name : 'My GPS location',
+      name: from.isSimulated ? from.name : 'Your location',
       ...(from.address ? { subtitle: from.address } : {}),
       lat: from.lat,
       lng: from.lng,
@@ -790,15 +809,22 @@ export default function App() {
 
   const handleSelectFavorite = (fav: FavoriteItem) => {
     trackService(fav.serviceNo, { direction: fav.direction, stopCode: fav.stopCode });
+    revealArrivals();
   };
 
-  // Handle bus number search submission
+  // Handle bus number search submission (a number that isn't a bus stays put, so its notice is seen)
   const handleSearchBus = (num: string) => {
-    trackService(num, { remember: true });
+    trackService(num, { remember: true }).then((found) => found && revealArrivals());
   };
 
   const handleSelectStopService = (nearby: NearbyStop, svc: StopService) => {
     trackService(svc.serviceNo, { direction: svc.direction, stopCode: nearby.stop.code });
+    revealArrivals();
+  };
+
+  const handleSelectBoardService = (serviceNo: string) => {
+    trackService(serviceNo, { stopCode: selectedStop.code });
+    revealArrivals();
   };
 
   const tripCard = destination && (
@@ -915,11 +941,12 @@ export default function App() {
   }, [weatherSnapshot, weather, walkToStopM, nearbyStops, arrivals, destination, alightHint, selectedTrip, tripView, userLocation]);
 
   // The advice is for where the trip starts (the From row: GPS or a chosen place), so it says so
-  const fromPlace = userLocation.name.split('(')[0].trim();
+  // The place's short name, or for a GPS position words that read well in a sentence ("For where you are")
+  const fromPlace = userLocation.isSimulated ? userLocation.name.split('(')[0].trim() : null;
   const rainSource = weatherSnapshot?.rainfall?.history
-    ? `For ${fromPlace} · NEA rain gauges ${formatSgTime(weatherSnapshot.rainfall.timestamp)} & 2-hr forecast`
+    ? `For ${fromPlace ?? 'where you are'} · NEA rain gauges ${formatSgTime(weatherSnapshot.rainfall.timestamp)} & 2-hr forecast`
     : weather?.forecast2h
-      ? `For ${fromPlace} · NEA 2-hr forecast ${formatSgTime(weather.forecast2h.updated)}`
+      ? `For ${fromPlace ?? 'where you are'} · NEA 2-hr forecast ${formatSgTime(weather.forecast2h.updated)}`
       : undefined;
 
   // The advice covers rain and lightning, so the weather beside it on the Arrivals tab leaves those alerts out
@@ -1009,6 +1036,7 @@ export default function App() {
         {showTripInputs && (
           <LocationBar
             location={userLocation}
+            isDefault={isDefaultLocation}
             onOpenPicker={() => setIsLocationModalOpen(true)}
             onLocationChange={applyUserLocation}
             network={network}
@@ -1038,7 +1066,7 @@ export default function App() {
             direction={direction}
             setDirection={handleSetDirection}
             nearbyStops={nearbyStops}
-            locationName={userLocation.name.split('(')[0].trim()}
+            locationName={fromPlace ?? 'you'}
             trackedStopCode={selectedStop.code}
             onSelectStopService={handleSelectStopService}
             foldable={isPhone && !!destination}
@@ -1054,7 +1082,7 @@ export default function App() {
             }`}
           >
             <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{isRouteLoading ? 'Loading route stops from LTA DataMall...' : routeNotice}</span>
+            <span>{isRouteLoading ? 'Loading the bus\'s stops…' : routeNotice}</span>
           </div>
         )}
 
@@ -1084,7 +1112,7 @@ export default function App() {
               services={stopServices}
               dataSource={dataSource}
               currentServiceNo={currentRoute.serviceNo}
-              onSelectService={(serviceNo) => trackService(serviceNo, { stopCode: selectedStop.code })}
+              onSelectService={handleSelectBoardService}
             />
 
             {/* Split row: Map Preview & NEA Weather (phones: the Map tab has the map, and the weather is one row) */}
@@ -1124,13 +1152,13 @@ export default function App() {
                   <div className="flex items-center justify-between pb-2 border-b border-warm-100">
                     <span className="text-xs font-bold text-warm-800 flex items-center gap-1.5">
                       <Heart className="w-3.5 h-3.5 fill-helvetia text-helvetia" />
-                      Saved Favourites ({favorites.length})
+                      Saved buses ({favorites.length})
                     </span>
                     <button
                       onClick={() => setIsFavoritesModalOpen(true)}
                       className="text-xs text-helvetia font-semibold hover:underline"
                     >
-                      View All
+                      See all
                     </button>
                   </div>
                   <div className="mt-2 divide-y divide-warm-100">

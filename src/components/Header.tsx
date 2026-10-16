@@ -112,15 +112,15 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="hidden md:inline font-medium text-[11px]">Refresh</span>
           </button>
 
-          {/* Favorites shortcut */}
+          {/* Saved buses (a word beside the heart: phones have no hover to explain an icon) */}
           <button
             onClick={onOpenFavorites}
-            className="flex items-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg bg-helvetia hover:bg-helvetia-700 text-white text-xs font-medium transition-colors shadow-xs"
-            title="View saved bus services and stops"
-            aria-label="View saved favourites"
+            className="flex items-center gap-1.5 px-3 py-2 sm:px-2.5 sm:py-1.5 rounded-lg bg-helvetia hover:bg-helvetia-700 text-white text-xs font-semibold transition-colors shadow-xs"
+            title="Your saved buses"
+            aria-label={`Saved buses (${favoritesCount})`}
           >
             <Heart className="w-3.5 h-3.5 fill-lemon text-lemon" />
-            <span className="hidden sm:inline">Favourites</span>
+            <span>Saved</span>
             {favoritesCount > 0 && (
               <span className="bg-lemon text-helvetia-950 text-[10px] font-bold px-1.5 py-0.2 rounded-full">
                 {favoritesCount}

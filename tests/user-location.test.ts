@@ -21,6 +21,13 @@ test('ignores corrupt, incomplete and out-of-Singapore saved locations', () => {
   }
 });
 
+test('a GPS position saved under its old name is called "Your location"', () => {
+  const raw = JSON.stringify({ name: 'My Device GPS Location', lat: 1.3698, lng: 103.8496, isSimulated: false });
+  assert.equal(loadSavedLocation({ getItem() { return raw; } })?.name, 'Your location');
+  const place = JSON.stringify({ name: 'Orchard', lat: 1.3048, lng: 103.8318, isSimulated: true });
+  assert.equal(loadSavedLocation({ getItem() { return place; } })?.name, 'Orchard');
+});
+
 test('blocked browser storage does not break location changes', () => {
   assert.equal(loadSavedLocation({ getItem() { throw new Error('blocked'); } }), null);
   assert.doesNotThrow(() => saveUserLocation(orchard, { setItem() { throw new Error('full'); } }));
@@ -30,7 +37,7 @@ test('GPS fixes must be in Singapore, with usable accuracy retained', () => {
   assert.equal(locationFromGps({ latitude: NaN, longitude: 103.8, accuracy: 10 }), null);
   assert.equal(locationFromGps({ latitude: 51.5, longitude: -0.1, accuracy: 10 }), null);
   assert.deepEqual(locationFromGps({ latitude: 1.3698, longitude: 103.8496, accuracy: 12.4 }), {
-    name: 'My Device GPS Location', lat: 1.3698, lng: 103.8496, isSimulated: false, accuracyMeters: 12,
+    name: 'Your location', lat: 1.3698, lng: 103.8496, isSimulated: false, accuracyMeters: 12,
   });
 });
 

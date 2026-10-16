@@ -721,3 +721,43 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
     - No new console errors.
 
 ---
+
+### Turn 35: An App a New User Doesn't Have to Learn (16 October 2026)
+- **User Prompt**:
+  > *"figure how to further the design UI so that it is very human intuitive, so that a new user does not need to learn how to use the app, it should be very natural to new users."*
+- **How**: I went through the app as a first-time user on a phone (saved state cleared), tab by tab, and noted every point where you would have to guess or already know something. The fixes follow standard usability guidance:
+  - **No tutorial.** Nielsen Norman Group's tests found tutorials don't make apps easier. Each screen says what it needs, where it's needed.
+  - **Words beside icons**, because phones have no hover to explain an icon.
+  - **Everyday words**, not system terms.
+  - **Show, don't make people remember.**
+- **What was hard, and what it is now**:
+
+  | A new user had to… | Now |
+  |---|---|
+  | Guess what the heart with a "1" in the header is | It reads **♥ Saved 1**. "Favourites", "Add to Favs" and "My Favourites" all become **Save / Saved / Saved buses**, one set of words for one thing. |
+  | Notice the From place was NYP, not where they are | On a first visit the From card says **"Not at Nanyang Polytechnic? Use my location"** until GPS answers or a place is chosen. A GPS position is called **"Your location"** (not "My Device GPS Location"), and sentences read "Nearest bus stops to you". Old saved GPS places are renamed when loaded. |
+  | Know that tapping a bus number does something, then scroll to find it | **"Tap a bus number to see when it comes."** sits under the nearest stops. Picking a bus from a nearby stop, a search, "All buses at this stop" or the saved buses **scrolls its times into view** (smoothly, or straight there if reduced motion is on). A number that isn't a bus stays put, so its message is seen: "There's no Bus 999 running in Singapore". |
+  | Decode "GAS", "WAB", "Sched.", "services", "Find Bus Service" | Bus companies by the names on their buses: **Go-Ahead**, SBS Transit, Tower Transit, SMRT ("Run by Go-Ahead"). The wheelchair sign alone. **Timetable** for a time with no GPS. "4 buses", "Show all 15 buses", "Find a bus". |
+  | Learn what the arcs and the little clock beside a time mean | A key under the times shows the signs in use: **"Live GPS" · "Timetable"**. The guide that was behind "What do Seats, Standing and Live GPS mean?" is now "What do the bars mean?", about how full the bus is only. The "LTA DataMall v3 Live" badge is gone. A badge shows only when something is off ("Loading live times…", "Sample times: the live feed is down"). |
+  | Work out "⟳ 15s" | The button says **Refresh**. Under the times it says how fresh they are, as a person would: **"Updated 12 s ago · updates every 15 s"**, not "Updated 11:34:08 SGT". |
+  | Know the other trip options can be picked | Each option ends with **"Choose ›"**, and the one the app is following shows **"✓ Selected"**. |
+  | Guess the map's ⇱ ◎ ⤢ buttons, some scrolled off the edge | **Nearest stop, Me, Trip, Whole route**, in words on phones too. They wrap instead of scrolling sideways, so none is hidden. The Buses and Stops layers show a ✓ while they're on the map. "No live GPS" became "No bus on GPS yet". |
+  | Know what tapping a stop in Route Stops does | **"Tap a stop to see when Bus 72 gets there."** The ✓ on the chosen stop has a spoken label. |
+
+- **Not done**:
+  - A first-run tour or coach marks. The research above says they don't help, and every hint here sits next to the thing it explains.
+  - "Arr": it's what Singapore's bus stop displays and LTA use.
+  - Stop codes: riders use them to look stops up.
+- **Validation**:
+  - TypeScript, the app build and 45 tests pass. The new test covers a GPS place saved under the old name being shown as "Your location", and a chosen place keeping its name.
+  - In the browser with the local LTA stub, first visit on a phone (390 px), saved state cleared:
+    - "Saved 1", "Not at Nanyang Polytechnic? Use my location", "Find a bus" and the tap hint were all shown.
+    - Tapping 45 at Nanyang Poly scrolled to "Bus 45 Arrivals · Go-Ahead · Refresh", with "Updated just now · updates every 15 s" and "Timetable" under the times. Tapping 50 in "All buses at this stop" scrolled back up to Bus 50.
+    - Searching 999 stayed put with its message, and searching 190 scrolled to Bus 190.
+    - NYP to Bishan Bus Interchange showed "✓ Selected" and "Choose ›".
+    - The Map tab showed the labelled controls on two rows, and the Stops tab showed its hint.
+    - A simulated GPS fix through "Use my location" replaced the prompt with "Your location".
+    - The Saved buses list read "Your usual buses, one tap away".
+  - The same was checked at 1280 px. There were no console errors.
+
+---

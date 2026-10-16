@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BusFront, ChevronDown, ChevronRight, Flag, Footprints, Loader2, Map as MapIcon, Route, X } from 'lucide-react';
+import { BusFront, Check, ChevronDown, ChevronRight, Flag, Footprints, Loader2, Map as MapIcon, Route, X } from 'lucide-react';
 import type { PlaceResult } from '../services/placeSearch';
 import type { LiveDeparture, TripLeg, TripOption, TripPlan, TripTimeline } from '../services/tripPlanner';
 import { expectedTotalMin, legServiceNos, tripTimeline } from '../services/tripPlanner';
@@ -497,10 +497,24 @@ export const TripPlannerCard: React.FC<TripPlannerCardProps> = ({
                         <TotalTime trip={trip} />
                         <ArriveAt trip={trip} />
                       </span>
-                      <div className="col-span-2 text-[11px] text-warm-500">
-                        Board at <strong className="text-warm-800">{legs[0].board.name}</strong> ·{' '}
-                        {legs.reduce((n, l) => n + l.stopCount, 0)}&nbsp;stops ·{' '}
-                        {legs.length === 1 ? 'direct' : `change at ${legs[1].board.name}`}
+                      <div className="col-span-2 flex items-center justify-between gap-2 text-[11px] text-warm-500">
+                        <span className="min-w-0">
+                          Board at <strong className="text-warm-800">{legs[0].board.name}</strong> ·{' '}
+                          {legs.reduce((n, l) => n + l.stopCount, 0)}&nbsp;stops ·{' '}
+                          {legs.length === 1 ? 'direct' : `change at ${legs[1].board.name}`}
+                        </span>
+                        {/* Which trip the app is following, and that the others can be picked */}
+                        {selected ? (
+                          <span className="shrink-0 inline-flex items-center gap-1 font-bold text-helvetia">
+                            <Check className="w-3.5 h-3.5" strokeWidth={3} aria-hidden="true" />
+                            Selected
+                          </span>
+                        ) : (
+                          <span className="shrink-0 inline-flex items-center font-bold text-helvetia" aria-hidden="true">
+                            Choose
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </span>
+                        )}
                       </div>
                     </button>
                     {selected && isPhone && (

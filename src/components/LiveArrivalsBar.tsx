@@ -62,14 +62,14 @@ export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({
     dataSource === 'LOADING'
       ? 'Loading'
       : !isLive
-        ? 'Simulated'
+        ? 'Sample times'
         : !arrivals.nextBus
           ? 'No bus due'
           : leave?.status === 'leave'
             ? leaveLabel(leave)
             : arrivals.nextBus.monitored
               ? 'Live GPS'
-              : 'Scheduled';
+              : 'Timetable time';
 
   return (
     <div

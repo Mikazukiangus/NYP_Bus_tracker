@@ -8,6 +8,7 @@ import { PlaceKindIcon, PlaceSearch } from './PlaceSearch';
 
 interface LocationBarProps {
   location: UserLocation;
+  isDefault?: boolean; // the app's starting place (NYP), not one the user gave: offer their own location
   onOpenPicker: () => void;
   onLocationChange: (location: UserLocation) => void;
   network: BusNetwork | null;
@@ -26,6 +27,7 @@ const SHORTCUTS = 4;
 // right under it, where they're going: Citymapper's dark trip card, the two joined by a dotted line
 export const LocationBar: React.FC<LocationBarProps> = ({
   location,
+  isDefault = false,
   onOpenPicker,
   onLocationChange,
   network,
@@ -66,10 +68,12 @@ export const LocationBar: React.FC<LocationBarProps> = ({
   return (
     <section aria-label="Your trip" className="space-y-2">
       <div className="relative bg-helvetia-950 text-white rounded-2xl shadow-sm px-3 py-3 sm:px-4">
-        {/* The dotted line from the start to the destination */}
+        {/* The dotted line from the start to the destination (longer past the "Not at…?" line) */}
         <span
           aria-hidden="true"
-          className="absolute left-[1.375rem] sm:left-[1.625rem] top-[1.95rem] h-[2.6rem] border-l-2 border-dotted border-white/40"
+          className={`absolute left-[1.375rem] sm:left-[1.625rem] top-[1.95rem] border-l-2 border-dotted border-white/40 ${
+            isDefault && !error ? 'h-[4.1rem]' : 'h-[2.6rem]'
+          }`}
         />
         <div className="flex items-center gap-2.5">
           <span className="w-6 flex justify-center shrink-0" aria-hidden="true">
@@ -109,6 +113,21 @@ export const LocationBar: React.FC<LocationBarProps> = ({
             </button>
           </div>
         </div>
+        {/* A first visit starts somewhere the user may not be: say so, and offer their own location in words */}
+        {isDefault && !error && (
+          <p className="mt-1 ml-8 flex flex-wrap items-center gap-x-1.5 text-xs text-helvetia-200">
+            Not at {location.name.split('(')[0].trim()}?
+            <button
+              type="button"
+              onClick={useGps}
+              disabled={isLocating}
+              className="inline-flex items-center gap-1 font-bold text-lemon underline underline-offset-2 disabled:opacity-70"
+            >
+              {isLocating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Locate className="w-3.5 h-3.5" />}
+              {isLocating ? 'Finding you…' : 'Use my location'}
+            </button>
+          </p>
+        )}
         {error && (
           <p role="alert" className="mt-2 ml-8 text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-lg px-3 py-1.5">
             {error}

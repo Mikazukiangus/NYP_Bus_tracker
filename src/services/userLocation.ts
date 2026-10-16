@@ -19,11 +19,16 @@ function isUserLocation(value: unknown): value is UserLocation {
     (loc.address === undefined || typeof loc.address === 'string');
 }
 
+// The device's own position, as map apps name it
+const GPS_NAME = 'Your location';
+
 export function loadSavedLocation(storage?: Pick<Storage, 'getItem'>): UserLocation | null {
   try {
     const raw = (storage ?? window.localStorage).getItem(LOCATION_STORAGE_KEY);
     const loc: unknown = raw ? JSON.parse(raw) : null;
-    return isUserLocation(loc) ? loc : null;
+    if (!isUserLocation(loc)) return null;
+    // A GPS position saved by an older version has its old name ("My Device GPS Location")
+    return loc.isSimulated ? loc : { ...loc, name: GPS_NAME };
   } catch {
     // Storage can be blocked, or contain an old/corrupt value.
     return null;
@@ -42,7 +47,7 @@ export function saveUserLocation(loc: UserLocation, storage?: Pick<Storage, 'set
 export function locationFromGps(coords: Pick<GeolocationCoordinates, 'latitude' | 'longitude' | 'accuracy'>): UserLocation | null {
   if (!isSingaporeLocation(coords.latitude, coords.longitude)) return null;
   return {
-    name: 'My Device GPS Location',
+    name: GPS_NAME,
     lat: coords.latitude,
     lng: coords.longitude,
     isSimulated: false,

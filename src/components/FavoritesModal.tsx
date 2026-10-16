@@ -49,17 +49,17 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-black text-helvetia leading-tight">
-                My Favourites ({favorites.length})
+                Saved buses ({favorites.length})
               </h2>
               <p className="text-xs text-warm-500">
-                Quick access to your regular bus services & stops
+                Your usual buses, one tap away
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            aria-label="Close favourites"
+            aria-label="Close saved buses"
             className="p-1.5 rounded-lg text-warm-500 hover:text-warm-700 hover:bg-warm-200 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -71,9 +71,9 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
           {favorites.length === 0 ? (
             <div className="py-12 text-center text-warm-500 flex flex-col items-center">
               <Heart className="w-10 h-10 text-warm-300 stroke-1 mb-2" />
-              <p className="text-sm font-bold text-warm-700">No favourites saved yet</p>
+              <p className="text-sm font-bold text-warm-700">No saved buses yet</p>
               <p className="text-xs text-warm-500 max-w-xs mt-1">
-                Tap the heart button on any bus stop to bookmark your frequent commute stops for 1-tap arrival checks.
+                Tap Save beside a bus's times to keep it here, so its next bus is one tap away.
               </p>
             </div>
           ) : (
@@ -145,7 +145,7 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
                     <button
                       onClick={() => onRemoveFavorite(fav.id)}
                       className="p-2 text-warm-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Remove favourite"
+                      title="Remove from saved buses"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

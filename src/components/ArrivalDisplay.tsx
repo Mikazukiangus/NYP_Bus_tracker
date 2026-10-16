@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { RefreshCw, Accessibility, Info, Clock, CalendarClock, ChevronDown, Flag, ArrowLeftRight, ChevronRight, ChevronLeft, Heart, Footprints } from 'lucide-react';
 import { AlightHint, ArrivalDataSource, BusArrivalInfo, BusServiceArrivals, BusStop, FirstLastTimes } from '../types/bus';
-import { LOAD_INFO, LiveSignal, LoadMeter, Minutes } from './ArrivalBits';
+import { LOAD_INFO, LiveSignal, LoadMeter, Minutes, TimeKey, operatorName } from './ArrivalBits';
+import { REFRESH_SECONDS } from '../services/useStopArrivals';
 import { LeaveWithin, leaveLabel, walkMinutes } from '../services/leaveWithin';
 import { BUS_TYPE_NAME, BUS_TYPE_SHORT, BusTypeIcon } from './BusTypeIcon';
 import { ServiceChoice } from './ServiceChoice';
@@ -158,6 +159,12 @@ const AlightStrip: React.FC<{
   );
 };
 
+// "Updated just now", "Updated 12 s ago": how old the times are, rather than a clock time to work it out from
+function updatedAgo(at: Date) {
+  const s = Math.max(0, Math.round((Date.now() - at.getTime()) / 1000));
+  return s < 5 ? 'Updated just now' : s < 60 ? `Updated ${s}\u00a0s ago` : `Updated ${Math.round(s / 60)}\u00a0min ago`;
+}
+
 const clockIn = (minutes: number) =>
   new Date(Date.now() + minutes * 60_000).toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Singapore' });
 
@@ -214,6 +221,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   const isLoading = dataSource === 'LOADING';
   const firstLast = activeStop.firstLastBus;
   const dayType = todaysDayType();
+  const buses = [arrivals.nextBus, arrivals.nextBus2, arrivals.nextBus3].filter((b) => b !== null);
 
   const renderSingleBusCard = (
     bus: BusArrivalInfo | null,
@@ -257,7 +265,6 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
               aria-label="Wheelchair accessible bus"
             >
               <Accessibility className="w-3.5 h-3.5" />
-              <span className="text-[10px] font-bold hidden @2xl:inline">WAB</span>
             </span>
           )}
         </div>
@@ -309,29 +316,19 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
               <h3 className="text-base sm:text-lg font-black text-helvetia leading-tight">
                 Bus {arrivals.serviceNo} Arrivals
               </h3>
-              <span className="bg-warm-100 text-warm-700 text-xs font-bold px-2 py-0.5 rounded-md">
-                {arrivals.operator}
+              <span className="bg-warm-100 text-warm-700 text-xs font-bold px-2 py-0.5 rounded-md" title="Bus company">
+                {operatorName(arrivals.operator)}
               </span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                isLoading
-                  ? 'bg-warm-50 text-warm-600 border-warm-200'
-                  : isLive
-                  ? 'bg-green-blue-soft text-green-blue-ink border-green-blue/30'
-                  : 'bg-amber-50 text-amber-800 border-amber-300'
-              }`}>
-                {isLoading ? (
-                  'Loading live arrivals...'
-                ) : isLive ? (
-                  <span className="inline-flex items-center gap-1">
-                    <LiveSignal className="w-2.5 h-2.5 text-green-blue" />
-                    <span className="max-sm:hidden">LTA DataMall v3 </span>Live
-                  </span>
-                ) : (
-                  <>
-                    ● Simulated<span className="max-sm:hidden"> (live feed unavailable)</span>
-                  </>
-                )}
-              </span>
+              {/* Only when something is off: the key under the times says which are live */}
+              {!isLive && (
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                    isLoading ? 'bg-warm-50 text-warm-600 border-warm-200' : 'bg-amber-50 text-amber-800 border-amber-300'
+                  }`}
+                >
+                  {isLoading ? 'Loading live times…' : 'Sample times: the live feed is down'}
+                </span>
+              )}
             </div>
             <p className="text-xs text-warm-500 font-medium">
               at <strong className="text-warm-800">{activeStop.name}</strong> ({activeStop.code}) • Towards {arrivals.destination}
@@ -358,7 +355,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
                   <button
                     onClick={onToggleFavorite}
                     aria-pressed={isFavorite}
-                    title={isFavorite ? 'Remove from favourites' : 'Save to favourites'}
+                    title={isFavorite ? 'Remove from saved buses' : 'Save this bus at this stop'}
                     className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg border font-semibold ${
                       isFavorite ? 'bg-lemon border-lemon text-helvetia-950' : 'border-warm-200 text-warm-700 hover:bg-warm-50'
                     }`}
@@ -406,24 +403,17 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
           </div>
         </div>
 
-        {/* Refresh timer & button */}
+        {/* Refresh, in words (how fresh the times are is said under them) */}
         <div className="flex items-center gap-3 self-end @xl:self-center shrink-0 max-sm:absolute max-sm:top-0 max-sm:right-0">
-          <div className="text-right text-xs max-sm:hidden">
-            <div className="text-warm-500 text-[11px]">Auto-refresh in</div>
-            <div className="font-mono font-bold text-helvetia-900">{isRefreshing ? 'Updating...' : `${secondsUntilRefresh}s`}</div>
-          </div>
-
           <button
             onClick={onRefresh}
             disabled={isRefreshing}
             className="flex items-center gap-1.5 px-3 py-2 max-sm:py-1.5 bg-helvetia-50 hover:bg-helvetia-100 text-helvetia font-semibold text-xs rounded-xl transition-all border border-helvetia-200"
             title="Refresh bus arrivals now"
-            aria-label={`Refresh bus arrivals now (auto-refresh in ${secondsUntilRefresh} seconds)`}
+            aria-label={`Refresh bus arrivals now (they refresh by themselves in ${secondsUntilRefresh} seconds)`}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span className="max-sm:hidden">Update</span>
-            {/* Phones: the countdown sits in the button */}
-            <span className="sm:hidden font-mono font-bold tabular-nums">{isRefreshing ? '…' : `${secondsUntilRefresh}s`}</span>
+            {isRefreshing ? 'Updating' : 'Refresh'}
           </button>
         </div>
       </div>
@@ -446,13 +436,19 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         {renderSingleBusCard(arrivals.nextBus2, '2nd Bus', '2nd', false)}
         {renderSingleBusCard(arrivals.nextBus3, '3rd Bus', '3rd', false)}
       </div>
-      {isLive && arrivals.lastUpdated && (
-        <p className="mt-2 text-[11px] text-warm-500">
-          Updated {arrivals.lastUpdated.toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore', hour12: false })} SGT
-        </p>
+      {/* How fresh the times are, as a person would say it, and the key to the signs beside them */}
+      {isLive && (
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          {arrivals.lastUpdated && (
+            <p className="text-[11px] text-warm-500">
+              {updatedAgo(arrivals.lastUpdated)} · updates every {REFRESH_SECONDS}&nbsp;s
+            </p>
+          )}
+          <TimeKey live={buses.some((b) => b.monitored)} timetable={buses.some((b) => !b.monitored)} />
+        </div>
       )}
 
-      {/* Official Singapore LTA / SBS Transit Load legend (folded away on phones) */}
+      {/* How full: LTA's three load levels (folded away on phones; the signs beside the times have the key above) */}
       <button
         type="button"
         onClick={() => setShowGuide((v) => !v)}
@@ -460,7 +456,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         className="sm:hidden mt-2 flex items-center gap-1 text-[11px] font-semibold text-warm-600 py-1"
       >
         <Info className="w-3.5 h-3.5 text-helvetia-700 shrink-0" />
-        What do Seats, Standing and Live GPS mean?
+        What do the bars mean?
         <ChevronDown className={`w-3 h-3 transition-transform ${showGuide ? 'rotate-180' : ''}`} />
       </button>
       <div
@@ -468,7 +464,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
       >
         <div className="flex items-center gap-1 font-semibold text-warm-700">
           <Info className="w-3.5 h-3.5 text-helvetia-700 shrink-0" />
-          <span>Bus Capacity Guide:</span>
+          <span>How full the bus is:</span>
         </div>
         <div className="flex flex-wrap items-center gap-3 font-medium">
           {(['SEA', 'SDA', 'LSD'] as const).map((load) => (
@@ -477,18 +473,6 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
               <strong>{LOAD_INFO[load].label}</strong>
             </span>
           ))}
-          {isLive && (
-            <>
-              <span className="flex items-center gap-1">
-                <LiveSignal className="w-3 h-3 text-green-blue" />
-                <strong>Live GPS:</strong> bus is being tracked
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-warm-500" />
-                <strong>Scheduled:</strong> timetable estimate
-              </span>
-            </>
-          )}
         </div>
       </div>
     </div>

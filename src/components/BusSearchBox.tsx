@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Search, ArrowRightLeft, X, MapPinned, ChevronDown } from 'lucide-react';
 import { BusRoute } from '../types/bus';
 import type { NearbyStop, StopService } from '../services/busNetwork';
+import { operatorName } from './ArrivalBits';
 
 interface BusSearchBoxProps {
   busNumber: string; // the bus number last searched for ('' if none yet), not the tracked bus
@@ -77,8 +78,8 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
         >
           <Search className="w-4 h-4 text-warm-500 shrink-0" />
           <span className="min-w-0 flex-1">
-            <span className="block text-xs font-semibold text-warm-700 uppercase tracking-wider">Find Bus Service</span>
-            <span className="block text-xs text-warm-600 truncate">Another bus number or a nearby stop</span>
+            <span className="block text-xs font-semibold text-warm-700 uppercase tracking-wider">Find a bus</span>
+            <span className="block text-xs text-warm-600 truncate">Another bus number, or a bus at a stop near you</span>
           </span>
           <span
             className="bg-helvetia text-white font-extrabold text-xs px-2 py-1 rounded-lg shrink-0"
@@ -95,7 +96,7 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
   return (
     <div className="bg-white rounded-2xl border border-warm-200/90 shadow-sm p-3.5 sm:p-5">
       <div className="flex items-center justify-between gap-2 mb-2">
-        <h2 className="text-xs font-semibold text-warm-700 uppercase tracking-wider">Find Bus Service</h2>
+        <h2 className="text-xs font-semibold text-warm-700 uppercase tracking-wider">Find a bus</h2>
         {foldable && (
           <button
             type="button"
@@ -156,6 +157,10 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
           <span className="shrink-0">Nearest bus stops</span>{' '}
           <span className="font-normal text-warm-500 truncate">to {locationName}</span>
         </h3>
+        {/* What the number buttons do, said where they are */}
+        {nearbyStops && nearbyStops.length > 0 && (
+          <p className="-mt-0.5 mb-1.5 text-[11px] text-warm-500">Tap a bus number to see when it comes.</p>
+        )}
 
         {nearbyStops === null ? (
           <div className="rounded-xl border border-warm-200 divide-y divide-warm-100 animate-pulse" aria-label="Loading nearby bus stops">
@@ -235,8 +240,8 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
             </span>
             {/* On phones the direction buttons share this row (the operator is on the arrivals card) */}
             <div className={`text-xs ${dir2 ? 'hidden sm:block' : ''}`}>
-              <span className="text-warm-500">Operator: </span>
-              <span className="font-semibold text-warm-800">{currentRoute.operator}</span>
+              <span className="text-warm-500">Run by </span>
+              <span className="font-semibold text-warm-800">{operatorName(currentRoute.operator)}</span>
               <span className="text-warm-300 mx-1.5">•</span>
               <span className="text-warm-500 font-medium">{currentRoute.category} Service</span>
             </div>

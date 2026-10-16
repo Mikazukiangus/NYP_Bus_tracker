@@ -4,6 +4,10 @@ import { BusArrivalInfo, BusLoad } from '../types/bus';
 
 export const formatEta = (minutes: number) => (minutes <= 0 ? 'Arr' : `${minutes} min`);
 
+// The bus companies by the names on their buses, not LTA's codes (GAS means nothing to a rider)
+const OPERATOR_NAME: Record<string, string> = { SBST: 'SBS Transit', SMRT: 'SMRT', TTS: 'Tower Transit', GAS: 'Go-Ahead' };
+export const operatorName = (code: string) => OPERATOR_NAME[code] ?? code;
+
 // Citymapper's live sign: a dot sending out arcs, beside times from a bus's live GPS position (the arcs pulse
 // unless reduced motion is on). Green-blue on light surfaces, lemon on dark ones.
 export const LiveSignal: React.FC<{ className?: string; title?: string }> = ({ className = 'w-3 h-3', title }) => (
@@ -46,7 +50,7 @@ export const Minutes: React.FC<{
     <span className={`inline-flex items-baseline leading-none font-black ${className}`}>
       {signal === 'live' && <LiveSignal className={`self-start ${s.icon} ${signalClassName}`} title="Live GPS" />}
       {signal === 'scheduled' && (
-        <Clock className={`self-start ${s.icon} opacity-50`} strokeWidth={3} role="img" aria-label="Scheduled" />
+        <Clock className={`self-start ${s.icon} opacity-50`} strokeWidth={3} role="img" aria-label="Timetable time" />
       )}
       {min <= 0 ? (
         <span className={`${s.num} ${arrClassName}`}>Arr</span>
@@ -92,7 +96,7 @@ export const TrackingBadge: React.FC<{ bus: Pick<BusArrivalInfo, 'monitored'>; c
       title="Estimate from the bus's live GPS position"
     >
       <LiveSignal className="w-3 h-3 text-green-blue" />
-      {compact ? 'GPS' : 'Live GPS'}
+      {compact ? 'Live' : 'Live GPS'}
     </span>
   ) : (
     <span
@@ -100,6 +104,25 @@ export const TrackingBadge: React.FC<{ bus: Pick<BusArrivalInfo, 'monitored'>; c
       title="No GPS fix yet (e.g. bus still at the interchange): estimate is from the timetable"
     >
       <Clock className="w-3 h-3 shrink-0" />
-      {compact ? 'Sched.' : 'Scheduled'}
+      Timetable
     </span>
   );
+
+// The key to the signs beside the times, for the signs in use: the live sign for a bus followed by GPS, the clock
+// for one that only has a timetable time. Shown with the times, so nobody has to learn what the icons mean.
+export const TimeKey: React.FC<{ live: boolean; timetable: boolean; className?: string }> = ({ live, timetable, className = '' }) => (
+  <span className={`inline-flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] font-semibold text-warm-600 ${className}`}>
+    {live && (
+      <span className="inline-flex items-center gap-1" title="Times from the bus's live GPS position">
+        <LiveSignal className="w-3 h-3 text-green-blue" />
+        Live GPS
+      </span>
+    )}
+    {timetable && (
+      <span className="inline-flex items-center gap-1" title="No GPS on the bus yet, so the time is from the timetable">
+        <Clock className="w-3 h-3 opacity-50" strokeWidth={3} aria-hidden="true" />
+        Timetable
+      </span>
+    )}
+  </span>
+);

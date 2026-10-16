@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { ArrivalDataSource, StopServiceArrivals } from '../types/bus';
 import { fetchStopArrivals } from './busTrackerService';
 
-const REFRESH_SECONDS = 15;
+export const REFRESH_SECONDS = 15;
 
 interface StopSnapshot {
   stopCode: string;

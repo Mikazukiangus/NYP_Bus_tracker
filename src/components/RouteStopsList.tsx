@@ -237,7 +237,10 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
           <p className="text-xs text-warm-500 font-medium">
             From {routeDir.origin} to {routeDir.destination} ({routeDir.stops.length} stops)
           </p>
-          <p className="text-[11px] text-warm-500">Distances are straight-line from your location</p>
+          {/* What a tap on a stop does, said where the stops are */}
+          <p className="text-[11px] text-warm-500" title="Distances are in a straight line from where you are">
+            Tap a stop to see when Bus {route.serviceNo} gets there.
+          </p>
           {trip && trip.legs.length > 1 && onTrackLeg && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs" role="group" aria-label={`Buses of your trip to ${trip.destinationName}`}>
               <span className="text-warm-600 font-semibold">Your trip:</span>
@@ -417,7 +420,7 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
                   {formatDistance(stop.distanceMeters)}
                 </span>
                 {isSelected ? (
-                  <Check className="w-4 h-4 text-helvetia" />
+                  <Check className="w-4 h-4 text-helvetia" aria-label="Times shown for this stop" />
                 ) : (
                   <ChevronRight className="w-4 h-4 text-warm-300" />
                 )}

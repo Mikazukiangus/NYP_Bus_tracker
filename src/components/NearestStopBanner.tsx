@@ -64,11 +64,11 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
                 ? 'bg-lemon text-helvetia-950 shadow-xs'
                 : 'bg-white/10 hover:bg-white/20 text-white'
             }`}
-            title={isFavorite ? 'Remove from favourites' : 'Save to favourites'}
-            aria-label={isFavorite ? 'Remove from favourites' : 'Save to favourites'}
+            title={isFavorite ? 'Remove from saved buses' : 'Save this bus at this stop'}
+            aria-label={isFavorite ? 'Remove from saved buses' : 'Save this bus at this stop'}
           >
             <Heart className={`w-4 h-4 ${isFavorite ? 'fill-helvetia-950' : ''}`} />
-            <span>{isFavorite ? 'Favourited' : 'Add to Favs'}</span>
+            <span>{isFavorite ? 'Saved' : 'Save'}</span>
           </button>
         </div>
 

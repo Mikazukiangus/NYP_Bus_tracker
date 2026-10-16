@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { AlightHint, BusRoute, BusStop, IncomingBus, JourneyOverlay, TrafficIncident, UserLocation } from '../types/bus';
-import { Navigation, Locate, Maximize2, TriangleAlert, Route } from 'lucide-react';
+import { Check, Navigation, Locate, Maximize2, TriangleAlert, Route } from 'lucide-react';
 import { BUS_TYPE_NAME, busTypeSvg } from './BusTypeIcon';
 import { legStyle, tripLegs } from './tripLegs';
 
@@ -534,7 +534,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
   };
 
   const toggleClass = (active: boolean) =>
-    `shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+    `shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors flex items-center gap-1 ${
       active ? 'bg-helvetia-50 text-helvetia border-helvetia-200' : 'bg-white text-warm-500 border-warm-200'
     }`;
   const actionClass =
@@ -554,7 +554,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
           <span className="bg-helvetia-100 text-helvetia-900 text-[11px] font-bold px-2 py-0.5 rounded-md shrink-0">
             {incomingBuses.length
               ? `${incomingBuses.length} bus${incomingBuses.length > 1 ? 'es' : ''} tracked`
-              : 'No live GPS'}
+              : 'No bus on GPS yet'}
           </span>
           {incidents.length > 0 && (
             <span
@@ -567,31 +567,35 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
           )}
         </div>
 
-        {/* Quick Map Controls (scrolls sideways on narrow screens) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
+        {/* Quick map controls, each with a word (phones have no hover to explain an icon); they wrap rather than
+            scroll sideways, so none is hidden off the edge. The layers show a tick while they're on the map. */}
+        <div className="flex flex-wrap items-center gap-1.5">
           <button onClick={() => setShowBuses(!showBuses)} className={toggleClass(showBuses)} aria-pressed={showBuses}>
+            {showBuses && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
             Buses ({incomingBuses.length})
           </button>
           <button onClick={() => setShowStops(!showStops)} className={toggleClass(showStops)} aria-pressed={showStops}>
+            {showStops && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
             Stops ({routeDir.stops.length})
           </button>
-          <button onClick={handleCenterNearest} className={actionClass} title="Focus nearest bus stop" aria-label="Focus nearest bus stop">
+          <span className="w-px h-5 bg-warm-200 mx-0.5" aria-hidden="true" />
+          <button onClick={handleCenterNearest} className={actionClass} title="Go to the nearest bus stop">
             <Navigation className="w-3.5 h-3.5 text-helvetia" />
-            <span className="hidden sm:inline">Nearest Stop</span>
+            Nearest stop
           </button>
-          <button onClick={handleCenterUser} className={actionClass} title="Center on my location" aria-label="Center on my location">
+          <button onClick={handleCenterUser} className={actionClass} title="Go to where you are">
             <Locate className="w-3.5 h-3.5 text-green-blue" />
-            <span className="hidden sm:inline">Me</span>
+            Me
           </button>
           {journey && (
-            <button onClick={handleFitTrip} className={actionClass} title="Show the whole trip" aria-label="Show the whole trip">
+            <button onClick={handleFitTrip} className={actionClass} title="Show the whole trip">
               <Route className="w-3.5 h-3.5 text-helvetia" />
-              <span className="hidden sm:inline">Trip</span>
+              Trip
             </button>
           )}
-          <button onClick={handleFitRoute} className={actionClass} title="Fit whole route" aria-label="Fit whole route">
+          <button onClick={handleFitRoute} className={actionClass} title="Show the bus's whole route">
             <Maximize2 className="w-3.5 h-3.5 text-warm-600" />
-            <span className="hidden sm:inline">Full Route</span>
+            Whole route
           </button>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { ArrowRight, BusFront, ChevronDown, ChevronRight } from 'lucide-react';
 import { ArrivalDataSource, BusStop, StopServiceArrivals } from '../types/bus';
 import { fetchStopNames } from '../services/busTrackerService';
 import { useIsPhone } from '../services/useIsPhone';
-import { LoadMeter, Minutes } from './ArrivalBits';
+import { LoadMeter, Minutes, operatorName } from './ArrivalBits';
 import { BUS_TYPE_SHORT, BusTypeIcon } from './BusTypeIcon';
 
 interface StopServicesBoardProps {
@@ -54,7 +54,7 @@ export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
         </div>
         {services && services.length > 0 && (
           <span className="text-[11px] text-warm-500 shrink-0">
-            {services.length} service{services.length === 1 ? '' : 's'}
+            {services.length} bus{services.length === 1 ? '' : 'es'}
           </span>
         )}
       </div>
@@ -66,10 +66,10 @@ export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
           ))}
         </div>
       ) : dataSource !== 'LTA_DATAMALL_V3' || !services ? (
-        <p className="mt-3 text-xs text-warm-500">Live arrivals for the other services here are unavailable right now.</p>
+        <p className="mt-3 text-xs text-warm-500">Live times for the other buses here are unavailable right now.</p>
       ) : services.length === 0 ? (
         <p className="mt-3 text-xs text-warm-500">
-          No buses are due at this stop right now. Services may have ended for the day.
+          No buses are due at this stop right now. They may have stopped running for the day.
         </p>
       ) : (
         <>
@@ -99,12 +99,12 @@ export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
                           {svc.serviceNo}
                         </span>
                         <span className={`text-[10px] font-bold uppercase tracking-wider truncate ${isCurrent ? 'text-helvetia-200' : 'text-warm-500'}`}>
-                          {isCurrent ? 'Tracking' : type ? BUS_TYPE_SHORT[type] : svc.operator}
+                          {isCurrent ? 'Tracking' : type ? BUS_TYPE_SHORT[type] : operatorName(svc.operator)}
                         </span>
                       </span>
                       <span className={`mt-1 flex items-center gap-1 text-xs font-semibold min-w-0 ${isCurrent ? 'text-white' : 'text-warm-700'}`}>
                         <ArrowRight className={`w-3.5 h-3.5 shrink-0 ${isCurrent ? 'text-lemon' : 'text-green-blue'}`} aria-hidden="true" />
-                        <span className="truncate">{destination ?? svc.operator}</span>
+                        <span className="truncate">{destination ?? operatorName(svc.operator)}</span>
                         {isCurrent && type && (
                           <BusTypeIcon type={type} className="w-3.5 h-3.5 shrink-0 text-helvetia-200" />
                         )}
@@ -145,7 +145,7 @@ export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
               onClick={() => setExpanded((e) => !e)}
               className="mt-2 text-xs font-semibold text-helvetia hover:underline flex items-center gap-1"
             >
-              {expanded ? 'Show fewer' : `Show all ${sorted.length} services`}
+              {expanded ? 'Show fewer' : `Show all ${sorted.length} buses`}
               <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
             </button>
           )}
