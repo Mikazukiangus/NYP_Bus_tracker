@@ -1,13 +1,16 @@
 import React, { useLayoutEffect, useState } from 'react';
 import { ChevronUp } from 'lucide-react';
 import { AlightHint, ArrivalDataSource, BusServiceArrivals, BusStop } from '../types/bus';
+import type { LeaveWithin } from '../services/leaveWithin';
 import { BOTTOM_BAR_HEIGHT } from './AppTabs';
+import { Minutes } from './ArrivalBits';
 
 interface LiveArrivalsBarProps {
   arrivals: BusServiceArrivals;
   stop: BusStop;
   dataSource: ArrivalDataSource;
   alight?: AlightHint | null;
+  leave?: LeaveWithin | null; // when to set off to catch one of these buses
   targetId: string; // the element holding the full arrivals card, when the tab has one
   watchKey: string; // changes when that element is swapped (e.g. the tab), to watch the new one
   onOpen: () => void; // show the full arrivals card
@@ -16,11 +19,9 @@ interface LiveArrivalsBarProps {
 // Share of the arrivals card that must be on screen for the bar to step aside
 const VISIBLE_SHARE = 0.35;
 
-const eta = (min: number) => (min <= 0 ? 'Arr' : `${min} min`);
-
 // Phones: the tracked bus's next arrivals pinned above the tab bar, on tabs without the arrivals card and while
 // the card is scrolled away. Tapping it shows the card.
-export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({ arrivals, stop, dataSource, alight, targetId, watchKey, onOpen }) => {
+export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({ arrivals, stop, dataSource, alight, leave, targetId, watchKey, onOpen }) => {
   const [hasCard, setHasCard] = useState(false);
   const [cardOnScreen, setCardOnScreen] = useState(true);
 
@@ -43,17 +44,23 @@ export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({ arrivals, stop
 
   const later = [arrivals.nextBus2, arrivals.nextBus3].filter((b) => b !== null).map((b) => (b.estimatedMinutes <= 0 ? 'Arr' : b.estimatedMinutes));
   const offAt = alight?.status === 'alight' ? ` · off at ${alight.stop.name}` : '';
-  // Same wording as the arrivals card: a GPS-tracked bus, a timetable estimate, or no live feed
+  const isLive = dataSource === 'LTA_DATAMALL_V3';
+  // Citymapper's "Leave within", or else the same wording as the arrivals card: a GPS-tracked bus, a timetable
+  // estimate, or no live feed
   const status =
     dataSource === 'LOADING'
       ? 'Loading'
-      : dataSource !== 'LTA_DATAMALL_V3'
+      : !isLive
         ? 'Simulated'
         : !arrivals.nextBus
           ? 'No bus due'
-          : arrivals.nextBus.monitored
-            ? 'Live GPS'
-            : 'Scheduled';
+          : leave?.status === 'leave'
+            ? leave.inMin <= 1
+              ? 'Leave now'
+              : `Leave within ${leave.inMin}\u00a0min`
+            : arrivals.nextBus.monitored
+              ? 'Live GPS'
+              : 'Scheduled';
 
   return (
     <div
@@ -71,15 +78,22 @@ export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({ arrivals, stop
         </span>
         <span className="min-w-0 flex-1 text-[11px] leading-snug">
           <span className="block font-semibold truncate">at {stop.name}</span>
-          <span className="block text-helvetia-200 truncate">
+          <span className={`block truncate ${leave?.status === 'leave' && isLive ? 'text-lemon font-bold' : 'text-helvetia-200'}`}>
             {status}
             {offAt}
           </span>
         </span>
         <span className="text-right shrink-0 leading-tight">
-          <span className="block text-lg font-black">
-            {arrivals.nextBus ? eta(arrivals.nextBus.estimatedMinutes) : dataSource === 'LOADING' ? '…' : '–'}
-          </span>
+          {arrivals.nextBus ? (
+            <Minutes
+              min={arrivals.nextBus.estimatedMinutes}
+              signal={isLive && arrivals.nextBus.monitored ? 'live' : undefined}
+              signalClassName="text-lemon"
+              arrClassName="text-lemon"
+            />
+          ) : (
+            <span className="block text-lg font-black">{dataSource === 'LOADING' ? '…' : '–'}</span>
+          )}
           {later.length > 0 && <span className="block text-[11px] text-helvetia-200">then {later.join(', ')}</span>}
         </span>
         <ChevronUp className="w-4 h-4 text-lemon shrink-0" />

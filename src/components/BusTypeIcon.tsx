@@ -31,12 +31,3 @@ export const BusTypeIcon: React.FC<{ type: BusType; className?: string }> = ({ t
     dangerouslySetInnerHTML={{ __html: SHAPES[type] }}
   />
 );
-
-// Icon and name, e.g. for the next bus in a list of services
-export const BusTypeTag: React.FC<{ type?: BusType; className?: string }> = ({ type, className = '' }) =>
-  type ? (
-    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold text-warm-600 ${className}`} title={BUS_TYPE_NAME[type]}>
-      <BusTypeIcon type={type} className="w-4 h-4" />
-      {BUS_TYPE_SHORT[type]}
-    </span>
-  ) : null;

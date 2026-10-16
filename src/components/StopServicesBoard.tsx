@@ -3,8 +3,8 @@ import { BusFront, ChevronDown, ChevronRight } from 'lucide-react';
 import { ArrivalDataSource, BusLoad, BusStop, StopServiceArrivals } from '../types/bus';
 import { fetchStopNames } from '../services/busTrackerService';
 import { useIsPhone } from '../services/useIsPhone';
-import { formatEta, TrackingBadge } from './ArrivalBits';
-import { BusTypeTag } from './BusTypeIcon';
+import { Minutes } from './ArrivalBits';
+import { BUS_TYPE_SHORT, BusTypeIcon } from './BusTypeIcon';
 
 interface StopServicesBoardProps {
   stop: BusStop;
@@ -17,11 +17,12 @@ interface StopServicesBoardProps {
 // Services shown before "Show all": fewer on phones, where they stack in one column
 const COLLAPSED_COUNT = 8;
 const PHONE_COLLAPSED_COUNT = 4;
-const LOAD_DOT: Record<BusLoad, { className: string; label: string }> = {
-  SEA: { className: 'bg-green-blue', label: 'Seats available' },
-  SDA: { className: 'bg-amber-500', label: 'Standing available' },
-  LSD: { className: 'bg-rose-500', label: 'Limited standing' },
+const LOAD_DOT: Record<BusLoad, { className: string; label: string; short: string }> = {
+  SEA: { className: 'bg-green-blue', label: 'Seats available', short: 'Seats' },
+  SDA: { className: 'bg-amber-500', label: 'Standing available', short: 'Standing' },
+  LSD: { className: 'bg-rose-500', label: 'Limited standing', short: 'Limited' },
 };
+const later = (min: number) => (min <= 0 ? 'Arr' : String(min));
 
 // Every bus service due at the selected stop, from the same LTA BusArrival call as the main board
 export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
@@ -78,50 +79,60 @@ export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
         </p>
       ) : (
         <>
-          <div className="mt-3 grid grid-cols-1 @2xl:grid-cols-2 gap-2">
+          {/* Departure rows, Citymapper style: the bus, where it's going and how full, and the next times on the right */}
+          <ul className="mt-1 grid grid-cols-1 @2xl:grid-cols-2 @2xl:gap-x-6">
             {shown.map((svc) => {
               const isCurrent = svc.serviceNo.toUpperCase() === currentServiceNo.toUpperCase();
               const destination = svc.destinationCode ? stopNames[svc.destinationCode] : undefined;
+              const next = svc.nextBus;
+              const then = [svc.nextBus2, svc.nextBus3].flatMap((b) => (b ? [later(b.estimatedMinutes)] : []));
               return (
-                <button
-                  key={svc.serviceNo}
-                  onClick={() => !isCurrent && onSelectService(svc.serviceNo)}
-                  className={`flex items-center gap-2.5 p-2 rounded-xl border text-left transition-colors min-w-0 ${
-                    isCurrent
-                      ? 'bg-helvetia-50 border-helvetia-200 cursor-default'
-                      : 'bg-white border-warm-200 hover:bg-warm-50 hover:border-warm-300'
-                  }`}
-                  title={isCurrent ? 'Currently tracking' : `Track Bus ${svc.serviceNo} from this stop`}
-                >
-                  <span className="min-w-[2.75rem] text-center bg-helvetia text-white font-black text-xs px-1.5 py-1 rounded-lg shrink-0">
-                    {svc.serviceNo}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[11px] text-warm-500 truncate">
-                      {destination ? `To ${destination}` : svc.operator}
-                    </div>
-                    {svc.nextBus ? (
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
-                        <span
-                          className={`w-2 h-2 rounded-full shrink-0 ${LOAD_DOT[svc.nextBus.load].className}`}
-                          title={LOAD_DOT[svc.nextBus.load].label}
-                        />
-                        <strong className={svc.nextBus.estimatedMinutes <= 0 ? 'text-green-blue-ink' : 'text-warm-900'}>
-                          {formatEta(svc.nextBus.estimatedMinutes)}
-                        </strong>
-                        <BusTypeTag type={svc.nextBus.type} />
-                        {svc.nextBus2 && <span className="text-warm-500">then {formatEta(svc.nextBus2.estimatedMinutes)}</span>}
-                        <TrackingBadge bus={svc.nextBus} compact />
-                      </div>
-                    ) : (
-                      <div className="text-xs text-warm-500">No estimate</div>
+                <li key={svc.serviceNo} className="border-b border-warm-100 last:border-b-0 @2xl:[&:nth-last-child(2):nth-child(odd)]:border-b-0">
+                  <button
+                    onClick={() => !isCurrent && onSelectService(svc.serviceNo)}
+                    aria-current={isCurrent ? 'true' : undefined}
+                    className={`w-full flex items-center gap-3 py-2.5 px-2 text-left transition-colors min-w-0 rounded-xl ${
+                      isCurrent ? 'bg-helvetia-50 cursor-default' : 'hover:bg-warm-50'
+                    }`}
+                    title={isCurrent ? 'Currently tracking' : `Track Bus ${svc.serviceNo} from this stop`}
+                  >
+                    <span className="min-w-[2.75rem] text-center bg-helvetia text-white font-black text-sm px-1.5 py-1 rounded-lg shrink-0">
+                      {svc.serviceNo}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-bold text-warm-900 truncate">
+                        {destination ? `To ${destination}` : svc.operator}
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[11px] text-warm-500 truncate">
+                        {isCurrent && <strong className="text-helvetia">Tracking ·</strong>}
+                        {next ? (
+                          <>
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${LOAD_DOT[next.load].className}`} />
+                            {LOAD_DOT[next.load].short}
+                            {next.type && (
+                              <>
+                                <BusTypeIcon type={next.type} className="w-3.5 h-3.5 shrink-0 text-warm-500" />
+                                {BUS_TYPE_SHORT[next.type]}
+                              </>
+                            )}
+                          </>
+                        ) : (
+                          'No estimate'
+                        )}
+                      </span>
+                    </span>
+                    {next && (
+                      <span className="text-right shrink-0">
+                        <Minutes min={next.estimatedMinutes} signal={next.monitored ? 'live' : 'scheduled'} className="text-warm-900" />
+                        {then.length > 0 && <span className="block text-[11px] text-warm-500 mt-0.5">{then.join(', ')} min</span>}
+                      </span>
                     )}
-                  </div>
-                  {!isCurrent && <ChevronRight className="w-4 h-4 text-warm-300 shrink-0" />}
-                </button>
+                    {!isCurrent && <ChevronRight className="w-4 h-4 text-warm-300 shrink-0 -ml-1" />}
+                  </button>
+                </li>
               );
             })}
-          </div>
+          </ul>
           {sorted.length > collapsedCount && (
             <button
               onClick={() => setExpanded((e) => !e)}

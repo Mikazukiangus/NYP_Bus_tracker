@@ -14,7 +14,7 @@ interface PlaceSearchProps {
   value?: string; // text shown after a place is chosen
   onClear?: () => void;
   autoFocus?: boolean;
-  icon?: React.ReactNode;
+  icon?: React.ReactNode | null; // null: no icon (e.g. one is already beside the field)
   inputClassName?: string;
 }
 
@@ -156,9 +156,11 @@ export const PlaceSearch: React.FC<PlaceSearchProps> = ({
   return (
     <div ref={rootRef} className="relative">
       <div className="relative flex items-center">
-        <span className="absolute left-3.5 text-warm-500 pointer-events-none flex items-center">
-          {icon ?? <Search className="w-5 h-5" />}
-        </span>
+        {icon !== null && (
+          <span className="absolute left-3.5 text-warm-500 pointer-events-none flex items-center">
+            {icon ?? <Search className="w-5 h-5" />}
+          </span>
+        )}
         <input
           ref={inputRef}
           type="text"
@@ -183,7 +185,7 @@ export const PlaceSearch: React.FC<PlaceSearchProps> = ({
           enterKeyHint="search"
           autoComplete="off"
           autoFocus={autoFocus}
-          className={`w-full pl-11 pr-10 bg-warm-50 border border-warm-300 rounded-xl text-warm-900 placeholder:text-warm-500 placeholder:font-normal focus:bg-white focus:outline-none focus:ring-2 focus:ring-helvetia focus:border-transparent transition-all ${inputClassName}`}
+          className={`w-full ${icon === null ? 'pl-3.5' : 'pl-11'} pr-10 bg-warm-50 border border-warm-300 rounded-xl text-warm-900 placeholder:text-warm-500 placeholder:font-normal focus:bg-white focus:outline-none focus:ring-2 focus:ring-helvetia focus:border-transparent transition-all ${inputClassName}`}
         />
         {query && (
           <button

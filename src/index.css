@@ -98,6 +98,42 @@
   scrollbar-width: none;
 }
 
+/* Live sign beside GPS-tracked times (Citymapper style): the arcs pulse outwards */
+@keyframes liveArc {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+.live-signal-arc1 {
+  animation: liveArc 1.8s ease-in-out infinite;
+}
+.live-signal-arc2 {
+  animation: liveArc 1.8s ease-in-out 0.3s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-signal-arc1,
+  .live-signal-arc2 {
+    animation: none;
+  }
+}
+
+/* The next buses in a bubble over the tracked stop on the map (Citymapper's "in 6, 12, 15 min") */
+.leaflet-tooltip.eta-callout {
+  background: white;
+  color: var(--color-warm-900);
+  border: 0;
+  border-radius: 9999px;
+  padding: 3px 9px;
+  box-shadow: 0 4px 14px -2px rgba(0, 43, 64, 0.3);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* User marker pulse */
 @keyframes userPulse {
   0% {

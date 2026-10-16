@@ -600,3 +600,35 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - The arrivals card no longer contains it.
 
 ---
+
+### Turn 31: Citymapper's Layout in Our Colours (16 October 2026)
+- **User Prompt**:
+  > *"Using "Citymapper: All Live Transit" iphone app as a reference, figure out how we can use the UI and design with our colour scheme."*
+- **Reference**: Citymapper's six App Store screenshots: home, trip results, trip steps, the ride view, "Get off now", and nearby vehicles. Its patterns map onto the Wada 259 palette as follows. Citymapper's green becomes green-blue for live and "go" signals, its yellow live sign becomes lemon on dark surfaces, and its dark blue cards become Helvetia Blue 950.
+
+  | Citymapper | BusTrackerSG now |
+  |---|---|
+  | Yellow arcs beside live times | `LiveSignal` (`ArrivalBits.tsx`): a dot sending out arcs that pulse (still when reduced motion is on). Green-blue on white, lemon on the dark next-bus bar. It marks every GPS-tracked time; timetable estimates get a small clock instead. The "Live GPS / Scheduled" text line under each time is gone, which shortens the arrival boxes. |
+  | Big number with a small "min" | `Minutes` (`ArrivalBits.tsx`), used in the arrivals card, the departure rows, the next-bus bar and trip totals |
+  | "Leave within 2 min" | New `leaveWithin` (`src/services/leaveWithin.ts`). It compares the walk from the From place to the tracked stop (80 m a minute; within 50 m counts as being at the stop) with the stop's next three buses. Like the trip planner, it allows a minute's slack. It appears in three places. In the arrivals card it is a band: "Leave within 6 min · By 9:22 am · ~3 min walk for the bus due in 9 min", which turns lemon and says "Leave now" with a minute or less to spare. On phones it is the next-bus bar's second line. Each trip option also shows it. |
+  | Dark blue Start / End card with a swap button | The From / Where to? box is now a dark Helvetia card. A green-blue dot marks the start and a lemon flag the destination, joined by a dotted line. With a destination set, a swap button (↕) plans the trip back: the destination becomes From and the old From becomes the destination. |
+  | "Get me home" / "Work" shortcuts | Up to 4 recent places as one-tap chips under "Where to?" while no destination is set |
+  | Departure rows | "All buses at this stop" is a list of rows. Each row shows the bus number, "To Tampines Int", seats and deck, and the next time big on the right with the later times under it. The tracked bus is shaded and labelled "Tracking". |
+  | Suggested routes: walk › line › walk, total on the right, "Leave within" and "Arrive" | Each trip option is a route strip (🚶3 › [72] › 🚶1, with any change walk) and the total minutes. Below that: "Leave within 3 min" and "Bus in 1, 6, 14 min" on the left, "Arrive 10:34 am" on the right, and "Board at Nanyang Poly · 43 stops · direct" |
+  | Ride view: the line with its stops on it | Route Stops: a continuous Helvetia line runs through the numbered stop circles, darker over the stops you ride on a trip |
+  | "in 6, 12, 15 min" bubble on the map | A white bubble over the tracked stop: "72 in 1, 7, 15 min", with the live sign for a GPS-tracked bus. On a trip it sits over the boarding pill instead (the route's own stops are hidden then). |
+
+- **Not taken**:
+  - Citymapper's own green brand colour and mascot.
+  - Other transport modes (this app is buses only).
+  - The "Get off now" alarm, which would need location tracking in the background.
+- **Validation**:
+  - TypeScript, the app build and 37 tests pass. The 2 new tests in `tests/leave-within.test.ts` cover the bus you can reach, the minute's slack, being at the stop, every bus leaving too soon, and having no buses.
+  - In the browser at 390 px and 1280 px, using the test-only LTA stub with real arrival times:
+    - Arrivals: "Leave now" and "Leave within 5 min" in both the card and the next-bus bar.
+    - The recent-place chip set Tampines Bus Interchange as the destination, and the trip row showed the strip, "Leave within 3 min" and "Arrive".
+    - Swap planned Tampines Bus Interchange → Nanyang Polytechnic, and swapping again restored the original trip.
+    - The Map bubble read "72 in 1, 7, 15 min", and the Stops tab showed the route line.
+    - No console errors.
+
+---

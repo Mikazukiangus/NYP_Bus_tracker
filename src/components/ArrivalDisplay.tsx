@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { RefreshCw, Accessibility, Info, Clock, CalendarClock, ChevronDown, Satellite, Flag, ArrowLeftRight, ChevronRight, ChevronLeft, Heart } from 'lucide-react';
+import { RefreshCw, Accessibility, Info, Clock, CalendarClock, ChevronDown, Flag, ArrowLeftRight, ChevronRight, ChevronLeft, Heart, Footprints } from 'lucide-react';
 import { AlightHint, ArrivalDataSource, BusArrivalInfo, BusLoad, BusServiceArrivals, BusStop, FirstLastTimes } from '../types/bus';
-import { TrackingBadge } from './ArrivalBits';
+import { LiveSignal, Minutes } from './ArrivalBits';
+import type { LeaveWithin } from '../services/leaveWithin';
 import { BUS_TYPE_NAME, BUS_TYPE_SHORT, BusTypeIcon } from './BusTypeIcon';
 import { ServiceChoice } from './ServiceChoice';
 import { legStyle, tripLegs } from './tripLegs';
@@ -18,6 +19,7 @@ interface ArrivalDisplayProps {
   onChooseService?: (legIndex: number, serviceNo: string) => void; // take another bus between the same stops
   // Phones, where this card also does the nearest-stop banner's job: how far the stop is, and saving it
   stopInfo?: { distanceM: number; isNearest: boolean; onShowNearest: () => void };
+  leave?: LeaveWithin | null; // when to set off from where the trip starts to catch one of these buses
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
 }
@@ -147,6 +149,39 @@ const AlightStrip: React.FC<{
   );
 };
 
+const clockIn = (minutes: number) =>
+  new Date(Date.now() + minutes * 60_000).toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Singapore' });
+
+// Citymapper's summary band: how long you have before walking to the stop to catch one of the buses below
+const LeaveStrip: React.FC<{ leave: Exclude<LeaveWithin, { status: 'at-stop' }> }> = ({ leave }) => {
+  const now = leave.status === 'leave' && leave.inMin <= 1;
+  return (
+    <div
+      className={`mt-3 rounded-xl border px-3 py-2 flex items-center gap-2.5 ${
+        now ? 'bg-lemon-soft border-lemon' : 'bg-warm-50 border-warm-200/80'
+      }`}
+    >
+      <span className="w-7 h-7 rounded-full bg-helvetia-950 text-lemon flex items-center justify-center shrink-0" aria-hidden="true">
+        <Footprints className="w-3.5 h-3.5" />
+      </span>
+      {leave.status === 'leave' ? (
+        <p className="min-w-0 text-xs text-warm-600 leading-snug">
+          <strong className="block text-sm font-black text-helvetia-950">
+            {now ? 'Leave now' : `Leave within ${leave.inMin}\u00a0min`}
+          </strong>
+          {now ? '' : `By ${clockIn(leave.inMin)} · `}~{leave.walkMin}&nbsp;min walk for the bus due in {leave.busMin}&nbsp;min
+          {leave.monitored && <LiveSignal className="inline w-3 h-3 ml-1 -mt-1 text-green-blue" title="Live GPS" />}
+        </p>
+      ) : (
+        <p className="min-w-0 text-xs text-warm-600 leading-snug">
+          <strong className="block text-sm font-black text-helvetia-950">These buses leave before you get there</strong>
+          It's a ~{leave.walkMin}&nbsp;min walk to the stop: catch a later bus
+        </p>
+      )}
+    </div>
+  );
+};
+
 export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   arrivals,
   activeStop,
@@ -158,6 +193,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   onTrackLeg,
   onChooseService,
   stopInfo,
+  leave = null,
   isFavorite = false,
   onToggleFavorite,
 }) => {
@@ -232,27 +268,15 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
           )}
         </div>
 
-        {/* Arrival Time Big Display */}
-        <div className="my-1 @2xl:my-2 flex items-baseline gap-2">
-          {isArr ? (
-            <div className="flex items-center gap-1.5">
-              <span className="text-3xl @2xl:text-4xl font-black text-green-blue-ink tracking-tight animate-pulse">
-                Arr
-              </span>
-              <span className="hidden @2xl:inline text-xs font-semibold text-green-blue-ink bg-green-blue-soft px-2 py-0.5 rounded-md border border-green-blue/30">
-                Arriving Now
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-baseline gap-1">
-              <span className="text-3xl @2xl:text-4xl font-black text-warm-900 tracking-tight">
-                {bus.estimatedMinutes}
-              </span>
-              <span className="text-sm @2xl:text-base font-bold text-warm-500">min</span>
-            </div>
-          )}
+        {/* Arrival time, Citymapper style: the live sign for a GPS-tracked bus, a clock for a timetable estimate */}
+        <div className="my-1 @2xl:my-2">
+          <Minutes
+            min={bus.estimatedMinutes}
+            signal={isLive ? (bus.monitored ? 'live' : 'scheduled') : undefined}
+            size="lg"
+            className={isArr ? 'animate-pulse' : 'text-warm-900'}
+          />
         </div>
-        {isLive && <TrackingBadge bus={bus} compact={false} />}
 
         {/* Load badge */}
         <div className="mt-2 @2xl:mt-3 flex flex-wrap items-center gap-1.5 @2xl:gap-2">
@@ -301,9 +325,10 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
                 {isLoading ? (
                   'Loading live arrivals...'
                 ) : isLive ? (
-                  <>
-                    ● <span className="max-sm:hidden">LTA DataMall v3 </span>Live
-                  </>
+                  <span className="inline-flex items-center gap-1">
+                    <LiveSignal className="w-2.5 h-2.5 text-green-blue" />
+                    <span className="max-sm:hidden">LTA DataMall v3 </span>Live
+                  </span>
                 ) : (
                   <>
                     ● Simulated<span className="max-sm:hidden"> (live feed unavailable)</span>
@@ -320,7 +345,8 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
                   <span className="min-w-0">
                     {stopInfo.isNearest ? <strong className="text-warm-800">★ Nearest stop</strong> : 'Not your nearest stop'}
                     {' · '}
-                    {formatMetres(stopInfo.distanceM)}, ~{Math.max(1, Math.round(stopInfo.distanceM / 80))}&nbsp;min walk
+                    {formatMetres(stopInfo.distanceM)}
+                    {!leave && <>, ~{Math.max(1, Math.round(stopInfo.distanceM / 80))}&nbsp;min walk</>}
                     {!stopInfo.isNearest && (
                       <>
                         {' · '}
@@ -405,6 +431,8 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         </div>
       </div>
 
+      {isLive && leave && leave.status !== 'at-stop' && <LeaveStrip leave={leave} />}
+
       {alight && (
         <AlightStrip alight={alight} serviceNo={arrivals.serviceNo} onTrackLeg={onTrackLeg} onChooseService={onChooseService} />
       )}
@@ -455,7 +483,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
           {isLive && (
             <>
               <span className="flex items-center gap-1">
-                <Satellite className="w-3 h-3 text-green-blue-ink" />
+                <LiveSignal className="w-3 h-3 text-green-blue" />
                 <strong>Live GPS:</strong> bus is being tracked
               </span>
               <span className="flex items-center gap-1">

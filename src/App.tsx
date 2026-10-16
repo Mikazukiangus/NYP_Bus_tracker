@@ -29,11 +29,12 @@ import {
 import { applyRouteShapes, distanceToPathMeters, fetchRouteShapes, legPath } from './services/routeShape';
 import { BusNetwork, NearbyStop, StopService, loadBusNetwork, nearestStops } from './services/busNetwork';
 import { TripLeg, TripOption, alightFor, legServiceNos, liveDeparture, planTrips, tripScore, withServices } from './services/tripPlanner';
-import { PlaceResult, addRecentPlace, loadRecentPlaces } from './services/placeSearch';
+import { PlaceResult, addRecentPlace, loadRecentPlaces, placeToLocation } from './services/placeSearch';
 import { useStopsArrivals } from './services/useStopsArrivals';
 import { fetchWeatherSnapshot, forecastAt, formatSgTime, summarizeWeather } from './services/neaWeather';
 import { rainNowcast } from './services/rainNowcast';
 import { RainAdviceInput, rainAdvice } from './services/rainAdvice';
+import { leaveWithin, walkMinutes } from './services/leaveWithin';
 import { Header } from './components/Header';
 import { BusSearchBox } from './components/BusSearchBox';
 import { NearestStopBanner } from './components/NearestStopBanner';
@@ -395,6 +396,23 @@ export default function App() {
     setSelectedTripId(null);
     setTripServices({});
   }, []);
+
+  // Citymapper's swap: the trip back, from the destination to where this trip starts
+  const handleSwapTrip = useCallback(() => {
+    if (!destination) return;
+    const from = userLocationRef.current;
+    applyUserLocation(placeToLocation(destination));
+    setDestination({
+      id: `swap-${from.lat.toFixed(5)},${from.lng.toFixed(5)}`,
+      kind: from.kind ?? 'address',
+      name: from.isSimulated ? from.name : 'My GPS location',
+      ...(from.address ? { subtitle: from.address } : {}),
+      lat: from.lat,
+      lng: from.lng,
+    });
+    setSelectedTripId(null);
+    setTripServices({});
+  }, [destination, applyUserLocation]);
 
   const tripState = useMemo<TripPlannerState>(() => {
     if (tripPlan) return { status: 'ready', plan: tripPlan, trips: shownTrips };
@@ -760,6 +778,30 @@ export default function App() {
   };
 
   const selectedStopDistance = stopsWithDistance.find((s) => s.code === selectedStop.code)?.distanceMeters ?? distanceMeters;
+  const isLiveFeed = dataSource === 'LTA_DATAMALL_V3';
+
+  // Citymapper's "Leave within": how long before walking from where the trip starts to the tracked stop, to catch
+  // one of its next buses (only when the stop is a walk away)
+  const leave = useMemo(
+    () =>
+      isLiveFeed && selectedStopDistance <= WALKABLE_STOP_M
+        ? leaveWithin(selectedStopDistance, [arrivals.nextBus, arrivals.nextBus2, arrivals.nextBus3])
+        : null,
+    [isLiveFeed, selectedStopDistance, arrivals]
+  );
+
+  // The tracked bus's next times, for the bubble over its stop on the map
+  const stopEtas = useMemo(
+    () =>
+      isLiveFeed && arrivals.nextBus
+        ? {
+            serviceNo: arrivals.serviceNo,
+            minutes: [arrivals.nextBus, arrivals.nextBus2, arrivals.nextBus3].flatMap((b) => (b ? [b.estimatedMinutes] : [])),
+            live: !!arrivals.nextBus.monitored,
+          }
+        : null,
+    [isLiveFeed, arrivals]
+  );
 
   // Leave now, wait or take an umbrella: the rain around the user (and at the destination) against the walk to the
   // stop, the next buses and when the bus gets there
@@ -771,7 +813,7 @@ export default function App() {
     const nearest = nearbyStops?.[0];
     const walkM = walkable ? selectedStopDistance : nearest && nearest.distanceM <= WALKABLE_STOP_M ? nearest.distanceM : undefined;
     // Within 50 m you're at the stop; otherwise at least a minute's walk at 80 m a minute
-    const walkMin = walkM === undefined ? undefined : walkM <= 50 ? 0 : Math.max(1, Math.round(walkM / 80));
+    const walkMin = walkM === undefined ? undefined : walkMinutes(walkM);
     const busMin = walkable
       ? [arrivals.nextBus, arrivals.nextBus2, arrivals.nextBus3].flatMap((b) => (b ? [Math.max(0, b.estimatedMinutes)] : []))
       : [];
@@ -846,6 +888,7 @@ export default function App() {
         alight={alightHint}
         onTrackLeg={trackTripLegAt}
         onChooseService={chooseTripServiceAt}
+        leave={leave}
         {...(isPhone
           ? {
               stopInfo: {
@@ -914,6 +957,7 @@ export default function App() {
             destination={destination}
             onSetDestination={handleSetDestination}
             onClearDestination={handleClearDestination}
+            onSwap={handleSwapTrip}
             recentPlaces={recentPlaces}
           >
             {/* Leave now, wait or take an umbrella, for where the trip starts */}
@@ -1000,6 +1044,7 @@ export default function App() {
                     incidents={incidentsOnRoute}
                     journey={journey}
                     alight={alightHint}
+                    etas={stopEtas}
                   />
                 </div>
               )}
@@ -1068,6 +1113,7 @@ export default function App() {
               incidents={incidentsOnRoute}
               journey={journey}
               alight={alightHint}
+              etas={stopEtas}
             />
             {tripCard}
             {/* Quick arrival summary card below the map (phones: the next-bus bar) */}
@@ -1127,6 +1173,7 @@ export default function App() {
               stop={selectedStop}
               dataSource={dataSource}
               alight={alightHint}
+              leave={leave}
               targetId={ARRIVALS_CARD_ID}
               watchKey={activeTab}
               onOpen={showArrivalsCard}

@@ -300,7 +300,7 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
       {/* Phones: the list is the whole tab, so it fills the screen above the bars at the bottom */}
       <div
         ref={listRef}
-        className="mt-3 divide-y divide-warm-100 max-h-[500px] max-sm:max-h-[max(16rem,calc(100dvh-24rem))] overflow-y-auto pr-1"
+        className="mt-3 max-h-[500px] max-sm:max-h-[max(16rem,calc(100dvh-24rem))] overflow-y-auto pr-1"
       >
         {filteredStops.map((stop) => {
           const isNearest = stop.code === nearestStop.code;
@@ -310,6 +310,11 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
           const isRidden = alightSeq > 0 && stop.sequence > boardSeq && stop.sequence < alightSeq;
           // Stops you won't ride on this bus are faded while a trip is shown
           const isOffRide = alightSeq > 0 && (stop.sequence < boardSeq || stop.sequence > alightSeq);
+          // The route line through the stops (Citymapper's ride view): darker where you ride, from the boarding stop
+          // to the one to get off at
+          const lineIn = alightSeq > 0 && stop.sequence > boardSeq && stop.sequence <= alightSeq;
+          const lineOut = alightSeq > 0 && stop.sequence >= boardSeq && stop.sequence < alightSeq;
+          const line = (ridden: boolean) => (ridden ? 'bg-helvetia' : alightSeq > 0 ? 'bg-helvetia-200' : 'bg-helvetia-300');
 
           return (
             <React.Fragment key={`${stop.code}-${stop.sequence}`}>
@@ -326,15 +331,25 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
               ref={isAlight ? alightRowRef : isBoard ? boardRowRef : undefined}
               onClick={() => onSelectStop(stop)}
               aria-pressed={isSelected}
-              className={`w-full text-left p-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-3 ${
+              className={`relative w-full text-left p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                 isAlight
-                  ? `${style.soft} border ${style.border} font-semibold`
+                  ? `${style.soft} ${style.border} font-semibold`
                   : isSelected
-                  ? 'bg-helvetia-50/80 border border-helvetia-200 font-semibold'
-                  : 'hover:bg-warm-50'
+                  ? 'bg-helvetia-50/80 border-helvetia-200 font-semibold'
+                  : 'border-transparent hover:bg-warm-50'
               } ${isOffRide ? 'opacity-55 hover:opacity-100' : ''}`}
             >
-              <div className="flex items-center gap-3 min-w-0">
+              {!filterQuery && (
+                <>
+                  {stop.sequence > 1 && (
+                    <span aria-hidden="true" className={`absolute left-[25.5px] top-0 h-1/2 w-[3px] ${line(lineIn)}`} />
+                  )}
+                  {stop.sequence < stopsWithDistance.length && (
+                    <span aria-hidden="true" className={`absolute left-[25.5px] top-1/2 bottom-0 w-[3px] ${line(lineOut)}`} />
+                  )}
+                </>
+              )}
+              <div className="relative flex items-center gap-3 min-w-0">
                 {/* Step indicator */}
                 <div
                   className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
@@ -343,10 +358,10 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
                       : isNearest
                       ? 'bg-lemon text-helvetia-950 shadow-xs ring-1 ring-helvetia/30'
                       : isSelected
-                      ? 'bg-helvetia-600 text-white'
+                      ? 'bg-helvetia-600 text-white ring-2 ring-white'
                       : isRidden
-                      ? 'bg-helvetia-100 text-helvetia-800'
-                      : 'bg-warm-100 text-warm-600'
+                      ? 'bg-helvetia-50 border-2 border-helvetia text-helvetia-800'
+                      : 'bg-white border-2 border-helvetia-300 text-helvetia-800'
                   }`}
                   title={isRidden ? 'On the bus' : undefined}
                 >

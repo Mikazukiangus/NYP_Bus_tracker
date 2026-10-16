@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { ArrowRight, BusFront, ChevronDown, ChevronRight, Flag, Footprints, Loader2, Map as MapIcon, Route, X } from 'lucide-react';
+import { BusFront, ChevronDown, ChevronRight, Flag, Footprints, Loader2, Map as MapIcon, Route, X } from 'lucide-react';
 import type { PlaceResult } from '../services/placeSearch';
 import type { LiveDeparture, TripLeg, TripOption, TripPlan } from '../services/tripPlanner';
 import { expectedTotalMin, legServiceNos } from '../services/tripPlanner';
 import { useIsPhone } from '../services/useIsPhone';
-import { TrackingBadge } from './ArrivalBits';
+import { LiveSignal, Minutes } from './ArrivalBits';
 import { ServiceChoice } from './ServiceChoice';
 import { legStyle } from './tripLegs';
 
@@ -64,6 +64,41 @@ const LegServices: React.FC<{ leg: TripLeg; notDue: string[]; onChoose?: (servic
   />
 );
 
+// A walk in the route strip: the walker with the minutes beside it, as in Citymapper
+const WalkChip: React.FC<{ minutes: number }> = ({ minutes }) => (
+  <span className="inline-flex items-end text-warm-600" title={`Walk ~${round(minutes)} min`}>
+    <Footprints className="w-4 h-4" aria-hidden="true" />
+    <span className="text-[10px] font-bold leading-none ml-px">{round(minutes)}</span>
+    <span className="sr-only"> min walk</span>
+  </span>
+);
+const StripArrow = () => <ChevronRight className="w-3.5 h-3.5 text-warm-300 shrink-0" aria-hidden="true" />;
+
+// Citymapper's route strip: walk, the bus (or the buses that run between the same stops), any change, and the walk
+// at the end
+function RouteStrip({ option, notDueAt }: { option: TripOption; notDueAt: (leg: TripLeg) => string[] }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <WalkChip minutes={option.walkStartMin} />
+      {option.legs.map((leg, i) => (
+        <React.Fragment key={i}>
+          <StripArrow />
+          {i > 0 && option.transferWalkM > 0 && (
+            <>
+              <WalkChip minutes={option.transferWalkMin} />
+              <StripArrow />
+            </>
+          )}
+          <LegServices leg={leg} notDue={notDueAt(leg)} />
+        </React.Fragment>
+      ))}
+      <StripArrow />
+      <WalkChip minutes={option.walkEndMin} />
+    </div>
+  );
+}
+
+// "Leave within 6 min", and the next buses at the first stop
 function LiveLine({ trip }: { trip: RankedTrip }) {
   const { option, live } = trip;
   if (live.status === 'loading') {
@@ -82,46 +117,56 @@ function LiveLine({ trip }: { trip: RankedTrip }) {
   const severalServices = new Set(live.nextBuses.map((b) => b.serviceNo)).size > 1;
   const caught = live.nextBuses.findIndex((b) => b.etaMin === live.catchEtaMin);
   return (
-    <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-      <span className="text-warm-700">
-        {severalServices ? 'Next: ' : `Bus${option.legs[0].alsoServiceNos.length ? 'es' : ''} in `}
+    <span className="block leading-snug">
+      {leaveIn !== null && (
+        <strong className={`block text-sm font-black ${leaveIn <= 1 ? 'text-rose-700' : 'text-helvetia-950'}`}>
+          {leaveIn <= 1 ? 'Leave now' : `Leave within ${leaveIn}\u00a0min`}
+        </strong>
+      )}
+      <span className="text-warm-600">
+        {severalServices ? 'Next ' : `Bus${option.legs[0].alsoServiceNos.length ? 'es' : ''} in `}
         {live.nextBuses.map((bus, i) => (
           <React.Fragment key={i}>
             {i > 0 && ', '}
-            {severalServices && <span className="font-semibold text-warm-700">{bus.serviceNo} in </span>}
-            <strong className={i === caught ? 'text-warm-900' : 'font-normal text-warm-500'}>
-              {bus.etaMin <= 0 ? 'Arr' : bus.etaMin}
-            </strong>
+            {severalServices && <span className="font-semibold">{bus.serviceNo} in </span>}
+            <span className={i === caught ? 'font-bold text-warm-900' : ''}>{bus.etaMin <= 0 ? 'Arr' : bus.etaMin}</span>
           </React.Fragment>
-        ))}{' '}
-        min
+        ))}
+        {'\u00a0'}min
       </span>
-      {leaveIn !== null && (
-        <span className={`font-bold ${leaveIn <= 1 ? 'text-rose-700' : 'text-green-blue-ink'}`}>
-          {leaveIn <= 1 ? 'Leave now' : `Leave in ${leaveIn} min`}
-        </span>
-      )}
-      <TrackingBadge bus={live} compact />
+      {live.monitored && <LiveSignal className="inline w-3 h-3 ml-1 -mt-1 text-green-blue" title="Live GPS" />}
     </span>
   );
 }
 
+// Door to door, big on the right: live when the next bus is GPS-tracked
 function TotalTime({ trip }: { trip: RankedTrip }) {
   const { option, live } = trip;
   if (live.status === 'not-running') {
-    return <div className="sm:row-span-3 text-right text-xs font-semibold text-warm-500 shrink-0">≈ {round(option.travelMin)} min<br />+ wait</div>;
+    return <div className="text-right text-xs font-semibold text-warm-500 shrink-0">≈ {round(option.travelMin)} min<br />+ wait</div>;
   }
-  const total = expectedTotalMin(option, live);
   return (
-    <div className="sm:row-span-3 text-right shrink-0">
-      <div className="text-lg font-black text-helvetia-950 leading-none">
-        {live.status === 'live' ? '' : '≈ '}
-        {round(total)} <span className="text-xs font-bold">min</span>
-      </div>
-      <div className="text-[11px] text-warm-500 mt-0.5">
-        {live.status === 'live' ? `arrive ~${clockIn(total)}` : 'incl. typical wait'}
-      </div>
+    <div className="text-right shrink-0 text-helvetia-950">
+      {live.status !== 'live' && <span className="text-sm font-bold mr-0.5">≈</span>}
+      <Minutes min={round(expectedTotalMin(option, live))} signal={live.status === 'live' && live.monitored ? 'live' : undefined} size="md" />
     </div>
+  );
+}
+
+// When you'd get there, on the right under the total
+function ArriveAt({ trip }: { trip: RankedTrip }) {
+  const { option, live } = trip;
+  if (live.status === 'not-running') return null;
+  return (
+    <span className="text-[11px] text-warm-600 text-right whitespace-nowrap">
+      {live.status === 'live' ? (
+        <>
+          Arrive <strong className="text-warm-900">{clockIn(expectedTotalMin(option, live))}</strong>
+        </>
+      ) : (
+        'incl. typical wait'
+      )}
+    </span>
   );
 }
 
@@ -346,34 +391,20 @@ export const TripPlannerCard: React.FC<TripPlannerCardProps> = ({
                     <button
                       onClick={() => onSelect(option)}
                       aria-pressed={selected}
-                      className="w-full text-left p-3 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1"
+                      className="w-full text-left p-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5"
                     >
-                      {/* Phones: the walk and live lines run full width under the buses and the total time */}
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {legs.map((leg, i) => (
-                          <React.Fragment key={i}>
-                            {i > 0 && <ArrowRight className="w-3.5 h-3.5 text-warm-400" />}
-                            <LegServices leg={leg} notDue={notDueAt(leg)} />
-                          </React.Fragment>
-                        ))}
-                        <span className="text-[11px] font-semibold text-warm-500 ml-1">
-                          {legs.length === 1 ? 'Direct' : `1 change at ${legs[1].board.name}`}
-                        </span>
-                      </div>
+                      {/* Citymapper's route row: the strip and the total, when to leave and when you'd arrive, and
+                          where to board */}
+                      <RouteStrip option={option} notDueAt={notDueAt} />
                       <TotalTime trip={trip} />
-                      <div className="max-sm:col-span-2 text-xs text-warm-600 flex flex-wrap items-center gap-x-1.5">
-                        <span className="inline-flex items-center gap-0.5">
-                          <Footprints className="w-3 h-3" /> {round(option.walkStartMin)} min
-                        </span>
-                        <span className="text-warm-300">·</span>
-                        <span>
-                          board at <strong className="text-warm-800">{legs[0].board.name}</strong>
-                        </span>
-                        <span className="text-warm-300">·</span>
-                        <span>{legs.reduce((n, l) => n + l.stopCount, 0)} stops</span>
-                      </div>
-                      <div className="max-sm:col-span-2 text-xs">
+                      <div className="text-xs min-w-0">
                         <LiveLine trip={trip} />
+                      </div>
+                      <span className="self-end"><ArriveAt trip={trip} /></span>
+                      <div className="col-span-2 text-[11px] text-warm-500">
+                        Board at <strong className="text-warm-800">{legs[0].board.name}</strong> ·{' '}
+                        {legs.reduce((n, l) => n + l.stopCount, 0)}&nbsp;stops ·{' '}
+                        {legs.length === 1 ? 'direct' : `change at ${legs[1].board.name}`}
                       </div>
                     </button>
                     {selected && isPhone && (

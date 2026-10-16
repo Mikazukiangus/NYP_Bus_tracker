@@ -16,6 +16,7 @@ interface LiveBusMapProps {
   incidents: TrafficIncident[]; // LTA traffic incidents near this route
   journey?: JourneyOverlay | null; // a planned trip to draw over the route
   alight?: AlightHint | null; // where to get off the tracked bus for the destination
+  etas?: { serviceNo: string; minutes: number[]; live: boolean } | null; // the tracked bus's next times at its stop
 }
 
 // OneMap: Singapore Land Authority's free official basemap (no key; attribution required)
@@ -46,8 +47,30 @@ const FLAG_SVG = flagSvg(14);
 const changeSvg = (size: number) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>`;
 
+// The live sign (see LiveSignal), for the bubble over the tracked stop
+const LIVE_SIGNAL_SVG =
+  '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="var(--color-green-blue)" stroke-width="3.5" stroke-linecap="round" style="display:inline;vertical-align:4px;margin-right:1px" aria-label="Live GPS"><circle cx="5" cy="19" r="2.75" fill="var(--color-green-blue)" stroke="none"/><path class="live-signal-arc1" d="M5 11.5a7.5 7.5 0 0 1 7.5 7.5"/><path class="live-signal-arc2" d="M5 4a15 15 0 0 1 15 15"/></svg>';
+
 const escapeHtml = (text: string) =>
   text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+type StopEtas = NonNullable<LiveBusMapProps['etas']>;
+// Citymapper's bubble over the stop: "72 · in 1, 9, 17 min" (the next one bigger), with the live sign for a
+// GPS-tracked bus; without the number where a trip's boarding pill already shows it
+const etaCalloutHtml = (etas: StopEtas, withBadge: boolean) => {
+  const times = etas.minutes.map((m, i) => (m <= 0 ? 'Arr' : i === 0 ? `<b style="font-size:14px;font-weight:900">${m}</b>` : String(m)));
+  const badge = withBadge
+    ? `<span style="background:var(--color-helvetia);color:white;font-weight:900;border-radius:9999px;padding:2px 8px;margin-left:-6px">${escapeHtml(etas.serviceNo)}</span>`
+    : '';
+  return `<span style="display:inline-flex;align-items:center;gap:6px">${badge}<span>${etas.live ? LIVE_SIGNAL_SVG : ''}in ${times.join(', ')} min</span></span>`;
+};
+const bindEtaCallout = (marker: L.Marker, etas: StopEtas, withBadge: boolean, markerSize: number) =>
+  marker.bindTooltip(etaCalloutHtml(etas, withBadge), {
+    permanent: true,
+    direction: 'top',
+    offset: [0, -markerSize / 2 - 2],
+    className: 'eta-callout',
+  });
 
 export const LiveBusMap: React.FC<LiveBusMapProps> = ({
   route,
@@ -60,6 +83,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
   incidents,
   journey = null,
   alight = null,
+  etas = null,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -78,6 +102,8 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
   const routeDir = direction === 2 && route.direction2 ? route.direction2 : route.direction1;
   const followsRoads = routeDir.pathSource === 'OPENSTREETMAP';
   const hasJourney = !!journey;
+  // Citymapper's bubble over the stop: "72 · in 1, 9, 17 min", with the live sign for a GPS-tracked bus
+  const etaKey = etas ? `${etas.serviceNo}|${etas.minutes.join(',')}|${etas.live}` : '';
   const alightStop = alight?.status === 'alight' ? alight : null;
   const nextBus = tripLegs(alight).next;
   useEffect(() => setShowStops(!hasJourney), [hasJourney]);
@@ -218,7 +244,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
           ? `Change here from Bus ${prev.serviceNo} to Bus ${leg.serviceNo}: ${leg.board.name} (${leg.board.code})`
           : `Board Bus ${leg.serviceNo} at ${leg.board.name} (${leg.board.code}) after changing`
         : `Board Bus ${leg.serviceNo} at ${leg.board.name} (${leg.board.code})`;
-      L.marker([leg.board.lat, leg.board.lng], {
+      const boardMarker = L.marker([leg.board.lat, leg.board.lng], {
         title,
         zIndexOffset: 1150,
         icon: L.divIcon({
@@ -237,6 +263,10 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
               <div class="text-warm-700">${escapeHtml(leg.board.name)} · ${leg.board.code}</div></div>`
         )
         .addTo(group);
+      // The tracked bus's next times over the stop where you board it
+      if (etas && leg.board.code === selectedStop.code && leg.serviceNo.toUpperCase() === etas.serviceNo.toUpperCase()) {
+        bindEtaCallout(boardMarker, etas, false, 24);
+      }
 
       // Getting off: skipped where the change pill already marks the stop
       const next = journey.legs[i + 1];
@@ -272,7 +302,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
     })
       .bindPopup(`<div class="font-sans text-xs"><div class="font-black text-helvetia-950 text-sm">Destination</div><div class="text-warm-700">${escapeHtml(journey.to.name)}</div></div>`)
       .addTo(group);
-  }, [journey]);
+  }, [journey, etaKey, selectedStop.code]); // (etaKey stands for etas)
 
   // Frame the whole trip when one is chosen
   useEffect(() => {
@@ -394,9 +424,12 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
         }
       });
 
+      if (isSelected && etas) bindEtaCallout(marker, etas, true, size);
+
       stopsGroup.addLayer(marker);
     });
-  }, [routeDir, nearestStop, selectedStop, showStops, onSelectStop, alightStop, nextBus]);
+    // (etaKey stands for etas, which is a new object on every render)
+  }, [routeDir, nearestStop, selectedStop, showStops, onSelectStop, alightStop, nextBus, etaKey]);
 
   // Update incoming bus markers from real LTA GPS positions
   useEffect(() => {
