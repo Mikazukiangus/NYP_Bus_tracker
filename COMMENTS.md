@@ -766,3 +766,17 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - **Tests**: 3 new tests in `tests/lta-pages.test.ts` (48 tests in all): a page that fails twice and then answers, a failing page after the end, and a page of data that keeps failing or a refused key, which still fail.
 
 ---
+
+### Turn 36: A Clean Build Log for the API Functions (16 October 2026)
+- **User Prompt**:
+  > *"every Vercel build log shows, once per serverless function in api/: `error TS2688: Cannot find type definition file for 'vite/client'.` The deployment still succeeds, but this noise hides real errors. Fix it so the api functions compile cleanly without losing Vite's types for src/."*
+- **Why it happened**: `tsconfig.json` listed `"vite/client"` in `compilerOptions.types`. Those are browser-only types for the Vite app (`import.meta.env`, `import './index.css'`). Vercel compiles each `api/*.ts` function with the same root config, so all five functions asked for them and got TS2688.
+- **Now**:
+  - `src/vite-env.d.ts` holds `/// <reference types="vite/client" />`, so only the app's own files bring in Vite's types.
+  - The root `tsconfig.json` has `"types": []`. No type library is forced on every file. The functions get Node's types through `express`, as before.
+- **Validation**:
+  - `npx tsc --noEmit -p .` passes. Without the new file, `src/main.tsx` fails on `import './index.css'` (TS2882), which shows `src/` still gets Vite's types from it.
+  - The five `api/*.ts` files type-check on their own (with only `src/types/weather.ts` pulled in), the way Vercel builds them.
+  - `npm test`: 48 tests pass. `npx vite build` works.
+
+---
