@@ -5,6 +5,8 @@ import { LiveSignal, Minutes } from './ArrivalBits';
 import { LeaveWithin, leaveLabel, walkMinutes } from '../services/leaveWithin';
 import { BUS_TYPE_NAME, BUS_TYPE_SHORT, BusTypeIcon } from './BusTypeIcon';
 import { ServiceChoice } from './ServiceChoice';
+import { GetOffAlarmSwitch } from './GetOffAlarm';
+import type { GetOffAlarm } from '../services/useGetOffAlarm';
 import { legStyle, tripLegs } from './tripLegs';
 
 interface ArrivalDisplayProps {
@@ -17,6 +19,7 @@ interface ArrivalDisplayProps {
   alight?: AlightHint | null; // where to get off for the destination in "Where to?"
   onTrackLeg?: (legIndex: number) => void; // switch to another bus of the trip
   onChooseService?: (legIndex: number, serviceNo: string) => void; // take another bus between the same stops
+  getOffAlarm?: GetOffAlarm; // the "Get off now" alarm for this ride, when it can be set
   // Phones, where this card also does the nearest-stop banner's job: how far the stop is, and saving it
   stopInfo?: { distanceM: number; isNearest: boolean; onShowNearest: () => void };
   leave?: LeaveWithin | null; // when to set off from where the trip starts to catch one of these buses
@@ -53,7 +56,8 @@ const AlightStrip: React.FC<{
   serviceNo: string;
   onTrackLeg?: (legIndex: number) => void;
   onChooseService?: (legIndex: number, serviceNo: string) => void;
-}> = ({ alight, serviceNo, onTrackLeg, onChooseService }) => {
+  getOffAlarm?: GetOffAlarm;
+}> = ({ alight, serviceNo, onTrackLeg, onChooseService, getOffAlarm }) => {
   if (alight.status === 'not-near') {
     return (
       <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 flex items-start gap-2.5 text-xs text-amber-900">
@@ -133,6 +137,7 @@ const AlightStrip: React.FC<{
               </span>
             </p>
           )}
+          {getOffAlarm && <GetOffAlarmSwitch alarm={getOffAlarm} serviceNo={serviceNo} stopName={stop.name} />}
         </div>
       </div>
       {onTrackLeg && next && trip && (
@@ -193,6 +198,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   alight = null,
   onTrackLeg,
   onChooseService,
+  getOffAlarm,
   stopInfo,
   leave = null,
   isFavorite = false,
@@ -435,7 +441,13 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
       {isLive && leave && leave.status !== 'at-stop' && <LeaveStrip leave={leave} />}
 
       {alight && (
-        <AlightStrip alight={alight} serviceNo={arrivals.serviceNo} onTrackLeg={onTrackLeg} onChooseService={onChooseService} />
+        <AlightStrip
+          alight={alight}
+          serviceNo={arrivals.serviceNo}
+          onTrackLeg={onTrackLeg}
+          onChooseService={onChooseService}
+          getOffAlarm={getOffAlarm}
+        />
       )}
 
       {/* Grid of 3 Arrival timings */}

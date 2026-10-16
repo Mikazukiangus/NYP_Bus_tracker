@@ -16,7 +16,8 @@ import type { WeatherSnapshot } from './types/weather';
 import {
   SINGAPORE_LOCATIONS,
   calculateDistanceMeters,
-  getOrCreateBusRoute
+  getOrCreateBusRoute,
+  POPULAR_ROUTES
 } from './data/singaporeBuses';
 import {
   findNearestBusStop,
@@ -55,6 +56,9 @@ import { useStopArrivals } from './services/useStopArrivals';
 import { useIsPhone } from './services/useIsPhone';
 import { useTextEntry } from './services/useTextEntry';
 import { loadSavedLocation, locationFromGps, saveUserLocation } from './services/userLocation';
+import { loadLastBusSearch, saveLastBusSearch } from './services/lastBusSearch';
+import { AlarmRide, useGetOffAlarm } from './services/useGetOffAlarm';
+import { GetOffBanner, alarmStatus } from './components/GetOffAlarm';
 import { Heart, AlertCircle } from 'lucide-react';
 
 const FAVORITES_STORAGE_KEY = 'sbs_transit_favorites_v1';
@@ -74,12 +78,17 @@ export default function App() {
   const userLocationRef = useRef(userLocation);
   userLocationRef.current = userLocation;
 
-  // Active Bus Service & Route (Default: 72, which stops at NYP on Ang Mo Kio Ave 8 / Ave 5).
-  // The bundled route is only an offline placeholder until the real LTA route loads.
-  const [busNumber, setBusNumber] = useState<string>('72');
+  // The bus number last looked up in "Find Bus Service" (kept for next time; none on a first visit). The app opens
+  // on that bus, or on a first visit on the first bus at the stop nearest the user (see below).
+  const [searchedBus, setSearchedBus] = useState<string>(() => loadLastBusSearch() ?? '');
   const [direction, setDirection] = useState<number>(1);
-  const [currentRoute, setCurrentRoute] = useState<BusRoute>(() => getOrCreateBusRoute('72'));
-  const [isRouteLoading, setIsRouteLoading] = useState(false);
+  // Active bus service and route. A bundled route is only a placeholder until the real LTA route loads (Bus 72,
+  // which stops at NYP, when there's none for that bus, or while a first visit waits for the nearest stop's buses).
+  const [currentRoute, setCurrentRoute] = useState<BusRoute>(() =>
+    getOrCreateBusRoute(POPULAR_ROUTES[searchedBus] ? searchedBus : '72')
+  );
+  const [isRouteLoading, setIsRouteLoading] = useState(true);
+  const busChosen = useRef(false); // a bus has been chosen (at startup, by the user or by a trip)
   const [routeNotice, setRouteNotice] = useState<string | null>(null);
   const routeRequestId = useRef(0);
   const currentRouteRef = useRef(currentRoute);
@@ -105,7 +114,8 @@ export default function App() {
 
   // Load a service's real stop sequence from LTA DataMall, falling back to bundled data if offline
   const loadRoute = useCallback(
-    async (serviceNo: string, opts: { direction?: number; stopCode?: string } = {}) => {
+    async (serviceNo: string, opts: { direction?: number; stopCode?: string; remember?: boolean } = {}) => {
+      busChosen.current = true;
       const requestId = ++routeRequestId.current;
       setIsRouteLoading(true);
       const result = await fetchBusRoute(serviceNo);
@@ -126,7 +136,11 @@ export default function App() {
       );
       const loc = userLocationRef.current;
       setCurrentRoute(route);
-      setBusNumber(route.serviceNo);
+      // A bus number searched for is the one the app opens on next time
+      if (opts.remember) {
+        setSearchedBus(route.serviceNo);
+        saveLastBusSearch(route.serviceNo);
+      }
       setDirection(
         opts.direction ??
           (opts.stopCode ? pickDirectionForStop(route, opts.stopCode) : undefined) ??
@@ -142,10 +156,6 @@ export default function App() {
     },
     []
   );
-
-  useEffect(() => {
-    loadRoute('72');
-  }, [loadRoute]);
 
   const routeDir = useMemo(() => {
     return direction === 2 && currentRoute.direction2 ? currentRoute.direction2 : currentRoute.direction1;
@@ -211,6 +221,19 @@ export default function App() {
       network ? nearestStops(network, userLocation.lat, userLocation.lng) : networkStatus === 'loading' ? null : undefined,
     [network, networkStatus, userLocation.lat, userLocation.lng]
   );
+
+  // Open on the bus last searched for; on a first visit, on the first bus at the stop nearest the user once the bus
+  // network has loaded (or Bus 72, NYP's, if it can't load). Not once a bus has been chosen some other way.
+  useEffect(() => {
+    if (busChosen.current) return;
+    if (searchedBus) loadRoute(searchedBus);
+    else if (nearbyStops !== null) {
+      const nearest = nearbyStops?.find((n) => n.services.length);
+      const svc = nearest?.services[0];
+      if (nearest && svc) loadRoute(svc.serviceNo, { direction: svc.direction, stopCode: nearest.stop.code });
+      else loadRoute('72');
+    }
+  }, [searchedBus, nearbyStops, loadRoute]);
 
   // Places chosen recently as a start or destination
   const [recentPlaces, setRecentPlaces] = useState<PlaceResult[]>(() => loadRecentPlaces());
@@ -367,7 +390,7 @@ export default function App() {
   // Choosing a bus some other way (search, nearby, favourites...) leaves the trip list and drops the chosen
   // trip; a suggested trip that uses that bus from that stop is still shown
   const trackService = useCallback(
-    (serviceNo: string, opts: { direction?: number; stopCode?: string } = {}) => {
+    (serviceNo: string, opts: { direction?: number; stopCode?: string; remember?: boolean } = {}) => {
       setSelectedTripId(null);
       loadRoute(serviceNo, opts);
     },
@@ -559,6 +582,30 @@ export default function App() {
     return null;
   }, [network, destination, currentRoute.serviceNo, direction, routeDir, selectedStop.code, selectedTrip, tripView]);
 
+  // The ride the "Get off now" alarm follows: the tracked bus, from its stop to the one to get off at
+  const alarmRide = useMemo<AlarmRide | null>(() => {
+    if (alightHint?.status !== 'alight') return null;
+    let stops = alightHint.trip?.legs[alightHint.trip.legIndex].stops;
+    if (!stops) {
+      const from = routeDir.stops.findIndex((s) => s.code === selectedStop.code);
+      const to = routeDir.stops.findIndex((s, i) => i > from && s.code === alightHint.stop.code);
+      if (from < 0 || to < 0) return null;
+      stops = routeDir.stops.slice(from, to + 1).map(stopRef);
+    }
+    if (stops.length < 2) return null;
+    const svc = currentRoute.serviceNo;
+    return { key: `${svc}|${stops[0].code}|${stops[stops.length - 1].code}`, serviceNo: svc, stops };
+  }, [alightHint, routeDir, selectedStop.code, currentRoute.serviceNo]);
+  const getOffAlarm = useGetOffAlarm(alarmRide);
+
+  // What comes after getting off, for the alarm's bubble
+  const afterGetOff = useMemo(() => {
+    if (alightHint?.status !== 'alight') return undefined;
+    const next = alightHint.trip?.legs[alightHint.trip.legIndex + 1];
+    if (next) return `then Bus ${next.serviceNo} from ${alightHint.walkM > 0 ? next.board.name : 'the same stop'}`;
+    return `then ~${Math.max(1, Math.round(alightHint.walkMin))} min walk to ${alightHint.destinationName}`;
+  }, [alightHint]);
+
   const showTripOnMap = useCallback(() => {
     setActiveTab('map');
     // After the map tab renders
@@ -745,7 +792,7 @@ export default function App() {
 
   // Handle bus number search submission
   const handleSearchBus = (num: string) => {
-    trackService(num);
+    trackService(num, { remember: true });
   };
 
   const handleSelectStopService = (nearby: NearbyStop, svc: StopService) => {
@@ -896,6 +943,7 @@ export default function App() {
         alight={alightHint}
         onTrackLeg={trackTripLegAt}
         onChooseService={chooseTripServiceAt}
+        getOffAlarm={alarmRide && getOffAlarm.supported ? getOffAlarm : undefined}
         leave={leave}
         {...(isPhone
           ? {
@@ -982,7 +1030,7 @@ export default function App() {
         {/* Bus Search Box & Direction Selector */}
         {showTripInputs && (
           <BusSearchBox
-            busNumber={busNumber}
+            busNumber={searchedBus}
             onSearch={handleSearchBus}
             currentRoute={currentRoute}
             direction={direction}
@@ -1182,6 +1230,11 @@ export default function App() {
               dataSource={dataSource}
               alight={alightHint}
               leave={leave}
+              alarmLine={
+                getOffAlarm.on && alarmRide
+                  ? alarmStatus(getOffAlarm, alarmRide.serviceNo, alarmRide.stops[alarmRide.stops.length - 1].name, true)
+                  : null
+              }
               targetId={ARRIVALS_CARD_ID}
               watchKey={activeTab}
               onOpen={showArrivalsCard}
@@ -1209,6 +1262,16 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* The get-off alarm going off */}
+      {getOffAlarm.alert && alarmRide && (
+        <GetOffBanner
+          alert={getOffAlarm.alert}
+          stop={alarmRide.stops[alarmRide.stops.length - 1]}
+          then={afterGetOff}
+          onDismiss={getOffAlarm.dismiss}
+        />
+      )}
 
       {/* Modals */}
       <FavoritesModal

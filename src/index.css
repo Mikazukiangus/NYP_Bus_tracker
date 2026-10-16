@@ -113,9 +113,25 @@
 .live-signal-arc2 {
   animation: liveArc 1.8s ease-in-out 0.3s infinite;
 }
+/* The alarm clock in the "Get off now" bubble shakes like a ringing alarm */
+@keyframes alarmRing {
+  0%, 50%, 100% {
+    transform: rotate(0);
+  }
+  10%, 30% {
+    transform: rotate(-14deg);
+  }
+  20%, 40% {
+    transform: rotate(14deg);
+  }
+}
+.alarm-ring {
+  animation: alarmRing 1.2s ease-in-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
   .live-signal-arc1,
-  .live-signal-arc2 {
+  .live-signal-arc2,
+  .alarm-ring {
     animation: none;
   }
 }

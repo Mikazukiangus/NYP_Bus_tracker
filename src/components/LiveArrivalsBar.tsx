@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useState } from 'react';
-import { ChevronUp } from 'lucide-react';
+import { BellRing, ChevronUp } from 'lucide-react';
 import { AlightHint, ArrivalDataSource, BusServiceArrivals, BusStop } from '../types/bus';
 import { LeaveWithin, leaveLabel } from '../services/leaveWithin';
 import { BOTTOM_BAR_HEIGHT } from './AppTabs';
@@ -11,6 +11,7 @@ interface LiveArrivalsBarProps {
   dataSource: ArrivalDataSource;
   alight?: AlightHint | null;
   leave?: LeaveWithin | null; // when to set off to catch one of these buses
+  alarmLine?: string | null; // while the get-off alarm is on: how it's going, in place of the bus's status
   targetId: string; // the element holding the full arrivals card, when the tab has one
   watchKey: string; // changes when that element is swapped (e.g. the tab), to watch the new one
   onOpen: () => void; // show the full arrivals card
@@ -21,7 +22,17 @@ const VISIBLE_SHARE = 0.35;
 
 // Phones: the tracked bus's next arrivals pinned above the tab bar, on tabs without the arrivals card and while
 // the card is scrolled away. Tapping it shows the card.
-export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({ arrivals, stop, dataSource, alight, leave, targetId, watchKey, onOpen }) => {
+export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({
+  arrivals,
+  stop,
+  dataSource,
+  alight,
+  leave,
+  alarmLine,
+  targetId,
+  watchKey,
+  onOpen,
+}) => {
   const [hasCard, setHasCard] = useState(false);
   const [cardOnScreen, setCardOnScreen] = useState(true);
 
@@ -76,10 +87,17 @@ export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({ arrivals, stop
         </span>
         <span className="min-w-0 flex-1 text-[11px] leading-snug">
           <span className="block font-semibold truncate">at {stop.name}</span>
-          <span className={`block truncate ${leave?.status === 'leave' && isLive ? 'text-lemon font-bold' : 'text-helvetia-200'}`}>
-            {status}
-            {offAt}
-          </span>
+          {alarmLine ? (
+            <span className="flex items-center gap-1 text-lemon font-bold min-w-0">
+              <BellRing className="w-3 h-3 shrink-0" aria-label="Get-off alarm" />
+              <span className="truncate">{alarmLine}</span>
+            </span>
+          ) : (
+            <span className={`block truncate ${leave?.status === 'leave' && isLive ? 'text-lemon font-bold' : 'text-helvetia-200'}`}>
+              {status}
+              {offAt}
+            </span>
+          )}
         </span>
         <span className="text-right shrink-0 leading-tight">
           {arrivals.nextBus ? (

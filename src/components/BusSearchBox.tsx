@@ -4,7 +4,7 @@ import { BusRoute } from '../types/bus';
 import type { NearbyStop, StopService } from '../services/busNetwork';
 
 interface BusSearchBoxProps {
-  busNumber: string;
+  busNumber: string; // the bus number last searched for ('' if none yet), not the tracked bus
   onSearch: (busNo: string) => void;
   currentRoute: BusRoute;
   direction: number;
@@ -44,7 +44,7 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
   // A new location starts with just the nearest few stops again
   useEffect(() => setShowAllStops(false), [nearbyStops?.[0]?.stop.code]);
 
-  // Keep the input in sync when the service changes elsewhere (e.g. a favourite is opened)
+  // Show the number as LTA writes it once it's found (72a as 72A)
   useEffect(() => {
     setInputVal(busNumber);
   }, [busNumber]);
@@ -121,7 +121,7 @@ export const BusSearchBox: React.FC<BusSearchBoxProps> = ({
             type="text"
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
-            placeholder="e.g. 72"
+            placeholder="Type a bus number"
             enterKeyHint="search"
             className="w-full pl-11 pr-24 py-3 bg-warm-50 border border-warm-300 rounded-xl text-base sm:text-lg font-bold text-warm-900 placeholder:text-warm-500 placeholder:font-normal focus:bg-white focus:outline-none focus:ring-2 focus:ring-helvetia focus:border-transparent transition-all"
             autoComplete="off"

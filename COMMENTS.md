@@ -654,3 +654,39 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - In the browser, on a phone, NYP to Tampines Bus Interchange: the trip row, the arrivals card and the next-bus bar showed "Leave now" and then "Leave within 6 min" together across several refreshes. After a swap to start at Tampines Bus Interchange (at the stop), none of the three showed a leave time.
 
 ---
+
+### Turn 33: "Get Off Now" Alarm, and No Default Bus 72 (16 October 2026)
+- **User Prompt**:
+  > *"Add the "Get off now" alarm like Citymapper as an option and also under the "find a bus service" don't automatically put "72" as the default bus number, and maybe let it be the last bus number search instead."*
+- **Get-off alarm** (opt in, Citymapper style):
+  - A **Get-off alarm** switch sits in the "Get off at…" box of the arrivals card. That box shows whenever a destination is set in "Where to?".
+  - While the alarm is on, it follows the phone's GPS along the ride, from the boarding stop to the stop to get off at:
+    - Its status reads "finding you", then "starts once you're on Bus 72", then "N stops to go".
+    - On phones, the next-bus bar shows the same progress, e.g. "Opp Hougang Ctrl Int is next: ring the bell".
+  - **Two alerts**, each with a vibration and rising beeps:
+    - **"Your stop is next"** (a Helvetia blue bubble) comes as the bus reaches or leaves the stop before yours. Buses here only stop if someone rings the bell, so this is the moment to ring it.
+    - **"Get off now"** (a lemon bubble) comes within 250 m of your stop. Both bubbles have a shaking alarm clock and say what comes next ("then ~2 min walk to…" or "then Bus 190 from…").
+  - "Get off now" only comes once the bus has left the stop before yours. Where two stops are close together, nobody is told to get off a stop early.
+  - The alarm turns itself off once it has gone off, or when you track a different bus or ride.
+  - It keeps the screen on (Wake Lock) while set. A web page can't run in the background, so the page has to stay open; the switch says so.
+  - If location is blocked, the switch explains how to allow it.
+  - GPS fixes coarser than 150 m are ignored. On a route that loops back past where you got on, the alarm never jumps ahead to the end of the loop.
+  - New files:
+    - `src/services/getOffAlarm.ts`: `rideProgress`, which places a GPS fix along the ride's stops (pure, tested).
+    - `src/services/useGetOffAlarm.ts`: the GPS watch, the alerts and the wake lock.
+    - `src/components/GetOffAlarm.tsx`: the switch, the status wording and the alert bubble.
+- **No default Bus 72**:
+  - The "Find Bus Service" box no longer starts with 72. Its field shows the bus number you last searched for, remembered in this browser (`src/services/lastBusSearch.ts`). The app opens on that bus.
+  - Picking a bus another way (a nearby stop's button, a favourite, a trip) doesn't replace the remembered search.
+  - On a first visit the field is empty ("Type a bus number"). The app opens on the first bus at the stop nearest you, e.g. Bus 3 at Opp Century Sq from Tampines Mall. At NYP that is still Bus 72, because 72 is the first bus at Nanyang Poly (55329). Bus 72 is only the fallback when the bus network can't load.
+  - The seeded favourite (Bus 72 at Nanyang Poly) is unchanged.
+- **Validation**:
+  - TypeScript, the app build and 43 tests pass. There are 4 new tests: the alarm's stages, close stops, a looping route, and remembering the last search.
+  - In the browser with the local LTA stub, first visit at NYP: the field was empty and the bus was 72 from the nearest stop. From Tampines Mall it was Bus 3 from Opp Century Sq.
+  - Searching 190 remembered it. Tapping a nearby stop's 15 did not replace it. After a reload, the app opened on Bus 190 with "190" in the field.
+  - With simulated GPS along Bus 72's real stops, NYP to Hougang Ctrl Int, the status went "starts once you're on Bus 72" → "18 stops to go" → "12 stops to go" → "2 stops to go". A 400 m-accuracy fix was ignored.
+  - "Your stop is next" (short buzz) came at Blk 830A, and "Get off now" (long buzz) came 45 m before Opp Hougang Ctrl Int. The GPS watch then stopped.
+  - Location blocked showed the explanation. Switching to the 72A turned the alarm off.
+  - Checked on a phone (375 px) and on desktop (bubble top right). There were no new console errors.
+
+---

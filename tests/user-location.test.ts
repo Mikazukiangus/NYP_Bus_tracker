@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { LOCATION_STORAGE_KEY, loadSavedLocation, locationFromGps, saveUserLocation } from '../src/services/userLocation';
+import { loadLastBusSearch, saveLastBusSearch } from '../src/services/lastBusSearch';
 
 const orchard = { name: 'Orchard Rd', lat: 1.3018, lng: 103.8362, isSimulated: true };
 
@@ -31,4 +32,19 @@ test('GPS fixes must be in Singapore, with usable accuracy retained', () => {
   assert.deepEqual(locationFromGps({ latitude: 1.3698, longitude: 103.8496, accuracy: 12.4 }), {
     name: 'My Device GPS Location', lat: 1.3698, lng: 103.8496, isSimulated: false, accuracyMeters: 12,
   });
+});
+
+test('the app opens on the bus last searched for, and on none the first time', () => {
+  let saved: string | null = null;
+  const storage = { setItem: (_: string, v: string) => { saved = v; }, getItem: () => saved };
+  assert.equal(loadLastBusSearch(storage), null);
+  saveLastBusSearch(' 190 ', storage);
+  assert.equal(loadLastBusSearch(storage), '190');
+  saveLastBusSearch('72a', storage);
+  assert.equal(loadLastBusSearch(storage), '72A');
+  saveLastBusSearch('not a bus', storage); // ignored
+  assert.equal(loadLastBusSearch(storage), '72A');
+  saved = '<script>';
+  assert.equal(loadLastBusSearch(storage), null);
+  assert.equal(loadLastBusSearch({ getItem: () => { throw new Error('blocked'); } }), null);
 });
