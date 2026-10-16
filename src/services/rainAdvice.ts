@@ -1,5 +1,6 @@
 import type { RainNowcast, Tone } from '../types/weather';
 import { isWetForecast } from './neaWeather';
+import { firstCatchable } from './leaveWithin';
 
 // Whether to leave now, wait or take an umbrella, from the rain around you (rainNowcast), NEA's 2-hour forecast,
 // lightning, and how long until you're at the stop and at your destination. The odds in the wording come from
@@ -147,7 +148,8 @@ function hereAdvice(input: RainAdviceInput): Omit<RainAdvice, 'cause'> | null {
       }
       // Leaving now gets you to the stop (usually sheltered) before the rain, with a couple of minutes to spare
       if (walkMin + 2 <= here.etaMin[0]) {
-        const bus = busMin.find((m) => m >= walkMin);
+        // The bus you can catch, by the same rule as the arrivals card's "Leave within"
+        const bus = firstCatchable(walkMin, busMin.map((m) => ({ estimatedMinutes: m })))?.estimatedMinutes;
         return {
           action: 'leave-now',
           tone,

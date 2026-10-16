@@ -34,7 +34,7 @@ import { useStopsArrivals } from './services/useStopsArrivals';
 import { fetchWeatherSnapshot, forecastAt, formatSgTime, summarizeWeather } from './services/neaWeather';
 import { rainNowcast } from './services/rainNowcast';
 import { RainAdviceInput, rainAdvice } from './services/rainAdvice';
-import { leaveWithin, walkMinutes } from './services/leaveWithin';
+import { firstCatchable, leaveWithin, walkMinutes } from './services/leaveWithin';
 import { Header } from './components/Header';
 import { BusSearchBox } from './components/BusSearchBox';
 import { NearestStopBanner } from './components/NearestStopBanner';
@@ -165,6 +165,10 @@ export default function App() {
     [routeDir, selectedStopCode, nearestStop]
   );
 
+  // Real-time Bus Arrival Timings for active selected stop
+  const { services: stopServices, dataSource, lastUpdated, isRefreshing, secondsUntilRefresh, refresh: handleRefresh } =
+    useStopArrivals(selectedStop.code);
+
   const handleSelectStop = useCallback((stop: BusStop) => {
     setSelectedStopCode(stop.code);
   }, []);
@@ -242,18 +246,21 @@ export default function App() {
     [tripArrivals]
   );
 
-  // Ranked by door-to-door time using live waits where known; options with no bus due go last
+  // Ranked by door-to-door time using live waits where known; options with no bus due go last. A trip from the
+  // tracked stop uses the arrivals card's own (more often refreshed) times, so the two give the same leave time.
   const rankedTrips = useMemo<RankedTrip[]>(() => {
     if (!tripPlan) return [];
+    const arrivalsAt = (code: string) =>
+      code === selectedStop.code && dataSource === 'LTA_DATAMALL_V3' && stopServices ? stopServices : tripArrivals[code];
     const ranked = tripPlan.options.map((option) => ({
       option,
-      live: liveDeparture(option, tripArrivals[option.legs[0].board.code]),
+      live: liveDeparture(option, arrivalsAt(option.legs[0].board.code)),
     }));
     return ranked.sort((a, b) => {
       const diff = tripScore(a.option, a.live) - tripScore(b.option, b.live);
       return Number.isNaN(diff) ? 0 : diff;
     });
-  }, [tripPlan, tripArrivals]);
+  }, [tripPlan, tripArrivals, selectedStop.code, dataSource, stopServices]);
 
   // Which leg of a trip the tracked bus is, from the tracked stop (-1 if it isn't part of that trip)
   const legOfTrackedBus = useCallback(
@@ -558,10 +565,6 @@ export default function App() {
     setTimeout(() => document.getElementById('trip-map')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   }, []);
 
-  // Real-time Bus Arrival Timings for active selected stop
-  const { services: stopServices, dataSource, lastUpdated, isRefreshing, secondsUntilRefresh, refresh: handleRefresh } =
-    useStopArrivals(selectedStop.code);
-
   // Route labels and arrival data always describe the current stop/service, including during loading.
   const arrivals = useMemo<BusServiceArrivals>(() => {
     const service = stopServices?.find((item) => item.serviceNo.toUpperCase() === currentRoute.serviceNo.toUpperCase());
@@ -778,16 +781,20 @@ export default function App() {
   };
 
   const selectedStopDistance = stopsWithDistance.find((s) => s.code === selectedStop.code)?.distanceMeters ?? distanceMeters;
+  // The walk to the tracked stop: when the trip shown boards there, the trip's own figure (its stop positions can
+  // differ by a metre), so the card and the trip work from the same walk
+  const walkToStopM =
+    selectedTrip && selectedTrip.legs[0].board.code === selectedStop.code ? selectedTrip.walkStartM : selectedStopDistance;
   const isLiveFeed = dataSource === 'LTA_DATAMALL_V3';
 
   // Citymapper's "Leave within": how long before walking from where the trip starts to the tracked stop, to catch
   // one of its next buses (only when the stop is a walk away)
   const leave = useMemo(
     () =>
-      isLiveFeed && selectedStopDistance <= WALKABLE_STOP_M
-        ? leaveWithin(selectedStopDistance, [arrivals.nextBus, arrivals.nextBus2, arrivals.nextBus3])
+      isLiveFeed && walkToStopM <= WALKABLE_STOP_M
+        ? leaveWithin(walkToStopM, [arrivals.nextBus, arrivals.nextBus2, arrivals.nextBus3])
         : null,
-    [isLiveFeed, selectedStopDistance, arrivals]
+    [isLiveFeed, walkToStopM, arrivals]
   );
 
   // The tracked bus's next times, for the bubble over its stop on the map
@@ -809,15 +816,16 @@ export default function App() {
     if (!weatherSnapshot || !weather) return null;
     // The walk to the tracked bus's stop; if that stop is too far from where the trip starts to walk to (a bus
     // tracked elsewhere), the walk to the nearest stop there, without bus times
-    const walkable = selectedStopDistance <= WALKABLE_STOP_M;
+    const walkable = walkToStopM <= WALKABLE_STOP_M;
     const nearest = nearbyStops?.[0];
-    const walkM = walkable ? selectedStopDistance : nearest && nearest.distanceM <= WALKABLE_STOP_M ? nearest.distanceM : undefined;
-    // Within 50 m you're at the stop; otherwise at least a minute's walk at 80 m a minute
+    const walkM = walkable ? walkToStopM : nearest && nearest.distanceM <= WALKABLE_STOP_M ? nearest.distanceM : undefined;
+    // Within 50 m you're at the stop; otherwise at least a minute's walk (the same walk as "Leave within")
     const walkMin = walkM === undefined ? undefined : walkMinutes(walkM);
     const busMin = walkable
       ? [arrivals.nextBus, arrivals.nextBus2, arrivals.nextBus3].flatMap((b) => (b ? [Math.max(0, b.estimatedMinutes)] : []))
       : [];
-    const boardIn = Math.max(walkMin ?? 0, busMin.find((m) => m >= (walkMin ?? 0)) ?? 0);
+    const caught = firstCatchable(walkMin ?? 0, busMin.map((m) => ({ estimatedMinutes: m })));
+    const boardIn = Math.max(walkMin ?? 0, caught?.estimatedMinutes ?? 0);
 
     // When the bus gets to the stop for the destination, and the walk from there
     let end: { arriveInMin: number; walkMin: number } | null = null;
@@ -855,7 +863,7 @@ export default function App() {
       busMin,
       destination: atDestination,
     });
-  }, [weatherSnapshot, weather, selectedStopDistance, nearbyStops, arrivals, destination, alightHint, selectedTrip, tripView, userLocation]);
+  }, [weatherSnapshot, weather, walkToStopM, nearbyStops, arrivals, destination, alightHint, selectedTrip, tripView, userLocation]);
 
   // The advice is for where the trip starts (the From row: GPS or a chosen place), so it says so
   const fromPlace = userLocation.name.split('(')[0].trim();

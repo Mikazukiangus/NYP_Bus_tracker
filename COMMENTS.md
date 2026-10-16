@@ -632,3 +632,25 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
     - No console errors.
 
 ---
+
+### Turn 32: One Leave Time for the Trip and the Arrivals Card (16 October 2026)
+- **User Prompt**:
+  > *"Make the trip planner and arrivals card leave times match"*
+- **Why they differed**:
+  1. **Walking model**: the arrivals card used the straight line at 80 m a minute, while the trip planner added 30% for the real route. At 220 m that's ~3 min against ~4 min.
+  2. **Rules**: each rounded differently and had its own "can I still catch it" check. The trip planner also had no "you're at the stop". From a place 40 m from Tampines Int, the trip said "Leave within 12 min" while the next-bus bar said nothing. The rain advice had a third rule, with no minute's slack.
+  3. **Data**: the card's arrivals refresh every 15 s, while the trip list fetched its own copy every 30 s. The two could be up to a refresh apart.
+  4. **Distance**: the trip planner's stop positions are rounded to about a metre, so its walk could differ slightly from the card's.
+- **Now**: `src/services/leaveWithin.ts` holds the one walking model and the one rule.
+  - The walking model is the straight line +30% at 80 m a minute (`walkMinutesFor`, `walkMinutes`). Within 50 m counts as being at the stop.
+  - The catch rule (`firstCatchable`) takes the first bus due no earlier than the walk minus a minute.
+  - `leaveWithin` gives the time to spare, and `leaveLabel` gives the words: "Leave now" with a minute or less, otherwise "Leave within N min".
+  - Everything that shows a walk or a leave time uses these. That covers the trip planner (`liveDeparture` now carries `leave`), the arrivals card, the next-bus bar, the rain advice's "the next Bus 72 you can catch", and the "~N min walk" in the arrivals card and the nearest-stop banner.
+  - A trip from the tracked stop uses the arrivals card's own times. The card uses the trip's walk when the trip boards at the tracked stop.
+- **Still different on purpose**: a trip can be caught by any of the buses that run between the same stops (e.g. 159 or 159A), but the arrivals card is for the tracked bus only. When the first bus you can catch is a different one, the trip row names it: "Leave within 2 min for the 159A".
+- **Validation**:
+  - TypeScript, the app build and 39 tests pass.
+  - A new test plans trips from 0 to ~850 m away against five sets of bus times. In every case the trip's walk and leave time equal the arrivals card's.
+  - In the browser, on a phone, NYP to Tampines Bus Interchange: the trip row, the arrivals card and the next-bus bar showed "Leave now" and then "Leave within 6 min" together across several refreshes. After a swap to start at Tampines Bus Interchange (at the stop), none of the three showed a leave time.
+
+---

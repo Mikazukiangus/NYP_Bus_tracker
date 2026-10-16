@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { RefreshCw, Accessibility, Info, Clock, CalendarClock, ChevronDown, Flag, ArrowLeftRight, ChevronRight, ChevronLeft, Heart, Footprints } from 'lucide-react';
 import { AlightHint, ArrivalDataSource, BusArrivalInfo, BusLoad, BusServiceArrivals, BusStop, FirstLastTimes } from '../types/bus';
 import { LiveSignal, Minutes } from './ArrivalBits';
-import type { LeaveWithin } from '../services/leaveWithin';
+import { LeaveWithin, leaveLabel, walkMinutes } from '../services/leaveWithin';
 import { BUS_TYPE_NAME, BUS_TYPE_SHORT, BusTypeIcon } from './BusTypeIcon';
 import { ServiceChoice } from './ServiceChoice';
 import { legStyle, tripLegs } from './tripLegs';
@@ -154,7 +154,8 @@ const clockIn = (minutes: number) =>
 
 // Citymapper's summary band: how long you have before walking to the stop to catch one of the buses below
 const LeaveStrip: React.FC<{ leave: Exclude<LeaveWithin, { status: 'at-stop' }> }> = ({ leave }) => {
-  const now = leave.status === 'leave' && leave.inMin <= 1;
+  const label = leaveLabel(leave);
+  const now = label === 'Leave now';
   return (
     <div
       className={`mt-3 rounded-xl border px-3 py-2 flex items-center gap-2.5 ${
@@ -167,7 +168,7 @@ const LeaveStrip: React.FC<{ leave: Exclude<LeaveWithin, { status: 'at-stop' }> 
       {leave.status === 'leave' ? (
         <p className="min-w-0 text-xs text-warm-600 leading-snug">
           <strong className="block text-sm font-black text-helvetia-950">
-            {now ? 'Leave now' : `Leave within ${leave.inMin}\u00a0min`}
+            {label}
           </strong>
           {now ? '' : `By ${clockIn(leave.inMin)} · `}~{leave.walkMin}&nbsp;min walk for the bus due in {leave.busMin}&nbsp;min
           {leave.monitored && <LiveSignal className="inline w-3 h-3 ml-1 -mt-1 text-green-blue" title="Live GPS" />}
@@ -346,7 +347,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
                     {stopInfo.isNearest ? <strong className="text-warm-800">★ Nearest stop</strong> : 'Not your nearest stop'}
                     {' · '}
                     {formatMetres(stopInfo.distanceM)}
-                    {!leave && <>, ~{Math.max(1, Math.round(stopInfo.distanceM / 80))}&nbsp;min walk</>}
+                    {!leave && <>, ~{Math.max(1, walkMinutes(stopInfo.distanceM))}&nbsp;min walk</>}
                     {!stopInfo.isNearest && (
                       <>
                         {' · '}

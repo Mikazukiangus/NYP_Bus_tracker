@@ -5,6 +5,8 @@ import type { StopServiceArrivals } from '../src/types/bus';
 import { buildBusNetwork, nearestStops, searchStops } from '../src/services/busNetwork';
 import { alightFor, expectedTotalMin, legServiceNos, liveDeparture, planTrips, withServices } from '../src/services/tripPlanner';
 import { addRecentPlace, loadRecentPlaces, parseOneMapResults, titleCase } from '../src/services/placeSearch';
+import { leaveWithin, walkMinutes } from '../src/services/leaveWithin';
+import { calculateDistanceMeters } from '../src/data/singaporeBuses';
 
 // A small made-up network: an east-west line A-F along lat 1.30 (~550 m apart) served by 10 and 10A,
 // and a north-south line from D up to J served by 20. Getting from A to J needs a change at D.
@@ -158,10 +160,38 @@ test('live departures pick the first bus you can still catch, across merged serv
   ]);
   assert.ok(Math.abs(expectedTotalMin(option, live) - (option.travelMin + 5 - option.walkStartMin)) < 1e-9);
 
+  // The leave time is the arrivals card's: Bus 10 in 5 min, ~3 min walk
+  assert.deepEqual(live.leave, { status: 'leave', inMin: 2, walkMin: 3, busMin: 5, monitored: true });
+
   assert.equal(liveDeparture(option, undefined).status, 'loading');
   assert.equal(liveDeparture(option, null).status, 'unavailable');
   assert.equal(liveDeparture(option, [{ ...arrivals[0], serviceNo: '99' }]).status, 'not-running');
   assert.equal(expectedTotalMin(option, { status: 'not-running' }), Infinity);
+});
+
+test('a trip and the arrivals card for its bus give the same walk and leave time, at any distance', () => {
+  const bus = (estimatedMinutes: number) => ({
+    estimatedMinutes, load: 'SEA' as const, type: 'SD' as const, feature: '' as const, monitored: true,
+  });
+  const busSets = [[1, 9, 17], [2, 9, 16], [0, 3, 6], [4, 11, 30], [12, 20, 28]];
+  let compared = 0;
+  for (let k = 0; k <= 30; k++) {
+    const from = { lat: LAT + 0.00004 * k, lng: lng(0) - 0.00025 * k }; // 0 to ~850 m from Stop A
+    const option = planTrips(net, from, at('10004')).options.find((o) => o.legs[0].board.code === '10001');
+    if (!option) continue;
+    // The card measures from the same place to the same stop
+    const cardWalkM = calculateDistanceMeters(from.lat, from.lng, at('10001').lat, at('10001').lng);
+    assert.equal(Math.max(1, Math.round(option.walkStartMin)), Math.max(1, walkMinutes(cardWalkM)), `walk at ${cardWalkM} m`);
+    for (const times of busSets) {
+      const [b1, b2, b3] = times.map(bus);
+      const arrivals: StopServiceArrivals[] = [{ serviceNo: '10', operator: 'SBST', nextBus: b1, nextBus2: b2, nextBus3: b3 }];
+      const live = liveDeparture(option, arrivals);
+      assert.ok(live.status === 'live');
+      assert.deepEqual(live.leave, leaveWithin(cardWalkM, [b1, b2, b3]), `${cardWalkM} m, buses in ${times.join(', ')} min`);
+      compared++;
+    }
+  }
+  assert.ok(compared >= 50, `${compared} cases compared`);
 });
 
 test('OneMap names are title-cased, de-duplicated and ranked by how well they match', () => {

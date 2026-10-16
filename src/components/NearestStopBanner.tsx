@@ -1,6 +1,7 @@
 import React from 'react';
 import { MapPin, Navigation, Heart, Map as MapIcon, ChevronRight } from 'lucide-react';
 import { BusStop, UserLocation } from '../types/bus';
+import { walkMinutes } from '../services/leaveWithin';
 
 interface NearestStopBannerProps {
   nearestStop: BusStop;
@@ -27,9 +28,9 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
 }) => {
   const isCurrentlySelected = selectedStop.code === nearestStop.code;
 
-  // Rough walking time: straight-line distance at ~80 m/min. Real paths are usually longer
-  // (crossings, overhead bridges), so it is labelled as an estimate.
-  const walkingMin = Math.max(1, Math.round(distanceMeters / 80));
+  // Rough walking time, as everywhere else in the app (straight line plus a detour, at ~80 m/min), so it is
+  // labelled as an estimate
+  const walkingMin = Math.max(1, walkMinutes(distanceMeters));
 
   const formatDistance = (meters: number) => {
     if (meters < 1000) {

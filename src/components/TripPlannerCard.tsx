@@ -4,6 +4,7 @@ import type { PlaceResult } from '../services/placeSearch';
 import type { LiveDeparture, TripLeg, TripOption, TripPlan } from '../services/tripPlanner';
 import { expectedTotalMin, legServiceNos } from '../services/tripPlanner';
 import { useIsPhone } from '../services/useIsPhone';
+import { leaveLabel } from '../services/leaveWithin';
 import { LiveSignal, Minutes } from './ArrivalBits';
 import { ServiceChoice } from './ServiceChoice';
 import { legStyle } from './tripLegs';
@@ -112,15 +113,19 @@ function LiveLine({ trip }: { trip: RankedTrip }) {
   if (live.status === 'not-running') {
     return <span className="text-rose-700 font-semibold">No bus due at {option.legs[0].board.name} now (may not be running)</span>;
   }
-  const leaveIn = live.catchEtaMin === null ? null : Math.round(live.catchEtaMin - option.walkStartMin);
+  // Worked out as on the arrivals card, so the two agree for the same bus. When that's another of the buses between
+  // the same stops than the one picked, say which.
+  const leave = leaveLabel(live.leave);
+  const otherBus = live.catchServiceNo.toUpperCase() !== option.legs[0].serviceNo.toUpperCase();
   // With more than one bus to choose from, say which bus each time is for
   const severalServices = new Set(live.nextBuses.map((b) => b.serviceNo)).size > 1;
   const caught = live.nextBuses.findIndex((b) => b.etaMin === live.catchEtaMin);
   return (
     <span className="block leading-snug">
-      {leaveIn !== null && (
-        <strong className={`block text-sm font-black ${leaveIn <= 1 ? 'text-rose-700' : 'text-helvetia-950'}`}>
-          {leaveIn <= 1 ? 'Leave now' : `Leave within ${leaveIn}\u00a0min`}
+      {leave && (
+        <strong className={`block text-sm font-black ${leave === 'Leave now' ? 'text-rose-700' : 'text-helvetia-950'}`}>
+          {leave}
+          {otherBus && ` for the ${live.catchServiceNo}`}
         </strong>
       )}
       <span className="text-warm-600">

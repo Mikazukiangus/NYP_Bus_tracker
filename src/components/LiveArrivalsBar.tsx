@@ -1,7 +1,7 @@
 import React, { useLayoutEffect, useState } from 'react';
 import { ChevronUp } from 'lucide-react';
 import { AlightHint, ArrivalDataSource, BusServiceArrivals, BusStop } from '../types/bus';
-import type { LeaveWithin } from '../services/leaveWithin';
+import { LeaveWithin, leaveLabel } from '../services/leaveWithin';
 import { BOTTOM_BAR_HEIGHT } from './AppTabs';
 import { Minutes } from './ArrivalBits';
 
@@ -55,9 +55,7 @@ export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({ arrivals, stop
         : !arrivals.nextBus
           ? 'No bus due'
           : leave?.status === 'leave'
-            ? leave.inMin <= 1
-              ? 'Leave now'
-              : `Leave within ${leave.inMin}\u00a0min`
+            ? leaveLabel(leave)
             : arrivals.nextBus.monitored
               ? 'Live GPS'
               : 'Scheduled';

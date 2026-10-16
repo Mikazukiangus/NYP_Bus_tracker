@@ -4,9 +4,8 @@
 import type { StopServiceArrivals } from '../types/bus';
 import { calculateDistanceMeters } from '../data/singaporeBuses';
 import { BusNetwork, NetPattern, NetStop, stopsWithin } from './busNetwork';
+import { LeaveWithin, firstCatchable, leaveWithin, walkMinutes, walkMinutesFor } from './leaveWithin';
 
-export const WALK_M_PER_MIN = 80; // ~4.8 km/h
-export const WALK_DETOUR = 1.3; // typical walking route vs straight line
 const BUS_KMH = 22; // between stops
 const PER_STOP_MIN = 0.35; // dwell and slowing at each stop
 const ACCESS_RADII_M = [500, 800]; // walking distance to/from stops; widened if nothing is found
@@ -21,7 +20,6 @@ const MAX_TRANSFER = 3;
 const ALTERNATIVE_EXTRA_MIN = 5;
 const ALTERNATIVE_EXTRA_SHARE = 0.3;
 
-export const walkMinutesFor = (straightM: number) => (straightM * WALK_DETOUR) / WALK_M_PER_MIN;
 export const rideMinutesFor = (distanceM: number, stopCount: number) =>
   (distanceM / 1000 / BUS_KMH) * 60 + stopCount * PER_STOP_MIN;
 
@@ -389,6 +387,7 @@ export type LiveDeparture =
   | { status: 'not-running' } // LTA has no upcoming bus for this service at the stop
   | {
       status: 'live';
+      leave: LeaveWithin | null; // when to set off, worked out as on the arrivals card
       catchEtaMin: number | null; // first bus you can reach after walking to the stop (null: all due too soon)
       catchServiceNo: string;
       monitored: boolean;
@@ -410,12 +409,12 @@ export function liveDeparture(option: TripOption, services: StopServiceArrivals[
     .sort((a, b) => a.estimatedMinutes - b.estimatedMinutes);
   if (!buses.length) return { status: 'not-running' };
 
-  // Allow a minute's slack: buses often dwell, and people walk faster when the bus is in sight
-  const walk = Math.max(0, Math.round(option.walkStartMin) - 1);
-  const catchable = buses.find((b) => b.estimatedMinutes >= walk) ?? null;
+  // The same walk and the same rules as the arrivals card's "Leave within"
+  const catchable = firstCatchable(walkMinutes(option.walkStartM), buses);
   const waitMin = catchable ? Math.max(0, catchable.estimatedMinutes - option.walkStartMin) : ASSUMED_FIRST_WAIT_MIN * 2;
   return {
     status: 'live',
+    leave: leaveWithin(option.walkStartM, buses),
     catchEtaMin: catchable?.estimatedMinutes ?? null,
     catchServiceNo: catchable?.serviceNo ?? leg.serviceNo,
     monitored: !!catchable?.monitored,
