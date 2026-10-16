@@ -74,25 +74,41 @@ export interface Datasets {
 let datasetsPromise: Promise<Datasets> | null = null;
 let datasetsLoadedAt = 0;
 
-async function fetchPage<T>(dataset: string, skip: number, accountKey: string): Promise<T[]> {
-  const res = await fetch(`${LTA_BASE}/${dataset}?$skip=${skip}`, {
-    headers: { AccountKey: accountKey, Accept: 'application/json' },
-  });
-  if (!res.ok) {
-    throw new Error(`LTA ${dataset} skip=${skip} failed (${res.status})`);
+// Tries per page: LTA DataMall now and then answers one page of many with a server error, which used to sink a
+// whole deploy's route data
+const PAGE_ATTEMPTS = 3;
+
+async function fetchPage<T>(dataset: string, skip: number, accountKey: string, retryDelayMs = 500): Promise<T[]> {
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(`${LTA_BASE}/${dataset}?$skip=${skip}`, {
+      headers: { AccountKey: accountKey, Accept: 'application/json' },
+    }).catch((err: unknown) => (err instanceof Error ? err : new Error(String(err))));
+    if (!(res instanceof Error) && res.ok) {
+      const body = (await res.json()) as { value?: T[] };
+      return body.value ?? [];
+    }
+    // A server error, too many requests or no answer may pass; anything else (a bad key) won't
+    const retryable = res instanceof Error || res.status >= 500 || res.status === 429;
+    if (!retryable || attempt >= PAGE_ATTEMPTS) {
+      throw new Error(`LTA ${dataset} skip=${skip} failed (${res instanceof Error ? res.message : res.status})`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, retryDelayMs * 3 ** (attempt - 1)));
   }
-  const body = (await res.json()) as { value?: T[] };
-  return body.value ?? [];
 }
 
-// Fetch every page of a dataset, a batch of pages at a time, until a short page signals the end
-async function fetchAll<T>(dataset: string, accountKey: string): Promise<T[]> {
+// Fetch every page of a dataset, a batch of pages at a time, until a short page signals the end. Pages after the
+// end are asked for too (they come back empty), so one of those failing doesn't matter.
+export async function fetchAll<T>(dataset: string, accountKey: string, retryDelayMs?: number): Promise<T[]> {
   const rows: T[] = [];
   for (let batch = 0; ; batch++) {
     const skips = Array.from({ length: PAGE_CONCURRENCY }, (_, i) => (batch * PAGE_CONCURRENCY + i) * PAGE_SIZE);
-    const pages = await Promise.all(skips.map((skip) => fetchPage<T>(dataset, skip, accountKey)));
-    for (const page of pages) rows.push(...page);
-    if (pages.some((page) => page.length < PAGE_SIZE)) return rows;
+    const pages = await Promise.allSettled(skips.map((skip) => fetchPage<T>(dataset, skip, accountKey, retryDelayMs)));
+    const end = pages.findIndex((page) => page.status === 'fulfilled' && page.value.length < PAGE_SIZE);
+    for (const page of end < 0 ? pages : pages.slice(0, end + 1)) {
+      if (page.status === 'rejected') throw page.reason;
+      rows.push(...page.value);
+    }
+    if (end >= 0) return rows;
   }
 }
 

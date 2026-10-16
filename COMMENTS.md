@@ -760,5 +760,9 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
     - The Saved buses list read "Your usual buses, one tap away".
   - The same was checked at 1280 px. There were no console errors.
   - **On the live site**: in my test browser, which draws no frames while its panel is hidden, the first tap's smooth scroll never ran. A real phone draws frames, but the reveal now checks itself: if the page hasn't moved 0.6 s later, it goes straight to the times. If you've scrolled yourself in that time, it leaves you where you are. Both cases were tested.
+- **Also fixed: a deploy without bus routes**:
+  - **What happened**: the deploy of the scroll fix came up with "Nearby bus stops can't be loaded right now", and trip planning was off. Its Vercel build log showed why: LTA DataMall answered one page of bus stops with a server error (`BusStops skip=5500 failed (500)`), so the build skipped every route file, `network.json` included. That page comes after the end of the stops anyway.
+  - **Now**: `api/bus-route.ts` asks for a page again after a server error, "too many requests" or no answer (3 tries, 0.5 s then 1.5 s apart). A refused key isn't retried. A failed page after the end of the data no longer matters. This helps the build and the live `/api/bus-route` alike.
+  - **Tests**: 3 new tests in `tests/lta-pages.test.ts` (48 tests in all): a page that fails twice and then answers, a failing page after the end, and a page of data that keeps failing or a refused key, which still fail.
 
 ---
