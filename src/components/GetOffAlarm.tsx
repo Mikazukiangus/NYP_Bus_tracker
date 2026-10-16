@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlarmClock, Bell, BellRing } from 'lucide-react';
+import { AlarmClock, Bell, BellRing, BusFront, Flag } from 'lucide-react';
 import type { StopRef } from '../types/bus';
 import type { AlarmAlert, GetOffAlarm } from '../services/useGetOffAlarm';
 
@@ -24,11 +24,31 @@ export function alarmStatus(alarm: GetOffAlarm, serviceNo: string, stopName: str
   }
 }
 
+// Transit's ride progress: a track that fills as the bus passes stops, the bus where you are and the flag at your stop
+const RideProgressBar: React.FC<{ stopsToGo: number; stopCount: number }> = ({ stopsToGo, stopCount }) => {
+  const share = Math.min(1, Math.max(0, (stopCount - stopsToGo) / stopCount));
+  return (
+    <div className="basis-full flex items-center gap-2 pt-1.5" aria-hidden="true">
+      <div className="relative flex-1 h-1.5 rounded-full bg-helvetia-100">
+        <div className="absolute inset-y-0 left-0 rounded-full bg-helvetia transition-[width] duration-700" style={{ width: `${share * 100}%` }} />
+        <span
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-helvetia-950 text-lemon flex items-center justify-center ring-2 ring-white transition-[left] duration-700"
+          style={{ left: `${share * 100}%` }}
+        >
+          <BusFront className="w-3 h-3" />
+        </span>
+      </div>
+      <Flag className="w-3.5 h-3.5 text-helvetia-950 shrink-0" />
+    </div>
+  );
+};
+
 // The option, as a switch, in the "Get off at" box
-export const GetOffAlarmSwitch: React.FC<{ alarm: GetOffAlarm; serviceNo: string; stopName: string }> = ({
+export const GetOffAlarmSwitch: React.FC<{ alarm: GetOffAlarm; serviceNo: string; stopName: string; stopCount: number }> = ({
   alarm,
   serviceNo,
   stopName,
+  stopCount,
 }) => (
   <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1">
     <button
@@ -57,6 +77,9 @@ export const GetOffAlarmSwitch: React.FC<{ alarm: GetOffAlarm; serviceNo: string
     >
       {alarmStatus(alarm, serviceNo, stopName)}
     </span>
+    {alarm.on && alarm.progress && alarm.progress.phase !== 'off-route' && (
+      <RideProgressBar stopsToGo={alarm.progress.stopsToGo} stopCount={stopCount} />
+    )}
   </div>
 );
 

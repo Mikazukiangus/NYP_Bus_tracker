@@ -603,6 +603,8 @@ export default function App() {
     if (alightHint?.status !== 'alight') return undefined;
     const next = alightHint.trip?.legs[alightHint.trip.legIndex + 1];
     if (next) return `then Bus ${next.serviceNo} from ${alightHint.walkM > 0 ? next.board.name : 'the same stop'}`;
+    // The destination is the stop itself: nothing more to say
+    if (walkMinutes(alightHint.walkM) === 0) return undefined;
     return `then ~${Math.max(1, Math.round(alightHint.walkMin))} min walk to ${alightHint.destinationName}`;
   }, [alightHint]);
 

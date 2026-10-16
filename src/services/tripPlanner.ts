@@ -431,5 +431,47 @@ export function expectedTotalMin(option: TripOption, live: LiveDeparture): numbe
   return option.travelMin + ASSUMED_FIRST_WAIT_MIN;
 }
 
+// A trip laid out in time from now, as Transit draws its trip options: when to set off, each walk, wait and bus, and
+// when you get there. The same sums as the totals (arriveInMin, expectedTotalMin), so a trip's bar, its steps' clock
+// times and "Arrive" all agree. Without live times (still loading, feed down, nothing due), a typical first wait.
+export type TripSegment =
+  | { kind: 'walk' | 'wait'; startMin: number; endMin: number }
+  | { kind: 'bus'; startMin: number; endMin: number; legIndex: number };
+
+export interface TripTimeline {
+  goMin: number; // when to set off, from now
+  boardMin: number[]; // when each bus leaves its stop
+  segments: TripSegment[];
+  endMin: number; // arrival
+  estimated: boolean; // a typical wait, not live bus times
+}
+
+export function tripTimeline(option: TripOption, live: LiveDeparture): TripTimeline {
+  const isLive = live.status === 'live';
+  const firstBoard = option.walkStartMin + (isLive ? live.waitMin : ASSUMED_FIRST_WAIT_MIN);
+  // Set off when "Leave within" says (the walk is in whole minutes there), or now
+  const goMin = isLive && live.leave?.status === 'leave' ? Math.min(live.leave.inMin, firstBoard) : 0;
+  const segments: TripSegment[] = [];
+  const boardMin: number[] = [];
+  let t = goMin;
+  const add = (kind: 'walk' | 'wait', minutes: number) => {
+    if (minutes > 0) segments.push({ kind, startMin: t, endMin: t + minutes });
+    t += minutes;
+  };
+  add('walk', Math.min(option.walkStartMin, firstBoard - goMin));
+  add('wait', firstBoard - t);
+  option.legs.forEach((leg, i) => {
+    if (i > 0) {
+      add('walk', option.transferWalkMin);
+      add('wait', TRANSFER_WAIT_MIN);
+    }
+    boardMin.push(t);
+    segments.push({ kind: 'bus', startMin: t, endMin: t + leg.rideMin, legIndex: i });
+    t += leg.rideMin;
+  });
+  add('walk', option.walkEndMin);
+  return { goMin, boardMin, segments, endMin: t, estimated: !isLive };
+}
+
 export const tripScore = (option: TripOption, live: LiveDeparture) =>
   expectedTotalMin(option, live) + (option.legs.length - 1) * TRANSFER_PENALTY_MIN;

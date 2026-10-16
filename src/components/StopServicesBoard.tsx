@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BusFront, ChevronDown, ChevronRight } from 'lucide-react';
-import { ArrivalDataSource, BusLoad, BusStop, StopServiceArrivals } from '../types/bus';
+import { ArrowRight, BusFront, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrivalDataSource, BusStop, StopServiceArrivals } from '../types/bus';
 import { fetchStopNames } from '../services/busTrackerService';
 import { useIsPhone } from '../services/useIsPhone';
-import { Minutes } from './ArrivalBits';
+import { LoadMeter, Minutes } from './ArrivalBits';
 import { BUS_TYPE_SHORT, BusTypeIcon } from './BusTypeIcon';
 
 interface StopServicesBoardProps {
@@ -17,12 +17,6 @@ interface StopServicesBoardProps {
 // Services shown before "Show all": fewer on phones, where they stack in one column
 const COLLAPSED_COUNT = 8;
 const PHONE_COLLAPSED_COUNT = 4;
-const LOAD_DOT: Record<BusLoad, { className: string; label: string; short: string }> = {
-  SEA: { className: 'bg-green-blue', label: 'Seats available', short: 'Seats' },
-  SDA: { className: 'bg-amber-500', label: 'Standing available', short: 'Standing' },
-  LSD: { className: 'bg-rose-500', label: 'Limited standing', short: 'Limited' },
-};
-const later = (min: number) => (min <= 0 ? 'Arr' : String(min));
 
 // Every bus service due at the selected stop, from the same LTA BusArrival call as the main board
 export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
@@ -79,55 +73,68 @@ export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
         </p>
       ) : (
         <>
-          {/* Departure rows, Citymapper style: the bus, where it's going and how full, and the next times on the right */}
-          <ul className="mt-1 grid grid-cols-1 @2xl:grid-cols-2 @2xl:gap-x-6">
+          {/* Departure rows, Transit style: the bus number big with where it's going under it, and the next three
+              buses on the right, each with a load bar under it (SG BusLeh). The tracked bus is the dark row. */}
+          <ul className="mt-2 grid grid-cols-1 @2xl:grid-cols-2 gap-1.5 @2xl:gap-x-3">
             {shown.map((svc) => {
               const isCurrent = svc.serviceNo.toUpperCase() === currentServiceNo.toUpperCase();
               const destination = svc.destinationCode ? stopNames[svc.destinationCode] : undefined;
-              const next = svc.nextBus;
-              const then = [svc.nextBus2, svc.nextBus3].flatMap((b) => (b ? [later(b.estimatedMinutes)] : []));
+              const buses = [svc.nextBus, svc.nextBus2, svc.nextBus3].filter((b) => b !== null);
+              const type = svc.nextBus?.type;
               return (
-                <li key={svc.serviceNo} className="border-b border-warm-100 last:border-b-0 @2xl:[&:nth-last-child(2):nth-child(odd)]:border-b-0">
+                <li key={svc.serviceNo}>
                   <button
                     onClick={() => !isCurrent && onSelectService(svc.serviceNo)}
                     aria-current={isCurrent ? 'true' : undefined}
-                    className={`w-full flex items-center gap-3 py-2.5 px-2 text-left transition-colors min-w-0 rounded-xl ${
-                      isCurrent ? 'bg-helvetia-50 cursor-default' : 'hover:bg-warm-50'
+                    className={`w-full flex items-center gap-3 py-2 px-3 text-left transition-colors min-w-0 rounded-xl border ${
+                      isCurrent
+                        ? 'bg-helvetia-950 border-helvetia-950 text-white cursor-default'
+                        : 'bg-white border-warm-200/80 hover:bg-warm-50 text-warm-900'
                     }`}
                     title={isCurrent ? 'Currently tracking' : `Track Bus ${svc.serviceNo} from this stop`}
                   >
-                    <span className="min-w-[2.75rem] text-center bg-helvetia text-white font-black text-sm px-1.5 py-1 rounded-lg shrink-0">
-                      {svc.serviceNo}
-                    </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-bold text-warm-900 truncate">
-                        {destination ? `To ${destination}` : svc.operator}
+                      <span className="flex items-baseline gap-2">
+                        <span className={`text-2xl font-black tracking-tight leading-none ${isCurrent ? 'text-lemon' : 'text-helvetia'}`}>
+                          {svc.serviceNo}
+                        </span>
+                        <span className={`text-[10px] font-bold uppercase tracking-wider truncate ${isCurrent ? 'text-helvetia-200' : 'text-warm-500'}`}>
+                          {isCurrent ? 'Tracking' : type ? BUS_TYPE_SHORT[type] : svc.operator}
+                        </span>
                       </span>
-                      <span className="flex items-center gap-1.5 text-[11px] text-warm-500 truncate">
-                        {isCurrent && <strong className="text-helvetia">Tracking ·</strong>}
-                        {next ? (
-                          <>
-                            <span className={`w-2 h-2 rounded-full shrink-0 ${LOAD_DOT[next.load].className}`} />
-                            {LOAD_DOT[next.load].short}
-                            {next.type && (
-                              <>
-                                <BusTypeIcon type={next.type} className="w-3.5 h-3.5 shrink-0 text-warm-500" />
-                                {BUS_TYPE_SHORT[next.type]}
-                              </>
-                            )}
-                          </>
-                        ) : (
-                          'No estimate'
+                      <span className={`mt-1 flex items-center gap-1 text-xs font-semibold min-w-0 ${isCurrent ? 'text-white' : 'text-warm-700'}`}>
+                        <ArrowRight className={`w-3.5 h-3.5 shrink-0 ${isCurrent ? 'text-lemon' : 'text-green-blue'}`} aria-hidden="true" />
+                        <span className="truncate">{destination ?? svc.operator}</span>
+                        {isCurrent && type && (
+                          <BusTypeIcon type={type} className="w-3.5 h-3.5 shrink-0 text-helvetia-200" />
                         )}
                       </span>
                     </span>
-                    {next && (
-                      <span className="text-right shrink-0">
-                        <Minutes min={next.estimatedMinutes} signal={next.monitored ? 'live' : 'scheduled'} className="text-warm-900" />
-                        {then.length > 0 && <span className="block text-[11px] text-warm-500 mt-0.5">{then.join(', ')} min</span>}
+                    {buses.length > 0 ? (
+                      <span className="flex items-end gap-2.5 shrink-0">
+                        {buses.map((bus, i) => (
+                          <span key={i} className="flex flex-col items-end gap-1">
+                            {i === 0 ? (
+                              <Minutes
+                                min={bus.estimatedMinutes}
+                                signal={bus.monitored ? 'live' : 'scheduled'}
+                                signalClassName={isCurrent ? 'text-lemon' : 'text-green-blue'}
+                                arrClassName={isCurrent ? 'text-lemon' : 'text-green-blue-ink'}
+                                className={isCurrent ? 'text-white' : 'text-warm-900'}
+                              />
+                            ) : (
+                              <span className={`text-sm font-bold leading-none tabular-nums ${isCurrent ? 'text-helvetia-200' : 'text-warm-600'}`}>
+                                {bus.estimatedMinutes <= 0 ? 'Arr' : bus.estimatedMinutes}
+                              </span>
+                            )}
+                            <LoadMeter load={bus.load} emptyClassName={isCurrent ? 'bg-white/20' : 'bg-warm-200'} />
+                          </span>
+                        ))}
                       </span>
+                    ) : (
+                      <span className={`text-xs shrink-0 ${isCurrent ? 'text-helvetia-200' : 'text-warm-500'}`}>No estimate</span>
                     )}
-                    {!isCurrent && <ChevronRight className="w-4 h-4 text-warm-300 shrink-0 -ml-1" />}
+                    {!isCurrent && <ChevronRight className="w-4 h-4 text-warm-300 shrink-0 -mx-1" />}
                   </button>
                 </li>
               );

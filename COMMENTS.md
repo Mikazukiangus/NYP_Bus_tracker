@@ -690,3 +690,34 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - Checked on a phone (375 px) and on desktop (bubble top right). There were no new console errors.
 
 ---
+
+### Turn 34: The Best of Citymapper's Rivals (16 October 2026)
+- **User Prompt**:
+  > *"also take reference from the strong competitors of citymapper and take the best design UI elements to make it more visually appealing."*
+- **References**: the App Store screenshots of Transit, Google Maps and Moovit, the Singapore bus app SG BusLeh, and write-ups of Transit's redesign and Google Maps' crowding levels. Each idea was redrawn in the Wada 259 colours:
+
+  | App | Idea | BusTrackerSG now |
+  |---|---|---|
+  | Transit | Every trip drawn to scale on one clock axis, so faster or later trips stand out at a glance | `TripBar` and `TimeAxis` (`TripPlannerCard.tsx`) replace the walk › bus › walk strip. Each trip option is a bar of walk (🚶 and a dotted line), wait (a thin line) and bus (a pill in the leg's colour: lemon, then green-blue after a change). All options share one axis that starts at "Now" with clock ticks every 5–30 min (Singapore time). A trip you have to leave for later starts further right. The new `tripTimeline` (`tripPlanner.ts`) works out the segments from the same leave and arrive times as the rest of the row. |
+  | Transit | Big, bold route numbers in the departure list | "All buses at this stop" rows now lead with the bus number in large black type, a small tag (Tracking, Double, Single or the operator) and "→ destination". The tracked bus is a dark Helvetia row with lemon numbers. On desktop the rows sit in two columns. |
+  | SG BusLeh, Google Maps | How full the bus is, under each time | `LoadMeter` (`ArrivalBits.tsx`): three short bars, one filled for seats, two (amber) for standing, three (rose) for limited standing. It sits under every time in the departure rows and in the arrivals card, and the capacity guide uses it too. The old coloured load chips are gone. |
+  | Google Maps, Apple Maps | The clock time at each step of a trip, and beside each "in N min" | The trip steps now start each line with its time: 10:32 walk to Blk 502, 10:39 Bus 50, 10:55 get off, 10:55 Bishan Int ("~" when the bus times are estimates). Each arrivals card box shows the clock time under the minutes ("8 min / 10:39 am"). |
+  | Transit | "Get off in 5 stops" with a progress bar during the ride | With the get-off alarm on, a progress bar under the switch fills as the bus passes stops, with a bus marker at your position and a flag at your stop. |
+  | Moovit | "Your line arrives in 1, 6, 7 min" | Already in place (the trip row's "Bus in 1, 6, 14 min" and the map bubble), so it was kept as is. |
+
+- **Also fixed**: with the destination at the stop you get off at, the steps, the "Get off at" box and the alert bubble said "~1 min walk (0 m)". They now say you're there, and the steps skip the walk. When the From place is at the boarding stop, the first step reads "You're at" that stop instead of a walk.
+- **Not taken**:
+  - Transit's and Moovit's per-line brand colours: here a leg's colour says which leg it is, matching the map.
+  - Moovit's ads and dense chips, and Google Maps' driving and other transport modes (this app is buses only).
+  - Transit's live bus positions along the trip bar, which LTA's data doesn't give per trip.
+- **Validation**:
+  - TypeScript, the app build and 44 tests pass. A new test checks that a trip's timeline runs without gaps from setting off to arriving and agrees with its leave and arrive times, for live and estimated times and for a trip with a change.
+  - In the browser with the local LTA stub, NYP to Bishan Int, at 390 px and 1280 px:
+    - Two trips (Bus 50 direct, Bus 13) were drawn on one axis ("Now", 10:40, 10:50) with the lemon bus pills, "Leave within 2 min" and "Arrive 10:58 am".
+    - The steps read 10:32 walk, 10:39 Bus 50, 10:55 get off, 10:55 Bishan Int, with no "0 m" walk.
+    - The arrivals card boxes showed "8 min / 10:39 am / seats meter / Double deck".
+    - The departure rows showed the big numbers and load meters, with Bus 50 dark as the tracked row, in two columns on desktop.
+    - With simulated GPS, the alarm's progress bar showed 4 of 10 stops passed.
+    - No new console errors.
+
+---

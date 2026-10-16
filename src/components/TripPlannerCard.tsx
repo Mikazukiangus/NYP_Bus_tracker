@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { BusFront, ChevronDown, ChevronRight, Flag, Footprints, Loader2, Map as MapIcon, Route, X } from 'lucide-react';
 import type { PlaceResult } from '../services/placeSearch';
-import type { LiveDeparture, TripLeg, TripOption, TripPlan } from '../services/tripPlanner';
-import { expectedTotalMin, legServiceNos } from '../services/tripPlanner';
+import type { LiveDeparture, TripLeg, TripOption, TripPlan, TripTimeline } from '../services/tripPlanner';
+import { expectedTotalMin, legServiceNos, tripTimeline } from '../services/tripPlanner';
 import { useIsPhone } from '../services/useIsPhone';
 import { leaveLabel } from '../services/leaveWithin';
 import { LiveSignal, Minutes } from './ArrivalBits';
@@ -48,10 +48,16 @@ const clockIn = (minutes: number) =>
     minute: '2-digit',
     timeZone: 'Asia/Singapore',
   });
+// "10:25", for the time axis and the steps
+const clockShort = (minutes: number) => clockIn(minutes).replace(/\s*[ap]\.?m\.?$/i, '');
+// Closer than this, a walk is no walk (as on the arrivals card)
+const AT_STOP_M = 50;
 
-// A leg's bus, or every bus between the same stops with the chosen one filled in
-const LegServices: React.FC<{ leg: TripLeg; notDue: string[]; onChoose?: (serviceNo: string) => void }> = ({
+// A leg's bus, or every bus between the same stops with the chosen one filled in (in the leg's colour, as on the
+// trip bar and the map)
+const LegServices: React.FC<{ leg: TripLeg; legIndex: number; notDue: string[]; onChoose?: (serviceNo: string) => void }> = ({
   leg,
+  legIndex,
   notDue,
   onChoose,
 }) => (
@@ -60,41 +66,85 @@ const LegServices: React.FC<{ leg: TripLeg; notDue: string[]; onChoose?: (servic
     chosen={leg.serviceNo}
     notDue={notDue}
     onChoose={onChoose}
+    chosenClassName={legStyle(legIndex).badge}
     size="fit"
     label={`Buses from ${leg.board.name} to ${leg.alight.name}`}
   />
 );
 
-// A walk in the route strip: the walker with the minutes beside it, as in Citymapper
-const WalkChip: React.FC<{ minutes: number }> = ({ minutes }) => (
-  <span className="inline-flex items-end text-warm-600" title={`Walk ~${round(minutes)} min`}>
-    <Footprints className="w-4 h-4" aria-hidden="true" />
-    <span className="text-[10px] font-bold leading-none ml-px">{round(minutes)}</span>
-    <span className="sr-only"> min walk</span>
-  </span>
-);
-const StripArrow = () => <ChevronRight className="w-3.5 h-3.5 text-warm-300 shrink-0" aria-hidden="true" />;
-
-// Citymapper's route strip: walk, the bus (or the buses that run between the same stops), any change, and the walk
-// at the end
-function RouteStrip({ option, notDueAt }: { option: TripOption; notDueAt: (leg: TripLeg) => string[] }) {
+// Transit's trip bars: every trip drawn to the same time scale, starting when you'd set off, so the quickest trip
+// and the one to leave for first show at a glance. A walk is the walker and its minutes on a dotted line, a wait a
+// thin line, and a bus a pill in the trip's colour for it (as on the map), with any other bus between the same stops
+// above it ("or 72A").
+function TripBar({ option, timeline, scaleMin, faded }: { option: TripOption; timeline: TripTimeline; scaleMin: number; faded: boolean }) {
+  const pct = (min: number) => `${(min / scaleMin) * 100}%`;
+  const hasOthers = option.legs.some((leg) => legServiceNos(leg).length > 1);
   return (
-    <div className="flex flex-wrap items-center gap-1">
-      <WalkChip minutes={option.walkStartMin} />
-      {option.legs.map((leg, i) => (
-        <React.Fragment key={i}>
-          <StripArrow />
-          {i > 0 && option.transferWalkM > 0 && (
-            <>
-              <WalkChip minutes={option.transferWalkMin} />
-              <StripArrow />
-            </>
-          )}
-          <LegServices leg={leg} notDue={notDueAt(leg)} />
-        </React.Fragment>
+    <div
+      className={`col-span-2 flex items-center h-6 ${hasOthers ? 'mt-3' : ''} ${faded ? 'opacity-50' : ''}`}
+      style={{ marginLeft: pct(timeline.goMin), width: pct(timeline.endMin - timeline.goMin) }}
+      aria-hidden="true"
+    >
+      {timeline.segments.map((seg, i) => {
+        const grow = { flexGrow: seg.endMin - seg.startMin, flexBasis: 0 };
+        if (seg.kind === 'bus') {
+          const leg = option.legs[seg.legIndex];
+          const others = legServiceNos(leg).filter((no) => no !== leg.serviceNo);
+          return (
+            <span
+              key={i}
+              style={grow}
+              className={`relative h-6 min-w-[2.25rem] px-1.5 rounded-full flex items-center justify-center text-xs font-black ${legStyle(seg.legIndex).badge}`}
+            >
+              {leg.serviceNo}
+              {others.length > 0 && (
+                <span className="absolute -top-3.5 left-1 text-[9px] font-bold text-warm-500 whitespace-nowrap">
+                  or {others.join(', ')}
+                </span>
+              )}
+            </span>
+          );
+        }
+        if (seg.kind === 'walk') {
+          return (
+            <span key={i} style={grow} className="min-w-[1.75rem] flex items-center px-0.5 text-warm-600">
+              <Footprints className="w-3.5 h-3.5 shrink-0" />
+              <span className="text-[10px] font-bold leading-none">{round(seg.endMin - seg.startMin)}</span>
+              <span className="flex-1 min-w-0 ml-0.5 border-t-2 border-dotted border-warm-300" />
+            </span>
+          );
+        }
+        return <span key={i} style={grow} className="min-w-[3px] mx-0.5 h-0.5 rounded-full bg-warm-300" />;
+      })}
+    </div>
+  );
+}
+
+// Clock times over the trip bars (every 5, 10, 15 or 30 minutes, to suit the longest trip)
+function TimeAxis({ scaleMin }: { scaleMin: number }) {
+  const step = scaleMin <= 20 ? 5 : scaleMin <= 45 ? 10 : scaleMin <= 100 ? 15 : 30;
+  const sgt = new Date(Date.now() + 8 * 3_600_000);
+  const nowOfDay = sgt.getUTCHours() * 60 + sgt.getUTCMinutes() + sgt.getUTCSeconds() / 60;
+  const ticks: number[] = [];
+  for (let at = Math.ceil(nowOfDay / step) * step - nowOfDay; at <= scaleMin; at += step) {
+    if (at / scaleMin >= 0.12 && at / scaleMin <= 0.94) ticks.push(at); // clear of "Now" and the right edge
+  }
+  return (
+    <div className="relative h-5 mx-[13px] mt-3 -mb-1" aria-hidden="true">
+      <span className="absolute top-0 left-0 flex flex-col items-start text-[10px] font-bold text-helvetia-950">
+        Now
+        <span className="w-px h-1.5 bg-helvetia-950" />
+      </span>
+      {ticks.map((at) => (
+        <span
+          key={at}
+          className="absolute top-0 -translate-x-1/2 flex flex-col items-center text-[10px] font-semibold text-warm-500 tabular-nums"
+          style={{ left: `${(at / scaleMin) * 100}%` }}
+        >
+          {clockShort(at)}
+          <span className="w-px h-1.5 bg-warm-300" />
+        </span>
       ))}
-      <StripArrow />
-      <WalkChip minutes={option.walkEndMin} />
     </div>
   );
 }
@@ -183,9 +233,11 @@ function Steps({
   trackedServiceNo,
   trackedStopCode,
   destinationName,
+  timeline,
   divided = true,
 }: {
   option: TripOption;
+  timeline: TripTimeline; // for the clock time at each place
   onTrackLeg: (option: TripOption, legIndex: number) => void;
   onChooseService: (option: TripOption, legIndex: number, serviceNo: string) => void;
   notDueAt: (leg: TripLeg) => string[];
@@ -194,12 +246,20 @@ function Steps({
   destinationName: string;
   divided?: boolean; // a line above the steps (off when the "Show steps" button already has one)
 }) {
-  const walkStep = (minutes: number, metres: number, to: React.ReactNode, key: string) => (
+  // Google Maps' itinerary: the clock time at each place (~ when it assumes a typical wait, not live times)
+  const at = (min: number) => (
+    <time className="font-black text-helvetia-950 tabular-nums mr-1.5">
+      {timeline.estimated ? '~' : ''}
+      {clockShort(min)}
+    </time>
+  );
+  const walkStep = (minutes: number, metres: number, to: React.ReactNode, key: string, startMin?: number) => (
     <li key={key} className="relative pl-8 pb-3">
       <span className="absolute left-0 top-0 w-6 h-6 rounded-full bg-green-blue-soft text-green-blue-ink flex items-center justify-center">
         <Footprints className="w-3.5 h-3.5" />
       </span>
       <div className="text-xs text-warm-700 pt-1">
+        {startMin !== undefined && at(startMin)}
         Walk ~{round(minutes)} min ({formatMetres(metres)}) to {to}
       </div>
     </li>
@@ -208,8 +268,21 @@ function Steps({
   const steps: React.ReactNode[] = [];
   option.legs.forEach((leg, i) => {
     if (i === 0) {
+      const stop = <><strong className="text-warm-900">{leg.board.name}</strong> · {leg.board.code}</>;
       steps.push(
-        walkStep(option.walkStartMin, option.walkStartM, <><strong className="text-warm-900">{leg.board.name}</strong> · {leg.board.code}</>, 'walk-start')
+        option.walkStartM > AT_STOP_M ? (
+          walkStep(option.walkStartMin, option.walkStartM, stop, 'walk-start', timeline.goMin)
+        ) : (
+          <li key="walk-start" className="relative pl-8 pb-3">
+            <span className="absolute left-0 top-0 w-6 h-6 rounded-full bg-green-blue-soft text-green-blue-ink flex items-center justify-center">
+              <Footprints className="w-3.5 h-3.5" />
+            </span>
+            <div className="text-xs text-warm-700 pt-1">
+              {at(timeline.goMin)}
+              You're at {stop}
+            </div>
+          </li>
+        )
       );
     } else if (option.transferWalkM > 0) {
       steps.push(
@@ -228,8 +301,9 @@ function Steps({
         <div className="flex items-start justify-between gap-2">
           <div className="text-xs text-warm-700 min-w-0 space-y-0.5">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-0.5">
+              {at(timeline.boardMin[i])}
               {i > 0 && option.transferWalkM === 0 && <span className="text-warm-600">Change at the same stop to</span>}
-              <LegServices leg={leg} notDue={notDue} onChoose={(serviceNo) => onChooseService(option, i, serviceNo)} />
+              <LegServices leg={leg} legIndex={i} notDue={notDue} onChoose={(serviceNo) => onChooseService(option, i, serviceNo)} />
               <span className="text-warm-600">towards {leg.towards}</span>
             </div>
             {leg.alsoServiceNos.length > 0 && (
@@ -243,6 +317,7 @@ function Steps({
               {i > 0 && <span className="text-warm-500"> (+ ~5 min wait)</span>}
             </div>
             <div>
+              {at(timeline.boardMin[i] + leg.rideMin)}
               Get off at <strong className="text-warm-900">{leg.alight.name}</strong> · {leg.alight.code}
             </div>
           </div>
@@ -268,8 +343,13 @@ function Steps({
         <Flag className="w-3.5 h-3.5" />
       </span>
       <div className="text-xs text-warm-700 pt-1">
-        Walk ~{round(option.walkEndMin)} min ({formatMetres(option.walkEndM)}) to{' '}
+        {at(timeline.endMin)}
         <strong className="text-warm-900">{destinationName}</strong>
+        {option.walkEndM > AT_STOP_M && (
+          <span className="block text-warm-600">
+            after a ~{round(option.walkEndMin)} min walk ({formatMetres(option.walkEndM)})
+          </span>
+        )}
       </div>
     </li>
   );
@@ -308,6 +388,9 @@ export const TripPlannerCard: React.FC<TripPlannerCardProps> = ({
   const trips = state.status === 'ready' ? state.trips : [];
   const shownTrips =
     isPhone && !allTrips ? trips.filter((t, i) => i < PHONE_TRIPS || t.option.id === selectedId) : trips;
+  // Each trip in time, and one scale for all the bars shown (the latest arrival)
+  const timelines = new Map(shownTrips.map((t) => [t.option.id, tripTimeline(t.option, t.live)]));
+  const scaleMin = Math.max(10, ...[...timelines.values()].map((tl) => tl.endMin));
 
   return (
     <section
@@ -381,7 +464,8 @@ export const TripPlannerCard: React.FC<TripPlannerCardProps> = ({
 
       {state.status === 'ready' && state.trips.length > 0 && (
         <>
-          <ul className="mt-3 space-y-2">
+          <TimeAxis scaleMin={scaleMin} />
+          <ul className="mt-1 space-y-2">
             {shownTrips.map((trip) => {
               const { option } = trip;
               const selected = option.id === selectedId;
@@ -396,16 +480,23 @@ export const TripPlannerCard: React.FC<TripPlannerCardProps> = ({
                     <button
                       onClick={() => onSelect(option)}
                       aria-pressed={selected}
-                      className="w-full text-left p-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5"
+                      className="w-full text-left p-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2"
                     >
-                      {/* Citymapper's route row: the strip and the total, when to leave and when you'd arrive, and
-                          where to board */}
-                      <RouteStrip option={option} notDueAt={notDueAt} />
-                      <TotalTime trip={trip} />
+                      {/* Transit's trip bar on top, then Citymapper's row: when to leave and the next buses, the total
+                          and when you'd arrive, and where to board */}
+                      <TripBar
+                        option={option}
+                        timeline={timelines.get(option.id)!}
+                        scaleMin={scaleMin}
+                        faded={trip.live.status === 'not-running'}
+                      />
                       <div className="text-xs min-w-0">
                         <LiveLine trip={trip} />
                       </div>
-                      <span className="self-end"><ArriveAt trip={trip} /></span>
+                      <span className="flex flex-col items-end gap-0.5">
+                        <TotalTime trip={trip} />
+                        <ArriveAt trip={trip} />
+                      </span>
                       <div className="col-span-2 text-[11px] text-warm-500">
                         Board at <strong className="text-warm-800">{legs[0].board.name}</strong> ·{' '}
                         {legs.reduce((n, l) => n + l.stopCount, 0)}&nbsp;stops ·{' '}
@@ -432,6 +523,7 @@ export const TripPlannerCard: React.FC<TripPlannerCardProps> = ({
                           trackedServiceNo={trackedServiceNo}
                           trackedStopCode={trackedStopCode}
                           destinationName={destination.name}
+                          timeline={timelines.get(option.id)!}
                           divided={!isPhone}
                         />
                       </div>

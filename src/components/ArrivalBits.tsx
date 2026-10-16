@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock } from 'lucide-react';
-import { BusArrivalInfo } from '../types/bus';
+import { BusArrivalInfo, BusLoad } from '../types/bus';
 
 export const formatEta = (minutes: number) => (minutes <= 0 ? 'Arr' : `${minutes} min`);
 
@@ -56,6 +56,30 @@ export const Minutes: React.FC<{
           <span className={`${s.unit} font-bold opacity-70`}>min</span>
         </>
       )}
+    </span>
+  );
+};
+
+// How full a bus is, in steps: one with seats free, two standing, three nearly full
+export const LOAD_INFO: Record<BusLoad, { level: number; label: string; short: string; fill: string }> = {
+  SEA: { level: 1, label: 'Seats available', short: 'Seats', fill: 'bg-green-blue' },
+  SDA: { level: 2, label: 'Standing available', short: 'Standing', fill: 'bg-amber-500' },
+  LSD: { level: 3, label: 'Limited standing', short: 'Limited', fill: 'bg-rose-500' },
+};
+
+// SG BusLeh's load bars and Google Maps' crowding levels: a three-step bar under a time, coloured by how full the
+// bus is, so a row of times can be read at a glance. emptyClassName: the unlit steps (lighter on dark surfaces).
+export const LoadMeter: React.FC<{ load: BusLoad; className?: string; emptyClassName?: string }> = ({
+  load,
+  className = '',
+  emptyClassName = 'bg-warm-200',
+}) => {
+  const info = LOAD_INFO[load];
+  return (
+    <span role="img" aria-label={info.label} title={info.label} className={`inline-flex items-center gap-0.5 shrink-0 ${className}`}>
+      {[1, 2, 3].map((step) => (
+        <span key={step} className={`w-2.5 h-1.5 rounded-full ${step <= info.level ? info.fill : emptyClassName}`} />
+      ))}
     </span>
   );
 };

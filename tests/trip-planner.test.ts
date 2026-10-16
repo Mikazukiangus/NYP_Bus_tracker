@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import type { NetworkFile } from '../src/types/network';
 import type { StopServiceArrivals } from '../src/types/bus';
 import { buildBusNetwork, nearestStops, searchStops } from '../src/services/busNetwork';
-import { alightFor, expectedTotalMin, legServiceNos, liveDeparture, planTrips, withServices } from '../src/services/tripPlanner';
+import { alightFor, expectedTotalMin, legServiceNos, liveDeparture, planTrips, tripTimeline, withServices } from '../src/services/tripPlanner';
 import { addRecentPlace, loadRecentPlaces, parseOneMapResults, titleCase } from '../src/services/placeSearch';
 import { leaveWithin, walkMinutes } from '../src/services/leaveWithin';
 import { calculateDistanceMeters } from '../src/data/singaporeBuses';
@@ -192,6 +192,41 @@ test('a trip and the arrivals card for its bus give the same walk and leave time
     }
   }
   assert.ok(compared >= 50, `${compared} cases compared`);
+});
+
+test("a trip's timeline runs without gaps from setting off to arriving, and agrees with its leave and arrive times", () => {
+  const bus = (estimatedMinutes: number) => ({
+    estimatedMinutes, load: 'SEA' as const, type: 'SD' as const, feature: '' as const, monitored: true,
+  });
+  const trips = [
+    ...planTrips(net, { lat: LAT + 0.0012, lng: lng(0) - 0.002 }, at('10004')).options, // a walk to the first stop
+    ...planTrips(net, { lat: LAT, lng: lng(0) }, at('10004')).options, // at it
+    ...planTrips(net, at('10001'), at('20003')).options, // with a change
+  ];
+  assert.ok(trips.some((o) => o.legs.length === 2), 'a trip with a change');
+  for (const option of trips) {
+    for (const times of [[1, 9, 17], [0, 3, 6], [12, 20, 28]]) {
+      const [b1, b2, b3] = times.map(bus);
+      const services = option.legs[0].alsoServiceNos.concat(option.legs[0].serviceNo);
+      const live = liveDeparture(option, services.map((serviceNo) => ({ serviceNo, operator: 'SBST', nextBus: b1, nextBus2: b2, nextBus3: b3 })));
+      for (const l of [live, liveDeparture(option, null)]) {
+        const tl = tripTimeline(option, l);
+        assert.equal(tl.segments[0].startMin, tl.goMin);
+        tl.segments.forEach((seg, i) => {
+          assert.ok(seg.endMin > seg.startMin);
+          if (i > 0) assert.ok(Math.abs(seg.startMin - tl.segments[i - 1].endMin) < 1e-9, 'no gap');
+        });
+        assert.ok(Math.abs(tl.endMin - tl.segments[tl.segments.length - 1].endMin) < 1e-9);
+        assert.ok(Math.abs(tl.endMin - expectedTotalMin(option, l)) < 1e-9, 'ends when the trip says you arrive');
+        assert.deepEqual(tl.segments.filter((seg) => seg.kind === 'bus').map((seg) => seg.startMin), tl.boardMin);
+        assert.equal(tl.boardMin.length, option.legs.length);
+        if (l.status === 'live') {
+          assert.equal(tl.estimated, false);
+          assert.equal(tl.goMin, l.leave?.status === 'leave' ? l.leave.inMin : 0, 'sets off when "Leave within" says');
+        }
+      }
+    }
+  }
 });
 
 test('OneMap names are title-cased, de-duplicated and ranked by how well they match', () => {

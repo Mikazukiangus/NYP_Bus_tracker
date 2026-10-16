@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { RefreshCw, Accessibility, Info, Clock, CalendarClock, ChevronDown, Flag, ArrowLeftRight, ChevronRight, ChevronLeft, Heart, Footprints } from 'lucide-react';
-import { AlightHint, ArrivalDataSource, BusArrivalInfo, BusLoad, BusServiceArrivals, BusStop, FirstLastTimes } from '../types/bus';
-import { LiveSignal, Minutes } from './ArrivalBits';
+import { AlightHint, ArrivalDataSource, BusArrivalInfo, BusServiceArrivals, BusStop, FirstLastTimes } from '../types/bus';
+import { LOAD_INFO, LiveSignal, LoadMeter, Minutes } from './ArrivalBits';
 import { LeaveWithin, leaveLabel, walkMinutes } from '../services/leaveWithin';
 import { BUS_TYPE_NAME, BUS_TYPE_SHORT, BusTypeIcon } from './BusTypeIcon';
 import { ServiceChoice } from './ServiceChoice';
@@ -116,6 +116,8 @@ const AlightStrip: React.FC<{
                 {alight.walkM > 0 ? '' : ' from the same stop'}, {next.stops.length - 1}&nbsp;stops to{' '}
                 <strong className="text-warm-900">{next.alight.name}</strong>
               </>
+            ) : walkMinutes(alight.walkM) === 0 ? (
+              "you're there"
             ) : (
               `walk ~${minutes(alight.walkMin)}\u00a0min (${formatMetres(alight.walkM)}) to ${alight.destinationName}`
             )}
@@ -137,7 +139,9 @@ const AlightStrip: React.FC<{
               </span>
             </p>
           )}
-          {getOffAlarm && <GetOffAlarmSwitch alarm={getOffAlarm} serviceNo={serviceNo} stopName={stop.name} />}
+          {getOffAlarm && (
+            <GetOffAlarmSwitch alarm={getOffAlarm} serviceNo={serviceNo} stopName={stop.name} stopCount={alight.stopCount} />
+          )}
         </div>
       </div>
       {onTrackLeg && next && trip && (
@@ -211,23 +215,6 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   const firstLast = activeStop.firstLastBus;
   const dayType = todaysDayType();
 
-  const LOAD_BADGE: Record<BusLoad, { full: string; short: string; className: string; dot: string }> = {
-    SEA: { full: 'SEA • Seats Avail', short: 'Seats', className: 'bg-green-blue-soft text-green-blue-ink border-green-blue/30', dot: 'bg-green-blue' },
-    SDA: { full: 'SDA • Standing Avail', short: 'Standing', className: 'bg-amber-100 text-amber-800 border-amber-300', dot: 'bg-amber-600' },
-    LSD: { full: 'LSD • Limited Standing', short: 'Limited', className: 'bg-rose-100 text-rose-800 border-rose-300', dot: 'bg-rose-600' },
-  };
-
-  const renderLoadBadge = (load: BusLoad) => {
-    const badge = LOAD_BADGE[load];
-    return (
-      <span className={`inline-flex items-center gap-1 px-1.5 @2xl:px-2 py-0.5 rounded-md text-[11px] @2xl:text-xs font-bold border ${badge.className}`}>
-        <span className={`w-1.5 h-1.5 rounded-full inline-block shrink-0 ${badge.dot}`} />
-        <span className="@2xl:hidden">{badge.short}</span>
-        <span className="hidden @2xl:inline">{badge.full}</span>
-      </span>
-    );
-  };
-
   const renderSingleBusCard = (
     bus: BusArrivalInfo | null,
     label: string,
@@ -275,7 +262,8 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
           )}
         </div>
 
-        {/* Arrival time, Citymapper style: the live sign for a GPS-tracked bus, a clock for a timetable estimate */}
+        {/* Arrival time, Citymapper style: the live sign for a GPS-tracked bus, a clock for a timetable estimate;
+            and the clock time, as Apple and Google Maps show */}
         <div className="my-1 @2xl:my-2">
           <Minutes
             min={bus.estimatedMinutes}
@@ -283,19 +271,21 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
             size="lg"
             className={isArr ? 'animate-pulse' : 'text-warm-900'}
           />
+          <span className="block mt-1 text-[11px] font-semibold text-warm-500 tabular-nums">
+            {isArr ? 'Now' : clockIn(bus.estimatedMinutes)}
+          </span>
         </div>
 
-        {/* Load badge */}
-        <div className="mt-2 @2xl:mt-3 flex flex-wrap items-center gap-1.5 @2xl:gap-2">
-          {renderLoadBadge(bus.load)}
-
-          {/* Single deck, double deck or bendy: LTA gives it for each bus */}
+        {/* How full (a load bar, as in SG BusLeh) and the kind of bus (LTA gives both for each bus) */}
+        <div className="mt-2 @2xl:mt-3 space-y-1 text-[11px] @2xl:text-xs font-semibold text-warm-700">
+          <span className="flex items-center gap-1.5">
+            <LoadMeter load={bus.load} />
+            <span className="@2xl:hidden">{LOAD_INFO[bus.load].short}</span>
+            <span className="hidden @2xl:inline">{LOAD_INFO[bus.load].label}</span>
+          </span>
           {bus.type && (
-            <span
-              className="inline-flex items-center gap-1 text-[11px] font-bold px-1.5 @2xl:px-2 py-0.5 rounded-md bg-warm-100 text-warm-700 border border-warm-200"
-              title={BUS_TYPE_NAME[bus.type]}
-            >
-              <BusTypeIcon type={bus.type} className="w-4 h-4 text-warm-600" />
+            <span className="flex items-center gap-1.5 text-warm-600" title={BUS_TYPE_NAME[bus.type]}>
+              <BusTypeIcon type={bus.type} className="w-4 h-4 shrink-0" />
               <span className="@2xl:hidden">{BUS_TYPE_SHORT[bus.type]}</span>
               <span className="hidden @2xl:inline">{BUS_TYPE_NAME[bus.type]}</span>
             </span>
@@ -481,18 +471,12 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
           <span>Bus Capacity Guide:</span>
         </div>
         <div className="flex flex-wrap items-center gap-3 font-medium">
-          <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-green-blue" />
-            <strong>SEA:</strong> Seats Available
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-            <strong>SDA:</strong> Standing Available
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-            <strong>LSD:</strong> Limited Standing
-          </span>
+          {(['SEA', 'SDA', 'LSD'] as const).map((load) => (
+            <span key={load} className="flex items-center gap-1.5">
+              <LoadMeter load={load} />
+              <strong>{LOAD_INFO[load].label}</strong>
+            </span>
+          ))}
           {isLive && (
             <>
               <span className="flex items-center gap-1">
