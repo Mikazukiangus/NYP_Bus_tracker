@@ -1057,3 +1057,11 @@ The complete reference, including operational settings added in Turn 51, is gene
   - On a phone (375 px), the live site loads with no failed requests, no console errors and no overflow.
 
 ---
+
+### Turn 56: No Completion Phrase for Claude (19 October 2026)
+- **User Prompt**:
+  > *"no you don't have to reply \"This is completed\""*
+- **Now**: Claude reports normally at the end of a turn instead of using the exact phrase. The rule stays in `AGENTS.md`, `.cursor/rules/project-history.mdc` and the standing instructions above for the other agents. Everything else there still applies to Claude: log every project turn here, and ask explicitly when a confirmation is needed.
+- **Validation**: documentation only, no application change.
+
+---
