@@ -942,3 +942,15 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - `npx tsc --noEmit -p .` passes, and 48 tests pass.
 
 ---
+
+### Turn 49: Drag the Location Picker Down to Close It (19 October 2026)
+- **User Prompt**:
+  > *"do the same for the location picker modal"*, then *"go with your recommendation"*
+- **Why**: the location picker already closed on Escape and on a backdrop tap, and it had a ✕. On a phone, though, it is a bottom sheet, and people expect to pull a sheet down to dismiss it.
+- **Now**: below the `sm` breakpoint, the picker shows a grab handle above its header. Dragging the handle or header moves the sheet down with the finger. Letting go after 120 px, or after a quick flick (over 30 px at more than 0.5 px/ms), closes it. A shorter drag springs it back. Pressing the ✕ doesn't start a drag. On wider screens the handle is hidden and the centred dialog doesn't move.
+- **Validation**:
+  - On a phone (375 px) in the browser: a short drag left the sheet open and back in place. A long drag closed it without changing the location. The handle shows above the header, and the ✕ still closes the sheet.
+  - On desktop (1280 px): the handle is `display: none`, and dragging the header 320 px left the dialog open with no transform. No console errors.
+  - `npx tsc --noEmit` passes, and 48 tests pass.
+
+---

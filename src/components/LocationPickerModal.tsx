@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { UserLocation } from '../types/bus';
 import { SINGAPORE_LOCATIONS } from '../data/singaporeBuses';
 import { requestGpsLocation } from '../services/userLocation';
@@ -31,10 +31,15 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 }) => {
   const [isLocating, setIsLocating] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
+  // On phones the picker is a bottom sheet: its top (the handle and header) can be dragged down to close it
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef<{ y: number; at: number } | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
     setGeoError(null);
+    setDragY(0);
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -66,6 +71,28 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     else choose(result.location);
   };
 
+  const onDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Only as a bottom sheet (below the sm breakpoint), and not when the close button is pressed
+    if (!window.matchMedia('(max-width: 639px)').matches || (e.target as HTMLElement).closest('button')) return;
+    dragStart.current = { y: e.clientY, at: e.timeStamp };
+    setIsDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (dragStart.current) setDragY(Math.max(0, e.clientY - dragStart.current.y));
+  };
+  const onDragEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    const start = dragStart.current;
+    if (!start) return;
+    dragStart.current = null;
+    setIsDragging(false);
+    const distance = e.clientY - start.y;
+    const speed = distance / Math.max(1, e.timeStamp - start.at); // px per ms
+    // Far enough, or a quick flick: close. Otherwise the sheet springs back.
+    if (distance > 120 || (distance > 30 && speed > 0.5)) onClose();
+    else setDragY(0);
+  };
+
   return (
     <div
       className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center sm:p-4 bg-warm-900/60 backdrop-blur-xs animate-in fade-in duration-200"
@@ -76,27 +103,43 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         aria-modal="true"
         aria-labelledby="location-picker-title"
         className="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl border border-warm-200 overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh]"
+        style={{
+          transform: dragY ? `translateY(${dragY}px)` : undefined,
+          transition: isDragging ? 'none' : 'transform 200ms ease-out',
+        }}
       >
-        {/* Header */}
-        <div className="px-4 sm:px-5 py-3.5 bg-warm-50 border-b border-warm-200 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-helvetia text-white flex items-center justify-center shrink-0">
-              <Navigation className="w-4 h-4 text-white" />
-            </div>
-            <div className="min-w-0">
-              <h2 id="location-picker-title" className="text-base font-black text-helvetia leading-tight">
-                Set your location
-              </h2>
-              <p className="text-xs text-warm-500">Nearby stops, buses, weather and trips start from here</p>
-            </div>
+        <div
+          className="bg-warm-50 border-b border-warm-200 touch-none sm:touch-auto"
+          onPointerDown={onDragStart}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragEnd}
+        >
+          {/* Grab handle (phones): says the sheet can be dragged down */}
+          <div className="sm:hidden flex justify-center pt-2 -mb-1.5" aria-hidden="true">
+            <div className="w-10 h-1.5 rounded-full bg-warm-300" />
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close location picker"
-            className="p-1.5 rounded-lg text-warm-500 hover:text-warm-700 hover:bg-warm-200 transition-colors shrink-0"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {/* Header */}
+          <div className="px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-helvetia text-white flex items-center justify-center shrink-0">
+                <Navigation className="w-4 h-4 text-white" />
+              </div>
+              <div className="min-w-0">
+                <h2 id="location-picker-title" className="text-base font-black text-helvetia leading-tight">
+                  Set your location
+                </h2>
+                <p className="text-xs text-warm-500">Nearby stops, buses, weather and trips start from here</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              aria-label="Close location picker"
+              className="p-1.5 rounded-lg text-warm-500 hover:text-warm-700 hover:bg-warm-200 transition-colors shrink-0"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
