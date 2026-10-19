@@ -838,3 +838,23 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - `npx tsc --noEmit -p .` passes, and 48 tests pass.
 
 ---
+
+### Turn 41: React in Its Own File (19 October 2026)
+- **User Prompt**:
+  > *"split React into its own vendor chunk too"*
+- **Why**: React changes far less often than the app. In its own file, with its own content-hashed name, a returning visitor's browser keeps it across deploys and only fetches the app's code again.
+- **Now**: `vite.config.ts` has a Rolldown code-splitting group (`build.rolldownOptions.output.codeSplitting.groups`) for `react`, `react-dom` and `scheduler`. The build is:
+
+  | File | Size | Gzipped |
+  |---|---|---|
+  | `react-*.js` | 219 kB | 68 kB |
+  | `index-*.js` (the app) | 219 kB | 61 kB |
+  | `LiveBusMap-*.js` (map and Leaflet, loaded later) | 169 kB | 49 kB |
+  | `rolldown-runtime-*.js` (shared loader) | 0.6 kB | 0.4 kB |
+
+  `index.html` preloads the React and runtime files alongside the app's, so they download in parallel. The map file uses the shared React file instead of a copy.
+- **Validation**:
+  - The production build, served by `server.ts` with `NODE_ENV=production` (new `prod-lta-stub` preview), on a phone (375 px): the four files loaded, the arrivals showed, and the Map tab showed the map with its tiles and 47 markers. No request to the app failed.
+  - `npx tsc --noEmit -p .` passes, and 48 tests pass.
+
+---
