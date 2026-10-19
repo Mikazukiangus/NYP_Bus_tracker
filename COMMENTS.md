@@ -858,3 +858,15 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - `npx tsc --noEmit -p .` passes, and 48 tests pass.
 
 ---
+
+### Turn 42: Built Files Cached for a Year (19 October 2026)
+- **User Prompt**:
+  > *"yes, add the cache headers"*
+- **Why**: Vercel sent every file with `Cache-Control: public, max-age=0, must-revalidate`, so on every visit browsers asked again for the React, app and map files, even when nothing had changed. The files in `/assets/` are named after a hash of their contents, so a file with a given name never changes and can be kept for good.
+- **Now** (`vercel.json`):
+  - `/assets/*` is sent with `Cache-Control: public, max-age=31536000, immutable`: a year, with no checking back. A deploy that changes a file gives it a new name, which the new `index.html` points to.
+  - The catch-all rewrite to `index.html` no longer covers `/assets/`. Before, a missing asset (such as an old map file asked for by a tab left open across a deploy) came back as the HTML page with status 200, and with the new header that page would have been kept for a year under a JavaScript file's name. A missing asset is now a plain 404.
+  - `index.html`, `/bus-routes/*`, `/route-shapes/*` and the API keep Vercel's default, so new deploys and refreshed route data still show at once.
+- **Validation**: on the live site after the deploy (below the table in the reply), compared with before.
+
+---
