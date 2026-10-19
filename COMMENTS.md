@@ -1048,6 +1048,12 @@ The complete reference, including operational settings added in Turn 51, is gene
     - `/api/bus-arrival` returns 200, labelled simulated.
     - `/api/traffic-incidents` returns a JSON 503.
     - `/api/weather` returns 200.
-- **Delivery**: committed as `a952403` and fast-forwarded `main` to it, which deploys to production. The production check is reported in chat and in the next entry.
+- **Delivery**: committed as `a952403`, with this entry in `ca3b8a7`, and fast-forwarded `main` to them. The temporary remote branch `codex/validated-config` was deleted after the preview check. The local branch is kept, and the checkout is back on `main`.
+- **Production check** (https://nypbus-tracker.vercel.app, live about 30 s after the push):
+  - All four asset files return 200.
+  - `/api/health` returns 200 "ok" with the production LTA key. `/api/bus-arrival?BusStopCode=55329` returns real LTA data (Bus 72, Go-Ahead). `/api/traffic-incidents` and `/api/weather` return 200.
+  - The error responses are JSON: 400 for a missing stop code and 404 for an unknown service.
+  - The build-time `/bus-routes/72.json` and `/route-shapes/72.json` return 200, so the route step works with the new config.
+  - On a phone (375 px), the live site loads with no failed requests, no console errors and no overflow.
 
 ---
