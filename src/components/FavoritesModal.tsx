@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { FavoriteItem } from '../types/bus';
 import { X, Trash, Heart, ExternalLink, Clock } from 'lucide-react';
 import type { FavoriteArrival } from '../services/favoriteArrivals';
@@ -36,6 +36,13 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
   onRemoveFavorite,
   onSelectFavorite
 }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (

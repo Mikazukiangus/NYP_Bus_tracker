@@ -921,3 +921,14 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - `npx tsc --noEmit -p .` passes, 48 tests pass and `npm audit` finds 0 vulnerabilities.
 
 ---
+
+### Turn 47: Escape Closes the Saved Buses List (19 October 2026)
+- **User Prompt**:
+  > *"make Escape close the saved buses list"*
+- **Why**: the Saved buses list could only be closed with its ✕ or Close button, though the location picker already closes on Escape, as people expect a pop-up to.
+- **Now**: `FavoritesModal` listens for Escape while it's open, the same way `LocationPickerModal` does, and stops listening when it closes.
+- **Validation**:
+  - In the browser: the list opened, Escape closed it, it opened again, and its Close button still closed it. No console errors.
+  - `npx tsc --noEmit -p .` passes, and 48 tests pass.
+
+---
