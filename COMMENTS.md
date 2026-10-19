@@ -1032,3 +1032,22 @@ The complete reference, including operational settings added in Turn 51, is gene
 - **Status**: waiting for the user to decide whether to commit and deploy the `codex/validated-config` work.
 
 ---
+
+### Turn 55: Check and Deploy the Validated Config and Secret Scanning (19 October 2026)
+- **User Prompt**:
+  > *"yes, check it and deploy to main"* (the Turns 50–53 work on `codex/validated-config`)
+- **Checks before deploying**:
+  - `npx tsc --noEmit -p .` passes and all 63 tests pass. `npm run config:check` reports a valid config. `npm run secrets:scan` finds 0 secrets in the working tree and in all 52 commits.
+  - `npx vite build` works. The CSS (`index-CK6caHgK.css`) and React (`react-CyONRaQH.js`) file names are unchanged, so returning visitors keep both cached.
+  - In the browser, the production build with the LTA stub (`prod-lta-stub`):
+    - Phone (375 px): arrivals, nearest stops, the rain line and the map load (20 of 20 OneMap tiles, the Bus 72 route, live GPS bus, incident). No horizontal overflow and no console errors.
+    - Desktop (1280 px): the OneMap place search ("ang mo kio hub") returns results.
+    - API: `/api/health` returns 200, a missing `BusStopCode` returns a JSON 400, and an unknown service returns a JSON 404.
+  - **Vercel preview** (`a952403` on branch `codex/validated-config`): this was the main risk, because the API functions now import `../config/server.ts`. The build succeeded and all four functions ran:
+    - `/api/health` returns 503 "degraded", because `LTA_ACCOUNT_KEY` is set for Production only, not Preview. NEA is ok.
+    - `/api/bus-arrival` returns 200, labelled simulated.
+    - `/api/traffic-incidents` returns a JSON 503.
+    - `/api/weather` returns 200.
+- **Delivery**: committed as `a952403` and fast-forwarded `main` to it, which deploys to production. The production check is reported in chat and in the next entry.
+
+---
