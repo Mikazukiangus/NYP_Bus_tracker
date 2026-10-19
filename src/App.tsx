@@ -58,7 +58,7 @@ import { loadSavedLocation, locationFromGps, saveUserLocation } from './services
 import { loadLastBusSearch, saveLastBusSearch } from './services/lastBusSearch';
 import { AlarmRide, useGetOffAlarm } from './services/useGetOffAlarm';
 import { GetOffBanner, alarmStatus } from './components/GetOffAlarm';
-import { Heart, AlertCircle } from 'lucide-react';
+import { Heart, CircleAlert } from 'lucide-react';
 
 const FAVORITES_STORAGE_KEY = 'sbs_transit_favorites_v1';
 const ARRIVALS_CARD_ID = 'live-arrivals';
@@ -1105,7 +1105,7 @@ export default function App() {
                 : 'bg-warm-50 border-warm-200 text-warm-600'
             }`}
           >
-            <AlertCircle className="w-4 h-4 shrink-0" />
+            <CircleAlert className="w-4 h-4 shrink-0" />
             <span>{isRouteLoading ? 'Loading the bus\'s stops…' : routeNotice}</span>
           </div>
         )}

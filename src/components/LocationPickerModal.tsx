@@ -5,7 +5,7 @@ import { requestGpsLocation } from '../services/userLocation';
 import type { BusNetwork } from '../services/busNetwork';
 import { PlaceResult, placeToLocation } from '../services/placeSearch';
 import { PlaceSearch, PlaceKindIcon } from './PlaceSearch';
-import { X, Navigation, Locate, MapPin, Check, Loader2, GraduationCap, Clock } from 'lucide-react';
+import { X, Navigation, Locate, MapPin, Check, LoaderCircle, GraduationCap, Clock } from 'lucide-react';
 
 interface LocationPickerModalProps {
   isOpen: boolean;
@@ -131,7 +131,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             >
               {isLocating ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <LoaderCircle className="w-4 h-4 animate-spin" />
                   <span>Getting your GPS position…</span>
                 </>
               ) : (

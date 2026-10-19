@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { BusFront, Building2, Clock, Hash, Home, Loader2, MapPin, Search, X } from 'lucide-react';
+import { BuildingComplex, BusFront, Clock, Hash, House, LoaderCircle, MapPin, Search, X } from 'lucide-react';
 import type { BusNetwork } from '../services/busNetwork';
 import { PlaceKind, PlaceResult, isPostalCode, usePlaceSearch } from '../services/placeSearch';
 
@@ -19,8 +19,8 @@ interface PlaceSearchProps {
 }
 
 const KIND_ICON: Record<PlaceKind, React.ElementType> = {
-  place: Building2,
-  address: Home,
+  place: BuildingComplex,
+  address: House,
   postal: Hash,
   stop: BusFront,
 };
@@ -143,7 +143,7 @@ export const PlaceSearch: React.FC<PlaceSearchProps> = ({
       )}
       {statusText && (
         <div className="px-3 py-2.5 text-xs text-warm-600 flex items-center gap-2 bg-warm-50 border-t border-warm-100 first:border-t-0">
-          {search.status === 'loading' && <Loader2 className="w-3.5 h-3.5 animate-spin text-helvetia shrink-0" />}
+          {search.status === 'loading' && <LoaderCircle className="w-3.5 h-3.5 animate-spin text-helvetia shrink-0" />}
           <span>{statusText}</span>
         </div>
       )}

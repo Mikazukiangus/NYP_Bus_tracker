@@ -1,6 +1,6 @@
 import React from 'react';
 import { FavoriteItem } from '../types/bus';
-import { X, Trash2, Heart, ExternalLink, Clock } from 'lucide-react';
+import { X, Trash, Heart, ExternalLink, Clock } from 'lucide-react';
 import type { FavoriteArrival } from '../services/favoriteArrivals';
 import { formatEta, TrackingBadge } from './ArrivalBits';
 
@@ -147,7 +147,7 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
                       className="p-2 text-warm-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Remove from saved buses"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

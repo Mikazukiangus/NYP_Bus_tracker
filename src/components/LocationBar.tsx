@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowUpDown, Clock, Flag, Loader2, Locate, MapPin } from 'lucide-react';
+import { ArrowUpDown, Clock, Flag, LoaderCircle, Locate, MapPin } from 'lucide-react';
 import type { UserLocation } from '../types/bus';
 import type { BusNetwork } from '../services/busNetwork';
 import type { PlaceResult } from '../services/placeSearch';
@@ -105,7 +105,7 @@ export const LocationBar: React.FC<LocationBarProps> = ({
               title="Use my current GPS position"
               aria-label="Use my current GPS position"
             >
-              {isLocating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Locate className="w-4 h-4" />}
+              {isLocating ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Locate className="w-4 h-4" />}
               <span className="hidden sm:inline">{isLocating ? 'Locating…' : 'GPS'}</span>
             </button>
             <button onClick={onOpenPicker} className="px-2 py-1.5 rounded-lg font-bold underline hover:bg-white/10">
@@ -123,7 +123,7 @@ export const LocationBar: React.FC<LocationBarProps> = ({
               disabled={isLocating}
               className="inline-flex items-center gap-1 font-bold text-lemon underline underline-offset-2 disabled:opacity-70"
             >
-              {isLocating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Locate className="w-3.5 h-3.5" />}
+              {isLocating ? <LoaderCircle className="w-3.5 h-3.5 animate-spin" /> : <Locate className="w-3.5 h-3.5" />}
               {isLocating ? 'Finding you…' : 'Use my location'}
             </button>
           </p>

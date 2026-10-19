@@ -906,3 +906,18 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - The CSS still builds to the live file (`index-bjwK25IH.css`), so the README doesn't change what visitors download.
 
 ---
+
+### Turn 46: Icons on lucide-react 1.x (19 October 2026)
+- **User Prompt**:
+  > *"upgrade lucide-react to 1.x"*
+- **Why**: `^0.546.0` only allows 0.546.x (a `^` range on a 0.x version stops at the next minor), so the icons had been stuck on a release from October 2025, 92 releases behind.
+- **Before upgrading**, against 1.59.0's published type definitions:
+  - All 60 names the app imports still exist. Five survive only as aliases of renamed icons: `AlertCircle` (now `CircleAlert`), `Building2` (`BuildingComplex`), `Home` (`House`), `Loader2` (`LoaderCircle`) and `Trash2` (`Trash`).
+  - 1.0's one change that matters here, `aria-hidden` on icons by default, is only applied to icons with no `aria-*`, `role` or `title` attribute (from 1.59.0's `Icon.mjs` and `hasA11yProp.mjs`), so the icons that carry their own label keep it.
+- **Now**: `lucide-react` is `^1.59.0`, and the five aliased icons use their 1.x names in `App.tsx`, `FavoritesModal`, `LocationBar`, `LocationPickerModal`, `PlaceSearch` and `TripPlannerCard`, so a later release that drops the aliases won't break them. npm also sorted `devDependencies` alphabetically.
+- **Validation**:
+  - On a phone (375 px) in the browser: all 39 icons on the first screen draw, the 37 decorative ones are now hidden from screen readers, and both "Timetable time" clocks keep their label. The Saved list shows the bin (`lucide-trash`, with its two lines, as `Trash2` had). Searching "ang mo kio" shows the spinner (`lucide-loader-circle`) while it loads, then the building icon (`lucide-building-complex`) on the places. No console errors.
+  - The app file is 4.3 kB larger (1.5 kB gzipped), from 1.x's icon component. The React file keeps its name.
+  - `npx tsc --noEmit -p .` passes, 48 tests pass and `npm audit` finds 0 vulnerabilities.
+
+---

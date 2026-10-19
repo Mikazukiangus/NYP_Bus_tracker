@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BusFront, Check, ChevronDown, ChevronRight, Flag, Footprints, Loader2, Map as MapIcon, Route, X } from 'lucide-react';
+import { BusFront, Check, ChevronDown, ChevronRight, Flag, Footprints, LoaderCircle, Map as MapIcon, Route, X } from 'lucide-react';
 import type { PlaceResult } from '../services/placeSearch';
 import type { LiveDeparture, TripLeg, TripOption, TripPlan, TripTimeline } from '../services/tripPlanner';
 import { expectedTotalMin, legServiceNos, tripTimeline } from '../services/tripPlanner';
@@ -155,7 +155,7 @@ function LiveLine({ trip }: { trip: RankedTrip }) {
   if (live.status === 'loading') {
     return (
       <span className="flex items-center gap-1.5 text-warm-500">
-        <Loader2 className="w-3 h-3 animate-spin" /> Checking live bus times…
+        <LoaderCircle className="w-3 h-3 animate-spin" /> Checking live bus times…
       </span>
     );
   }
