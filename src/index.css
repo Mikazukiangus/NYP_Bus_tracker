@@ -1,7 +1,7 @@
 @import "tailwindcss";
-/* The change notes aren't page content: words in them that look like class names would change the CSS (and its
-   file name, so browsers fetch it again) whenever a note is added */
-@source not "../COMMENTS.md";
+/* The notes (COMMENTS.md, README.md) aren't page content: words in them that look like class names would change
+   the CSS (and its file name, so browsers fetch it again) whenever a note is edited */
+@source not "../*.md";
 
 /* Sanzo Wada, plate 259: Lemon Yellow & Green Blue +2.
    Exact swatches anchor the theme; lighter/darker tones keep small text legible. */

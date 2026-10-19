@@ -882,3 +882,13 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - `npx tsc --noEmit -p .` passes, and 48 tests pass.
 
 ---
+
+### Turn 44: The Caching Tip in a README (19 October 2026)
+- **User Prompt**:
+  > *"put React's caching tip in the README"*
+- **Now**:
+  - The project has a `README.md` (there wasn't one), with a section on caching: which file holds what, why `react-*.js` stays in returning visitors' caches across deploys, and four rules that keep it so (the React group in `vite.config.ts`, only content-hashed files in `/assets/`, no `index.html` fallback for `/assets/`, notes kept out of Tailwind's scan).
+  - Writing it showed the problem from Turn 43 again: Tailwind read README.md and its words renamed the CSS. `src/index.css` now has `@source not "../*.md";`, which covers every Markdown file at the top of the project instead of only COMMENTS.md.
+- **Validation**: the CSS builds to the same file as the live site (`index-bjwK25IH.css`) with the README, with made-up class names added to it, and with them added to COMMENTS.md.
+
+---
