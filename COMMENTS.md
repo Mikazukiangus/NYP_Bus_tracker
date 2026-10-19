@@ -1065,3 +1065,11 @@ The complete reference, including operational settings added in Turn 51, is gene
 - **Validation**: documentation only, no application change.
 
 ---
+
+### Turn 57: The Completion Phrase Stays for Codex (19 October 2026)
+- **User Prompt**:
+  > *"leave it in AGENTS.md for Codex"*
+- **Now**: no files changed. The "This is completed" rule stays in `AGENTS.md`, `.cursor/rules/project-history.mdc` and the standing instructions above, for Codex. Claude's exception is recorded in Turn 56.
+- **Validation**: none needed; no application change.
+
+---
