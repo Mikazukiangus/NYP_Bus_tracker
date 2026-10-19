@@ -1073,3 +1073,15 @@ The complete reference, including operational settings added in Turn 51, is gene
 - **Validation**: none needed; no application change.
 
 ---
+
+### Turn 58: What Still Needs the User (19 October 2026)
+- **User Prompt**:
+  > *"anything else i need to confirm?"*
+- **Findings**: the checkout is clean on `main`, and everything is deployed. Still open for the user:
+  - There's no local `.env` or `.env.local` yet, so local runs have no LTA key. The user adds the key themselves.
+  - The drag-to-close location picker (Turn 49) hasn't been tried on a real phone yet.
+  - Optional: Vercel preview builds have no `LTA_ACCOUNT_KEY`, so previews show simulated arrivals.
+  - Optional: four local `codex/*` branches are all merged into `main` and could be deleted.
+- **Validation**: checked `git status`, the branches, and which `.env*` files exist (names only). No files changed apart from this entry.
+
+---
