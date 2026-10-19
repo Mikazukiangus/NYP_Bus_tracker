@@ -801,3 +801,12 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - `npx tsc --noEmit -p .` passes with Node 24's types, 48 tests pass, `npx vite build` works and `npm audit` finds 0 vulnerabilities.
 
 ---
+
+### Turn 38: esbuild's Install Script Approved (19 October 2026)
+- **User Prompt**:
+  > *"approve the esbuild install script"*
+- **Why**: npm now runs a package's install script only once the project approves it, so every install warned that `esbuild@0.28.2` (`postinstall: node install.js`) was waiting. The script checks that esbuild's binary for the machine is there and works, and swaps in a faster launcher for it. If the binary package is missing, it downloads it from npm and checks it against its checksum.
+- **Now**: `package.json` has `"allowScripts": { "esbuild@0.28.2": true }`, written by `npm approve-scripts esbuild`. The approval is for that exact version, so when esbuild is updated, npm asks again before running the new version's script.
+- **Validation**: `npm approve-scripts --allow-scripts-pending` lists nothing waiting, and npm leaves `package-lock.json` unchanged, so `npm ci` still accepts it.
+
+---
