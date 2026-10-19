@@ -822,3 +822,19 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - `npx tsc --noEmit -p .` passes, and 48 tests pass.
 
 ---
+
+### Turn 40: The Map Loads on Its Own (19 October 2026)
+- **User Prompt**:
+  > *"fix the large chunk warning with code splitting"*
+- **Why it happened**: the whole app was one 605 kB JavaScript file, over Vite's 500 kB warning size. The live map and Leaflet were a quarter of it, though phones only need them on the Map tab.
+- **Now**:
+  - `LiveBusMap` (and Leaflet with it) is loaded with `React.lazy`, so it is its own 169 kB file (49 kB gzipped). The main file is 439 kB (130 kB gzipped, was 178 kB).
+  - While it loads, a "Loading map…" box of the map's exact size holds its place, so nothing below it jumps.
+  - Once the first screen is drawn, the map's code is fetched while the page is idle, so on a phone it's ready before the Map tab is opened.
+- **Validation**:
+  - `npx vite build` no longer warns, and shows the two files above.
+  - Desktop (1280 px): the map shows in the arrivals view with its tiles, from its own file.
+  - Phone (375 px): the map's code was fetched while the arrivals showed, after the route data. Opening the Map tab showed the placeholder for a moment, then the map with its tiles, 48 markers and the trip line.
+  - `npx tsc --noEmit -p .` passes, and 48 tests pass.
+
+---

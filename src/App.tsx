@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   AlightHint,
   BusRoute,
@@ -41,7 +41,6 @@ import { BusSearchBox } from './components/BusSearchBox';
 import { NearestStopBanner } from './components/NearestStopBanner';
 import { ArrivalDisplay } from './components/ArrivalDisplay';
 import { StopServicesBoard } from './components/StopServicesBoard';
-import { LiveBusMap } from './components/LiveBusMap';
 import { RouteStopsList } from './components/RouteStopsList';
 import { NEAWeatherWidget, WeatherStrip } from './components/NEAWeatherWidget';
 import { LiveArrivalsBar } from './components/LiveArrivalsBar';
@@ -69,6 +68,19 @@ const INCIDENT_ROUTE_DISTANCE_M = 150;
 // Further than this from where the trip starts, a bus stop isn't one you'd walk to (for the rain advice)
 const WALKABLE_STOP_M = 1500;
 
+// The map and Leaflet are a quarter of the app's code, so they load on their own: the times show without waiting
+// for them, and the map is fetched while the page is idle (below) so the phone Map tab opens at once
+const loadLiveBusMap = () => import('./components/LiveBusMap');
+const LiveBusMap = lazy(() => loadLiveBusMap().then((m) => ({ default: m.LiveBusMap })));
+
+// Holds the map's place, at its size, while its code loads
+const MapPlaceholder: React.FC = () => (
+  <div className="bg-white rounded-2xl border border-warm-200 overflow-hidden shadow-sm" aria-busy="true">
+    <div className="px-3 sm:px-4 py-3 bg-warm-50 border-b border-warm-200 text-sm font-bold text-warm-500">Loading map…</div>
+    <div className="w-full h-[calc(100dvh-18rem)] min-h-[320px] max-h-[520px] max-sm:max-h-none sm:h-[460px] lg:h-[520px] bg-warm-100 animate-pulse" />
+  </div>
+);
+
 export default function App() {
   // Restore the last location immediately while requesting a fresh GPS fix.
   const [userLocation, setUserLocation] = useState<UserLocation>(() => loadSavedLocation() ?? SINGAPORE_LOCATIONS[0]);
@@ -79,6 +91,12 @@ export default function App() {
 
   const userLocationRef = useRef(userLocation);
   userLocationRef.current = userLocation;
+
+  // Fetch the map's code once the first screen is drawn, so it's ready before anyone opens the Map tab
+  useEffect(() => {
+    const whenIdle = window.requestIdleCallback ?? ((run: () => void) => setTimeout(run, 1500));
+    whenIdle(() => void loadLiveBusMap());
+  }, []);
 
   // The bus number last looked up in "Find Bus Service" (kept for next time; none on a first visit). The app opens
   // on that bus, or on a first visit on the first bus at the stop nearest the user (see below).
@@ -1125,19 +1143,21 @@ export default function App() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
               {!isPhone && (
                 <div className="lg:col-span-7">
-                  <LiveBusMap
-                    route={currentRoute}
-                    direction={direction}
-                    nearestStop={nearestStop}
-                    selectedStop={selectedStop}
-                    onSelectStop={handleSelectStop}
-                    userLocation={userLocation}
-                    incomingBuses={incomingBuses}
-                    incidents={incidentsOnRoute}
-                    journey={journey}
-                    alight={alightHint}
-                    etas={stopEtas}
-                  />
+                  <Suspense fallback={<MapPlaceholder />}>
+                    <LiveBusMap
+                      route={currentRoute}
+                      direction={direction}
+                      nearestStop={nearestStop}
+                      selectedStop={selectedStop}
+                      onSelectStop={handleSelectStop}
+                      userLocation={userLocation}
+                      incomingBuses={incomingBuses}
+                      incidents={incidentsOnRoute}
+                      journey={journey}
+                      alight={alightHint}
+                      etas={stopEtas}
+                    />
+                  </Suspense>
                 </div>
               )}
               <div className="lg:col-span-5 space-y-4 sm:space-y-6">
@@ -1194,19 +1214,21 @@ export default function App() {
 
         {activeTab === 'map' && (
           <div id="trip-map" className="space-y-4 scroll-mt-4 sm:scroll-mt-32">
-            <LiveBusMap
-              route={currentRoute}
-              direction={direction}
-              nearestStop={nearestStop}
-              selectedStop={selectedStop}
-              onSelectStop={handleSelectStop}
-              userLocation={userLocation}
-              incomingBuses={incomingBuses}
-              incidents={incidentsOnRoute}
-              journey={journey}
-              alight={alightHint}
-              etas={stopEtas}
-            />
+            <Suspense fallback={<MapPlaceholder />}>
+              <LiveBusMap
+                route={currentRoute}
+                direction={direction}
+                nearestStop={nearestStop}
+                selectedStop={selectedStop}
+                onSelectStop={handleSelectStop}
+                userLocation={userLocation}
+                incomingBuses={incomingBuses}
+                incidents={incidentsOnRoute}
+                journey={journey}
+                alight={alightHint}
+                etas={stopEtas}
+              />
+            </Suspense>
             {tripCard}
             {/* Quick arrival summary card below the map (phones: the next-bus bar) */}
             {!isPhone && arrivalsCard}
