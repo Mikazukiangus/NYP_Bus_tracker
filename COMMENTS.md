@@ -810,3 +810,15 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
 - **Validation**: `npm approve-scripts --allow-scripts-pending` lists nothing waiting, and npm leaves `package-lock.json` unchanged, so `npm ci` still accepts it.
 
 ---
+
+### Turn 39: No More `__dirname` Warning from Vite (19 October 2026)
+- **User Prompt**:
+  > *"fix the vite __dirname warning in vite.config.ts"*
+- **Why it happened**: `vite.config.ts` is an ES module, and its `@` alias used CommonJS's `__dirname`. Vite warned in every build that its coming native config loader (`configLoader: 'native'`) won't support that.
+- **Now**: the alias uses `import.meta.dirname`, the ES-module equivalent, which Node 24 (here and on Vercel) has built in.
+- **Validation**:
+  - `npx vite build` no longer prints the warning, and Vite's own config loader resolves `@` to the project folder as before.
+  - The local dev server (`server.ts`, which loads this config) starts and the app shows "Find a bus".
+  - `npx tsc --noEmit -p .` passes, and 48 tests pass.
+
+---
