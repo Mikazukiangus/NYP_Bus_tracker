@@ -780,3 +780,24 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - `npm test`: 48 tests pass. `npx vite build` works.
 
 ---
+
+### Turn 37: One Locked Set of Packages, Everywhere (19 October 2026)
+- **User Prompt**:
+  > *"check my dependency setup: am i locking exact versions, and are any of my packages unmaintained or risky?"*, then *"go ahead"*
+- **What was wrong**:
+  - `package.json` uses `^` ranges, as is usual. The exact versions lived in `bun.lock`, but only Vercel and the monthly workflow used it. On this Mac packages were installed with npm, which ignores `bun.lock`, and there was no `package-lock.json`, so a fresh `npm install` could pick versions the live site doesn't run.
+  - Vercel ran a plain `bun install`, which quietly picks new versions when `package.json` and the lockfile disagree, instead of failing.
+  - `motion` was installed but imported nowhere.
+  - `@types/node` described Node 22, while Vercel and this Mac run Node 24.
+- **Now**:
+  - npm everywhere. `package-lock.json` replaces `bun.lock`, with the same versions as before (compared package by package) and a sha512 checksum for every package, each matching both the npm registry and the old `bun.lock`.
+  - `vercel.json` installs with `npm ci`, which installs exactly what the lockfile says and fails the deploy if it and `package.json` disagree.
+  - The monthly "Refresh route data" workflow installs with `npm ci` on Node 24, instead of Bun on Node 22.
+  - `motion` is removed, and with it `framer-motion`, `motion-dom` and `motion-utils`. `@types/node` is `^24.19.2`.
+- **Checked and left alone**: no locked package is deprecated, and npm's audit finds no known vulnerabilities. Three are older but not risky: Leaflet 1.9.4 (last release May 2023, 2.0 still in alpha), Express 4 (officially still supported, and only the local dev server runs it) and lucide-react 0.546 (held to 0.546.x by its `^0.` range).
+- **Validation**:
+  - A clean `npm ci` installs from the lockfile, and tsx (esbuild) runs without its setup script.
+  - `npm ls --all` finds no missing or mismatched packages, and npm leaves the lockfile unchanged when it re-reads it.
+  - `npx tsc --noEmit -p .` passes with Node 24's types, 48 tests pass, `npx vite build` works and `npm audit` finds 0 vulnerabilities.
+
+---
