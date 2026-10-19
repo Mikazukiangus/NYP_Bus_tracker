@@ -932,3 +932,13 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - `npx tsc --noEmit -p .` passes, and 48 tests pass.
 
 ---
+
+### Turn 48: Tapping Outside Closes the Saved Buses List (19 October 2026)
+- **User Prompt**:
+  > *"make the saved list close when tapping outside it"*
+- **Now**: tapping the dimmed backdrop around the Saved buses list closes it, as the location picker already does. Only a tap on the backdrop itself counts (`e.target === e.currentTarget`), so taps anywhere inside the list, including its empty spaces, leave it open.
+- **Validation**:
+  - On a phone (375 px) in the browser: a tap on an empty spot inside the list kept it open. A tap on the backdrop above it closed it, without reaching the From row underneath (the location picker stayed closed).
+  - `npx tsc --noEmit -p .` passes, and 48 tests pass.
+
+---

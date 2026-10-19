@@ -46,7 +46,10 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-warm-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-warm-900/60 backdrop-blur-xs animate-in fade-in duration-200"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-warm-200 overflow-hidden flex flex-col max-h-[85vh]">
         {/* Modal Header */}
         <div className="px-5 py-4 bg-warm-50 border-b border-warm-200 flex items-center justify-between">
