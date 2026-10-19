@@ -22,9 +22,46 @@ You need Node.js 24 (what Vercel and the GitHub workflow use) and an LTA DataMal
    LTA_ACCOUNT_KEY="your key"
    ```
 
-   `.env` is ignored by git, so the key stays on your machine. Two settings are optional:
-   - `DATA_GOV_SG_API_KEY`: a data.gov.sg key for the weather. Without one the weather still works, but its first load takes a few seconds longer.
-   - `PORT`: the local port, 3000 by default.
+   `.env` is ignored by git, so the key stays on your machine. Every other setting has a default. `DATA_GOV_SG_API_KEY` is optional; keyless weather works but takes more requests to fill a cold cache. See [`.env.example`](.env.example) for all settings, units and limits.
+
+### Local virtual environment (macOS / Linux)
+
+This is a Node.js project. The optional `.venv` uses [nodeenv](https://github.com/ekalinin/nodeenv) to keep its own Node.js 24.19.0 and npm 11.17.0, plus npm's cache and global tools, inside the project. Python is used to set up nodeenv; the app's packages are managed with npm and live in this project's `node_modules/`. Both directories are ignored by git.
+
+The environment is already set up on this Mac. In each new terminal, activate it and run the app with:
+
+```bash
+cd /Users/admin/Projects/TravelTracker
+source .venv/bin/activate
+npm run dev
+```
+
+To install the existing locked packages, run `npm ci`. To add a package, replace `PACKAGE_NAME` below with its npm name:
+
+```bash
+npm install PACKAGE_NAME
+# For a development tool instead:
+npm install --save-dev PACKAGE_NAME
+```
+
+Adding a package updates `package.json` and `package-lock.json`; keep both in git. `npm ci` restores the versions in the lockfile, so it does not add new packages.
+
+Check which runtime is active with `command -v node` and `node --version`. The path should end in `TravelTracker/.venv/bin/node`. To leave both the Node and Python environments:
+
+```bash
+deactivate_node
+deactivate
+```
+
+To recreate the environment on another Mac or Linux machine, from the project folder (Python 3 is needed):
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install nodeenv==1.11.0
+.venv/bin/python -m nodeenv --node=24.19.0 --prebuilt --with-npm --npm=11.17.0 --isolate-npm -p .venv
+source .venv/bin/activate
+npm ci
+```
 
 ## Run it
 
@@ -44,6 +81,9 @@ Other commands:
 | `npm run build` | Runs `npm run routes`, then builds the site into `dist/` |
 | `npx vite build` | Builds the site only, keeping the route files you already have |
 | `npm run shapes` | Rebuilds the road-following route lines in `public/route-shapes/` from OpenStreetMap |
+| `npm run config:check` | Validates local configuration and reports key presence without printing secrets |
+| `npm run config:example` | Regenerates `.env.example` from the schema's defaults, without reading local secrets |
+| `npm run secrets:scan` | Scans current first-party files and complete local Git history with Gitleaks, reporting only finding locations |
 
 `npm run build` empties `public/bus-routes/` before downloading, so without a key, or if LTA DataMall is down, it leaves none. The app still works (it asks `/api/bus-route` instead), just more slowly. To see the production build locally, run `npm run build`, then:
 
@@ -51,7 +91,32 @@ Other commands:
 NODE_ENV=production npm start
 ```
 
+## Configuration
+
+[`config/schema.ts`](config/schema.ts) defines one validated, immutable configuration object, imported as `config` from `config/server.ts` by the server, API functions and data scripts. [`config/public.ts`](config/public.ts) defines its browser allowlist; `src/config.ts` exposes that public projection. Vite injects only `config.public` and disables automatic environment-variable exposure. API keys and server settings are never sent with the public object.
+
+The configuration audit moved these settings out of their individual callers:
+
+| Settings | Variables |
+|---|---|
+| Local runtime and hot reload | `NODE_ENV`, `PORT`, `HOST`, `DISABLE_HMR` |
+| LTA endpoint, credentials, request/page timeouts, pagination and retry/cache policy | `LTA_*` |
+| Upstream health-check stop and timeout | `HEALTH_*` |
+| NEA credentials, request budget/window, dataset lifetimes and CDN policy | `DATA_GOV_SG_API_KEY`, `NEA_*` |
+| Route-shape provider mirrors, retry/deadline/query settings and User-Agent | `OVERPASS_*` |
+| Browser API/data prefixes, OneMap/NEA bases, polling and request/GPS timeouts | Explicit `VITE_*` fields in `.env.example` |
+
+All defaults and supported variables are generated into [`.env.example`](.env.example), including the platform-provided `VERCEL` flag and a note for the CI-only deploy-hook secret. Blank values use defaults; blank credentials preserve the existing offline/degraded behaviour. Invalid integers, booleans, URLs, stop codes and incompatible time budgets fail before serving or building. Errors name the setting and constraint, without printing its supplied value. URLs must use HTTPS, except for HTTP on localhost, and may not contain credentials, queries or fragments.
+
+Files load from the repository in this order, later values winning: `.env`, `.env.local`, `.env.[mode]`, `.env.[mode].local`. Shell/platform environment variables have highest priority. Values are literal: put full URLs in the file rather than references such as `${OTHER_VARIABLE}`. Local runtime defaults to development, and `npm run build` uses production mode for both route generation and Vite; `NODE_ENV` can explicitly select the runtime mode. Leave the example's `NODE_ENV` and `VERCEL` lines commented unless you intend to override those automatic values.
+
+Use `npm run config:check` after changing your local settings and restart the server. Public `VITE_*` values are built into JavaScript, so rebuild/redeploy after changing them. Keep credentials in `LTA_ACCOUNT_KEY` and `DATA_GOV_SG_API_KEY`, never under a `VITE_` name. API and data URL prefixes default to the same origin; external hosts must allow the browser's origin with CORS. The NEA base is deliberately public because it is used both by the server aggregator and by the keyless browser fallback.
+
+Singapore geography, provider response contracts (such as LTA's 500-row pages), weather/health bands, walking and trip-ranking rules, storage keys, branding, attribution and UI constants remain in code: they define the product and data model. Vercel's hashed-asset caching, rewrites/function limits and the GitHub workflow's schedule/job timeout remain in their deployment files, which must be read before application code runs.
+
 ## Deploying
+
+See [SECURITY.md](SECURITY.md) for the latest secret-scan result, safe local/Vercel/GitHub storage, redacted logging examples and credential-rotation steps.
 
 Pushing to `main` deploys to Vercel. Vercel installs with `npm ci`, runs `npm run build` and serves `dist/` with the functions in `api/`. It needs `LTA_ACCOUNT_KEY` (and optionally `DATA_GOV_SG_API_KEY`) set in the Vercel project's environment variables.
 
@@ -76,5 +141,6 @@ To keep it that way:
 - **Put only content-hashed files in `/assets/`.** Anything there is cached for a year under its name. Data that's refreshed without a rename, like `public/bus-routes/` and `public/route-shapes/`, belongs elsewhere and keeps Vercel's default caching.
 - **Don't send `/assets/` to the `index.html` fallback.** The catch-all rewrite in `vercel.json` skips `/assets/`, so a missing file is a 404, not the HTML page cached for a year under a `.js` name.
 - **Keep notes out of Tailwind's scan.** Tailwind reads every project file for class names, and a word in a note that looks like one (`sticky`, `table`) adds a CSS rule, renaming the CSS and app files. `src/index.css` excludes the project's Markdown files with `@source not`.
+  Configuration descriptions and test fixtures are excluded too, so editing settings or tests does not change the CSS.
 
 To check a change, run `npx vite build` before and after it: the file names that stay the same are the ones browsers will keep.

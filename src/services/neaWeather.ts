@@ -8,14 +8,15 @@ import type {
   WeatherSummary,
 } from '../types/weather';
 import { rainBand, rainNowcast } from './rainNowcast';
+import { config, apiUrl } from '../config';
 
-const DIRECT_TWO_HR = 'https://api-open.data.gov.sg/v2/real-time/api/two-hr-forecast';
+const DIRECT_TWO_HR = `${config.urls.neaBase}/two-hr-forecast`;
 
 // Fetch the Singapore-wide NEA snapshot from /api/weather. If our API is unreachable, fall back to the
 // keyless 2-hour forecast straight from data.gov.sg so the widget still shows something real.
 export async function fetchWeatherSnapshot(): Promise<WeatherSnapshot> {
   try {
-    const res = await fetch('/api/weather', { signal: AbortSignal.timeout(10000) });
+    const res = await fetch(apiUrl('/api/weather'), { signal: AbortSignal.timeout(config.timeouts.requestMs) });
     if (res.ok && res.headers.get('content-type')?.includes('json')) {
       const data = (await res.json()) as WeatherSnapshot;
       if (data?.source === 'NEA_DATA_GOV_SG') return data;
@@ -24,7 +25,7 @@ export async function fetchWeatherSnapshot(): Promise<WeatherSnapshot> {
     // Fall through to the direct forecast
   }
 
-  const res = await fetch(DIRECT_TWO_HR, { signal: AbortSignal.timeout(8000) });
+  const res = await fetch(DIRECT_TWO_HR, { signal: AbortSignal.timeout(config.timeouts.externalMs) });
   if (!res.ok) throw new Error(`NEA responded ${res.status}`);
   const raw = await res.json();
   const item = raw.data.items[0];

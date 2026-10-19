@@ -1,3 +1,4 @@
+import { config, dataUrl } from '../config';
 import type { NetworkFile } from '../types/network';
 import { calculateDistanceMeters } from '../data/singaporeBuses';
 
@@ -62,7 +63,7 @@ let networkPromise: Promise<BusNetwork | null> | null = null;
 
 // Built at deploy time; null when it isn't available (e.g. a local build without an LTA key)
 export function loadBusNetwork(): Promise<BusNetwork | null> {
-  networkPromise ??= fetch('/bus-routes/network.json', { signal: AbortSignal.timeout(20000) })
+  networkPromise ??= fetch(dataUrl('/bus-routes/network.json'), { signal: AbortSignal.timeout(config.timeouts.networkMs) })
     .then(async (res) => {
       if (!res.ok || !res.headers.get('content-type')?.includes('json')) return null;
       const file = (await res.json()) as NetworkFile;

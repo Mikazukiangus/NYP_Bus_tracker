@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ArrivalDataSource, StopServiceArrivals } from '../types/bus';
 import { fetchStopArrivals } from './busTrackerService';
+import { config } from '../config';
 
-export const REFRESH_SECONDS = 15;
+export const REFRESH_SECONDS = config.polling.arrivalsSeconds;
 
 interface StopSnapshot {
   stopCode: string;

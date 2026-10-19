@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { StopServiceArrivals } from '../types/bus';
 import { fetchStopArrivals } from './busTrackerService';
+import { config } from '../config';
 
-const REFRESH_MS = 30 * 1000;
+const REFRESH_MS = config.polling.multiStopSeconds * 1000;
 
 // Live arrivals for several stops, keyed by stop code: undefined while loading, null when the feed is down.
-// One LTA call per stop, refreshed every 30 s while enabled.
+// One LTA call per stop, refreshed at the configured interval while enabled (30 s by default).
 export function useStopsArrivals(
   stopCodes: string[],
   enabled: boolean

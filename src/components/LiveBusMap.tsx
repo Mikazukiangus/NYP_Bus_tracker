@@ -1,3 +1,4 @@
+import { config } from '../config';
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { AlightHint, BusRoute, BusStop, IncomingBus, JourneyOverlay, TrafficIncident, UserLocation } from '../types/bus';
@@ -21,7 +22,7 @@ interface LiveBusMapProps {
 
 // OneMap: Singapore Land Authority's free official basemap (no key; attribution required)
 const ONEMAP_ATTRIBUTION =
-  '<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" alt="" style="height:16px;width:16px;display:inline;vertical-align:-3px"/>&nbsp;' +
+  `<img src="${config.urls.oneMapBase}/web-assets/images/logo/om_logo.png" alt="" style="height:16px;width:16px;display:inline;vertical-align:-3px"/>&nbsp;` +
   '<a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a>&nbsp;&copy;&nbsp;contributors&nbsp;&#124;&nbsp;' +
   '<a href="https://www.sla.gov.sg/" target="_blank" rel="noopener noreferrer">Singapore Land Authority</a>';
 const OSM_ROUTE_ATTRIBUTION =
@@ -126,7 +127,7 @@ export const LiveBusMap: React.FC<LiveBusMapProps> = ({
     const baseLayers = Object.fromEntries(
       Object.entries(ONEMAP_STYLES).map(([style, label]) => [
         label,
-        L.tileLayer(`https://www.onemap.gov.sg/maps/tiles/${style}/{z}/{x}/{y}.png`, {
+        L.tileLayer(`${config.urls.oneMapBase}/maps/tiles/${style}/{z}/{x}/{y}.png`, {
           attribution: ONEMAP_ATTRIBUTION,
           minZoom: 11,
           maxZoom: 19,

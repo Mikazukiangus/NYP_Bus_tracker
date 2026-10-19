@@ -1,4 +1,5 @@
 node_modules/
+/.venv/
 build/
 dist/
 coverage/
@@ -7,5 +8,11 @@ coverage/
 .env*
 !.env.example
 .claude/
+.vercel/
+/.npmrc
+*.key
+*.pem
+*.p12
+*.pfx
 # Generated from LTA DataMall at build time (scripts/build-bus-routes.ts)
 public/bus-routes/

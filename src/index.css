@@ -2,6 +2,9 @@
 /* The notes (COMMENTS.md, README.md) aren't page content: words in them that look like class names would change
    the CSS (and its file name, so browsers fetch it again) whenever a note is edited */
 @source not "../*.md";
+/* Configuration descriptions and test fixtures do not define UI styles. */
+@source not "../config";
+@source not "../tests";
 
 /* Sanzo Wada, plate 259: Lemon Yellow & Green Blue +2.
    Exact swatches anchor the theme; lighter/darker tones keep small text legible. */

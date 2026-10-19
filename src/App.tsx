@@ -1,3 +1,4 @@
+import { config } from './config';
 import React, { Suspense, lazy, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   AlightHint,
@@ -707,7 +708,7 @@ export default function App() {
       if (incidents) setTrafficIncidents(incidents);
     };
     load();
-    const timer = setInterval(load, 3 * 60 * 1000);
+    const timer = setInterval(load, config.polling.incidentsSeconds * 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -734,10 +735,10 @@ export default function App() {
     }
   }, []);
 
-  // Refresh every 5 minutes (NEA updates readings every 1-5 min; the API caches for 1 min)
+  // Refresh at the configured interval (default 5 minutes; NEA updates readings every 1-5 min).
   useEffect(() => {
     loadWeather();
-    const timer = setInterval(loadWeather, 5 * 60 * 1000);
+    const timer = setInterval(loadWeather, config.polling.weatherSeconds * 1000);
     return () => clearInterval(timer);
   }, [loadWeather]);
 
@@ -748,11 +749,11 @@ export default function App() {
       weatherRetries.current = 0;
       return;
     }
-    if (weatherRetries.current >= 3) return;
+    if (weatherRetries.current >= config.polling.weatherRetryAttempts) return;
     const timer = setTimeout(() => {
       weatherRetries.current += 1;
       loadWeather();
-    }, 12000);
+    }, config.polling.weatherRetryMs);
     return () => clearTimeout(timer);
   }, [weatherSnapshot, loadWeather]);
 
@@ -1034,7 +1035,7 @@ export default function App() {
         () => {
           // Keep the last saved location, or NYP for a first visit.
         },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+        { enableHighAccuracy: true, maximumAge: 0, timeout: config.timeouts.startupGpsMs }
       );
     }
     return () => { active = false; };

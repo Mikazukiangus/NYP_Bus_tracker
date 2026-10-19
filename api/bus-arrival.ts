@@ -1,4 +1,7 @@
 import type { Request, Response } from 'express';
+import { config } from '../config/server.ts';
+import { cdnCache } from '../config/schema.ts';
+import { logger } from '../security/logger.ts';
 
 export interface LTABusArrival {
   OriginCode: string;
@@ -92,7 +95,7 @@ function generateSimulatedLtaResponse(busStopCode: string, serviceNo?: string): 
   });
 
   return {
-    'odata.metadata': 'https://datamall2.mytransport.sg/ltaodataservice/v3/BusArrival',
+    'odata.metadata': `${config.lta.baseUrl}/v3/BusArrival`,
     BusStopCode: busStopCode,
     Services: services,
     source: 'FALLBACK_SIMULATED',
@@ -120,7 +123,8 @@ export default async function handler(req: Request | any, res: Response | any) {
     return errorBody;
   }
 
-  const accountKey = process.env.LTA_ACCOUNT_KEY?.trim();
+  const accountKey = config.lta.accountKey;
+  const cacheControl = cdnCache(config.lta.cache.arrivalsSeconds, config.lta.cache.arrivalsStaleSeconds);
 
   // If LTA_ACCOUNT_KEY is available, fetch live from LTA DataMall v3
   if (accountKey) {
@@ -130,9 +134,10 @@ export default async function handler(req: Request | any, res: Response | any) {
         queryParams.set('ServiceNo', serviceNo);
       }
 
-      const ltaUrl = `https://datamall2.mytransport.sg/ltaodataservice/v3/BusArrival?${queryParams.toString()}`;
+      const ltaUrl = `${config.lta.baseUrl}/v3/BusArrival?${queryParams.toString()}`;
 
       const ltaResponse = await fetch(ltaUrl, {
+        signal: AbortSignal.timeout(config.lta.timeoutMs),
         headers: {
           AccountKey: accountKey,
           Accept: 'application/json',
@@ -144,7 +149,7 @@ export default async function handler(req: Request | any, res: Response | any) {
         data.source = 'LTA_DATAMALL_V3';
 
         if (res.setHeader) {
-          res.setHeader('Cache-Control', 'public, s-maxage=15, stale-while-revalidate=30');
+          res.setHeader('Cache-Control', cacheControl);
         }
 
         if (res.status && typeof res.status === 'function') {
@@ -152,18 +157,18 @@ export default async function handler(req: Request | any, res: Response | any) {
         } else if (res.writeHead) {
           res.writeHead(200, {
             'Content-Type': 'application/json',
-            'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=30',
+            'Cache-Control': cacheControl,
           });
           return res.end(JSON.stringify(data));
         }
         return data;
       } else {
-        const errorText = await ltaResponse.text();
-        console.warn(`LTA DataMall error (${ltaResponse.status}):`, errorText);
+        // Providers can echo request credentials in error bodies. Log status only.
+        logger.warn('lta.arrivals_http_error', { status: ltaResponse.status });
         // Fall back gracefully so user app continues working
       }
     } catch (err) {
-      console.error('Failed to fetch from LTA DataMall v3:', err);
+      logger.error('lta.arrivals_request_failed', { error: err });
       // Fall back gracefully
     }
   }

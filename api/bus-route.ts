@@ -1,10 +1,12 @@
 import type { Request, Response } from 'express';
+import { config } from '../config/server.ts';
+import { cdnCache } from '../config/schema.ts';
+import { logger } from '../security/logger.ts';
 
 // LTA DataMall static datasets (paginated, 500 records per page via $skip)
-const LTA_BASE = 'https://datamall2.mytransport.sg/ltaodataservice';
 const PAGE_SIZE = 500;
-const PAGE_CONCURRENCY = 8;
-const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // Routes/stops change rarely; refresh twice a day per warm instance
+const PAGE_CONCURRENCY = config.lta.pageConcurrency;
+const CACHE_TTL_MS = config.lta.datasetTtlMs;
 
 interface LTABusStop {
   BusStopCode: string;
@@ -76,12 +78,13 @@ let datasetsLoadedAt = 0;
 
 // Tries per page: LTA DataMall now and then answers one page of many with a server error, which used to sink a
 // whole deploy's route data
-const PAGE_ATTEMPTS = 3;
+const PAGE_ATTEMPTS = config.lta.pageAttempts;
 
-async function fetchPage<T>(dataset: string, skip: number, accountKey: string, retryDelayMs = 500): Promise<T[]> {
+async function fetchPage<T>(dataset: string, skip: number, accountKey: string, retryDelayMs = config.lta.retryDelayMs): Promise<T[]> {
   for (let attempt = 1; ; attempt++) {
-    const res = await fetch(`${LTA_BASE}/${dataset}?$skip=${skip}`, {
+    const res = await fetch(`${config.lta.baseUrl}/${dataset}?$skip=${skip}`, {
       headers: { AccountKey: accountKey, Accept: 'application/json' },
+      signal: AbortSignal.timeout(config.lta.pageTimeoutMs),
     }).catch((err: unknown) => (err instanceof Error ? err : new Error(String(err))));
     if (!(res instanceof Error) && res.ok) {
       const body = (await res.json()) as { value?: T[] };
@@ -90,7 +93,7 @@ async function fetchPage<T>(dataset: string, skip: number, accountKey: string, r
     // A server error, too many requests or no answer may pass; anything else (a bad key) won't
     const retryable = res instanceof Error || res.status >= 500 || res.status === 429;
     if (!retryable || attempt >= PAGE_ATTEMPTS) {
-      throw new Error(`LTA ${dataset} skip=${skip} failed (${res instanceof Error ? res.message : res.status})`);
+      throw new Error(`LTA ${dataset} skip=${skip} failed (${res instanceof Error ? 'connection_or_timeout' : res.status})`);
     }
     await new Promise((resolve) => setTimeout(resolve, retryDelayMs * 3 ** (attempt - 1)));
   }
@@ -233,7 +236,7 @@ export default async function handler(req: Request | any, res: Response | any) {
     });
   }
 
-  const accountKey = process.env.LTA_ACCOUNT_KEY?.trim();
+  const accountKey = config.lta.accountKey;
   if (!accountKey) {
     return send(res, 503, { error: 'LTA_ACCOUNT_KEY not configured; route data unavailable.' });
   }
@@ -242,12 +245,12 @@ export default async function handler(req: Request | any, res: Response | any) {
     const data = await getDatasets(accountKey);
     const route = buildRoute(serviceNo, data);
     if (!route) {
-      return send(res, 404, { error: `Bus service ${serviceNo} not found in LTA DataMall BusRoutes.` }, 'public, s-maxage=3600');
+      return send(res, 404, { error: `Bus service ${serviceNo} not found in LTA DataMall BusRoutes.` }, cdnCache(config.lta.cache.notFoundSeconds));
     }
     // Route data is near-static: cache at the edge for a day, serve stale for a week while revalidating
-    return send(res, 200, route, 'public, s-maxage=86400, stale-while-revalidate=604800');
+    return send(res, 200, route, cdnCache(config.lta.cache.routesSeconds, config.lta.cache.routesStaleSeconds));
   } catch (err) {
-    console.error('Failed to load LTA route datasets:', err);
+    logger.error('lta.routes_request_failed', { error: err });
     return send(res, 502, { error: 'Failed to load route data from LTA DataMall.' });
   }
 }

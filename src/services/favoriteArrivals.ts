@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { BusArrivalInfo, FavoriteItem } from '../types/bus';
 import { fetchStopArrivals } from './busTrackerService';
+import { config } from '../config';
 
 export type FavoriteArrival =
   | { status: 'loading' }
   | { status: 'unavailable' }
   | { status: 'ok'; nextBus: BusArrivalInfo | null; nextBus2: BusArrivalInfo | null };
 
-const REFRESH_MS = 30 * 1000;
+const REFRESH_MS = config.polling.multiStopSeconds * 1000;
 
 // Live next-bus times for each favourite, keyed by favourite id. One LTA call per distinct stop;
 // polls only while `enabled` (i.e. while favourites are visible).

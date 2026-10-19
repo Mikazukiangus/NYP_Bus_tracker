@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { UserLocation } from '../types/bus';
 import { isSingaporeLocation } from './userLocation';
 import { BusNetwork, searchStops } from './busNetwork';
+import { config } from '../config';
 
 export type PlaceKind = 'place' | 'address' | 'postal' | 'stop';
 
@@ -16,7 +17,7 @@ export interface PlaceResult {
 
 // OneMap (Singapore Land Authority) search: addresses, buildings and 6-digit postal codes.
 // Works without a token from the browser (CORS allowed); first page only, so up to 10 results.
-const ONEMAP_SEARCH = 'https://www.onemap.gov.sg/api/common/elastic/search';
+const ONEMAP_SEARCH = `${config.urls.oneMapBase}/api/common/elastic/search`;
 
 export const isPostalCode = (query: string) => /^\d{6}$/.test(query.trim());
 export const isStopCode = (query: string) => /^\d{5}$/.test(query.trim());
@@ -108,7 +109,8 @@ export function parseOneMapResults(results: OneMapResult[], query: string): Plac
 export async function searchOneMap(query: string, signal?: AbortSignal): Promise<PlaceResult[] | null> {
   try {
     const url = `${ONEMAP_SEARCH}?searchVal=${encodeURIComponent(query.trim())}&returnGeom=Y&getAddrDetails=Y&pageNum=1`;
-    const res = await fetch(url, { signal: signal ?? AbortSignal.timeout(8000) });
+    const timeout = AbortSignal.timeout(config.timeouts.externalMs);
+    const res = await fetch(url, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
     if (!res.ok) return null;
     const body = (await res.json()) as { results?: OneMapResult[] };
     return Array.isArray(body?.results) ? parseOneMapResults(body.results, query) : null;

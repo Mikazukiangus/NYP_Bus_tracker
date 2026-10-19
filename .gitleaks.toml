@@ -1,0 +1,24 @@
+title = "BusTrackerSG secrets"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+[[rules.allowlists]]
+description = "Public browser localStorage identifier, verified in current code and historical commit"
+regexes = ['''^sbs_transit_favorites_v1$''']
+
+[[rules]]
+id = "bustrackersg-secret-assignment"
+description = "BusTrackerSG credential assignment"
+regex = '''(?i)(?:LTA_ACCOUNT_KEY|DATA_GOV_SG_API_KEY|VERCEL_DEPLOY_HOOK_URL)[ \t"'`]{0,12}[=:][ \t"'`]{0,5}([A-Za-z0-9/+_?=.:~%\-]{16,})'''
+secretGroup = 1
+entropy = 3.5
+keywords = ["lta_account_key", "data_gov_sg_api_key", "vercel_deploy_hook_url"]
+
+[[rules]]
+id = "vercel-deploy-hook-url"
+description = "Vercel deploy hook credential URL"
+regex = '''https://api\.vercel\.com/v1/integrations/deploy/prj_[A-Za-z0-9]+/[A-Za-z0-9]+'''
+keywords = ["api.vercel.com/v1/integrations/deploy"]

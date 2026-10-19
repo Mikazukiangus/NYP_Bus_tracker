@@ -1,5 +1,6 @@
 import { BusRoute, BusStop, RouteDirection } from '../types/bus';
 import { calculateDistanceMeters } from '../data/singaporeBuses';
+import { config, dataUrl } from '../config';
 
 interface RouteShape {
   osmId: number;
@@ -16,8 +17,8 @@ const MIN_STOP_COVERAGE = 0.9;
 // Pre-built from OpenStreetMap by scripts/build-route-shapes.ts and served as static files
 export async function fetchRouteShapes(serviceNo: string): Promise<RouteShape[]> {
   try {
-    const res = await fetch(`/route-shapes/${encodeURIComponent(serviceNo.toUpperCase())}.json`, {
-      signal: AbortSignal.timeout(10000),
+    const res = await fetch(dataUrl(`/route-shapes/${encodeURIComponent(serviceNo.toUpperCase())}.json`), {
+      signal: AbortSignal.timeout(config.timeouts.requestMs),
     });
     // Unknown services fall through to the SPA's index.html, so check it's really JSON
     if (!res.ok || !res.headers.get('content-type')?.includes('json')) return [];

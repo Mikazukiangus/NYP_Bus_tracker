@@ -1,4 +1,7 @@
 import type { Request, Response } from 'express';
+import { config } from '../config/server.ts';
+import { cdnCache } from '../config/schema.ts';
+import { logger } from '../security/logger.ts';
 import type { LatLng, StationReadings, WeatherDatasetKey as DatasetKey, WeatherSnapshot } from '../src/types/weather';
 
 // Singapore-wide weather & air-quality snapshot from NEA's real-time APIs (data.gov.sg v2).
@@ -6,8 +9,7 @@ import type { LatLng, StationReadings, WeatherDatasetKey as DatasetKey, WeatherS
 // nearest station/region. data.gov.sg allows only 6 keyless calls per 10 s (12 with a dev key), so each
 // dataset is cached in memory with its own TTL, only a few are refreshed per request (most important
 // first), and the last good value is served if a refresh fails.
-const BASE = 'https://api-open.data.gov.sg/v2/real-time/api';
-const MIN = 60 * 1000;
+const BASE = config.public.urls.neaBase;
 
 const num = (v: unknown) => (typeof v === 'number' ? v : parseFloat(String(v)));
 
@@ -74,7 +76,7 @@ const DATASETS: { key: DatasetKey; path: string | (() => string); ttlMs: number;
   {
     key: 'forecast2h',
     path: 'two-hr-forecast',
-    ttlMs: 10 * MIN,
+    ttlMs: config.weather.summaryTtlMs,
     parse: (raw) => {
       const item = raw.data.items[0];
       const forecasts = new Map<string, string>(item.forecasts.map((f: any) => [f.area, f.forecast]));
@@ -92,12 +94,12 @@ const DATASETS: { key: DatasetKey; path: string | (() => string); ttlMs: number;
       };
     },
   },
-  { key: 'temperature', path: 'air-temperature', ttlMs: 2 * MIN, parse: parseStations },
-  { key: 'rainfall', path: () => `rainfall?date=${sgToday()}`, ttlMs: 2 * MIN, parse: parseRainfall },
+  { key: 'temperature', path: 'air-temperature', ttlMs: config.weather.observationTtlMs, parse: parseStations },
+  { key: 'rainfall', path: () => `rainfall?date=${sgToday()}`, ttlMs: config.weather.observationTtlMs, parse: parseRainfall },
   {
     key: 'psi',
     path: 'psi',
-    ttlMs: 10 * MIN,
+    ttlMs: config.weather.summaryTtlMs,
     parse: (raw) => {
       const item = raw.data.items[0];
       const r = item.readings;
@@ -117,7 +119,7 @@ const DATASETS: { key: DatasetKey; path: string | (() => string); ttlMs: number;
   {
     key: 'pm25',
     path: 'pm25',
-    ttlMs: 10 * MIN,
+    ttlMs: config.weather.summaryTtlMs,
     parse: (raw) => {
       const item = raw.data.items[0];
       return {
@@ -130,11 +132,11 @@ const DATASETS: { key: DatasetKey; path: string | (() => string); ttlMs: number;
       };
     },
   },
-  { key: 'humidity', path: 'relative-humidity', ttlMs: 2 * MIN, parse: parseStations },
+  { key: 'humidity', path: 'relative-humidity', ttlMs: config.weather.observationTtlMs, parse: parseStations },
   {
     key: 'forecast24h',
     path: 'twenty-four-hr-forecast',
-    ttlMs: 30 * MIN,
+    ttlMs: config.weather.forecast24hTtlMs,
     parse: (raw) => {
       const rec = raw.data.records[0];
       const g = rec.general;
@@ -154,7 +156,7 @@ const DATASETS: { key: DatasetKey; path: string | (() => string); ttlMs: number;
   {
     key: 'uv',
     path: 'uv',
-    ttlMs: 10 * MIN,
+    ttlMs: config.weather.summaryTtlMs,
     parse: (raw) => {
       const latest = raw.data.records[0]?.index?.[0];
       return { timestamp: latest?.hour, value: latest?.value };
@@ -163,7 +165,7 @@ const DATASETS: { key: DatasetKey; path: string | (() => string); ttlMs: number;
   {
     key: 'lightning',
     path: 'weather?api=lightning',
-    ttlMs: 2 * MIN,
+    ttlMs: config.weather.observationTtlMs,
     parse: (raw) => {
       const rec = raw.data.records[0];
       return {
@@ -179,7 +181,7 @@ const DATASETS: { key: DatasetKey; path: string | (() => string); ttlMs: number;
   {
     key: 'wbgt',
     path: 'weather?api=wbgt',
-    ttlMs: 10 * MIN,
+    ttlMs: config.weather.summaryTtlMs,
     parse: (raw) => {
       const rec = raw.data.records[0];
       return {
@@ -194,11 +196,11 @@ const DATASETS: { key: DatasetKey; path: string | (() => string); ttlMs: number;
       };
     },
   },
-  { key: 'windSpeed', path: 'wind-speed', ttlMs: 2 * MIN, parse: parseStations },
+  { key: 'windSpeed', path: 'wind-speed', ttlMs: config.weather.observationTtlMs, parse: parseStations },
   {
     key: 'outlook4d',
     path: 'four-day-outlook',
-    ttlMs: 60 * MIN,
+    ttlMs: config.weather.outlookTtlMs,
     parse: (raw) =>
       (raw.data.records[0]?.forecasts ?? []).map((f: any) => ({
         day: f.day,
@@ -214,23 +216,23 @@ const DATASETS: { key: DatasetKey; path: string | (() => string); ttlMs: number;
 const cache = new Map<DatasetKey, { at: number; value: unknown }>();
 // Start times of this instance's recent data.gov.sg calls, to stay inside the 10-second rate-limit window
 const recentCalls: number[] = [];
-const RATE_WINDOW_MS = 10_500;
+const RATE_WINDOW_MS = config.weather.rateWindowMs;
 
 async function fetchDataset(path: string, apiKey?: string) {
   const res = await fetch(`${BASE}/${path}`, {
     headers: { Accept: 'application/json', ...(apiKey ? { 'x-api-key': apiKey } : {}) },
-    signal: AbortSignal.timeout(6000),
+    signal: AbortSignal.timeout(config.weather.timeoutMs),
   });
   if (!res.ok) throw new Error(`${path} responded ${res.status}`);
   const body = await res.json();
-  if (body.code !== 0) throw new Error(`${path} error: ${body.errorMsg || body.code}`);
+  if (body.code !== 0) throw new Error('NEA returned an upstream error');
   return body;
 }
 
 export default async function handler(req: Request | any, res: Response | any) {
-  const apiKey = process.env.DATA_GOV_SG_API_KEY?.trim() || undefined;
+  const apiKey = config.weather.apiKey || undefined;
   // Stay under the 10-second rate limit (6 keyless / 12 dev key), leaving headroom for other instances
-  const budget = apiKey ? 10 : 5;
+  const budget = apiKey ? config.weather.keyedBudget : config.weather.keylessBudget;
   const now = Date.now();
   while (recentCalls.length && now - recentCalls[0] > RATE_WINDOW_MS) recentCalls.shift();
 
@@ -246,7 +248,7 @@ export default async function handler(req: Request | any, res: Response | any) {
         const path = typeof d.path === 'function' ? d.path() : d.path;
         cache.set(d.key, { at: Date.now(), value: d.parse(await fetchDataset(path, apiKey)) });
       } catch (err) {
-        console.warn(`NEA ${d.key} refresh failed; serving last good value if any:`, err instanceof Error ? err.message : err);
+        logger.warn('nea.dataset_refresh_failed', { dataset: d.key, error: err });
       }
     })
   );
@@ -266,8 +268,8 @@ export default async function handler(req: Request | any, res: Response | any) {
   const complete = body.missing.length === 0 && body.stale.length === 0;
   // Incomplete snapshots expire quickly so the client's follow-up request (after the rate-limit window) fills the gaps
   const cacheControl = complete
-    ? 'public, s-maxage=60, stale-while-revalidate=300'
-    : 'public, s-maxage=5';
+    ? cdnCache(config.weather.cacheSeconds, config.weather.staleSeconds)
+    : cdnCache(config.weather.incompleteCacheSeconds);
   const status = body.missing.length === DATASETS.length ? 502 : 200;
 
   if (res.setHeader) res.setHeader('Cache-Control', cacheControl);

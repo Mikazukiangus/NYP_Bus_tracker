@@ -1,3 +1,4 @@
+import { config, apiUrl, dataUrl } from '../config';
 import { BusArrivalInfo, BusLoad, BusRoute, BusStop, BusType, StopServiceArrivals, TrafficIncident } from '../types/bus';
 import { calculateDistanceMeters } from '../data/singaporeBuses';
 import { loadBusNetwork } from './busNetwork';
@@ -120,8 +121,8 @@ function parseBus(raw?: any): BusArrivalInfo | null {
 // Returns null when the live feed is unavailable, including the server's no-key simulation.
 export async function fetchStopArrivals(stopCode: string): Promise<StopServiceArrivals[] | null> {
   try {
-    const res = await fetch(`/api/bus-arrival?BusStopCode=${encodeURIComponent(stopCode)}`, {
-      signal: AbortSignal.timeout(5000),
+    const res = await fetch(apiUrl(`/api/bus-arrival?BusStopCode=${encodeURIComponent(stopCode)}`), {
+      signal: AbortSignal.timeout(config.timeouts.arrivalsMs),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -147,7 +148,7 @@ export type BusRouteLookup =
 // Fetch a static JSON file built at deploy time; null if it isn't there (the SPA rewrite serves index.html)
 async function fetchStaticJson<T>(url: string): Promise<T | null> {
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    const res = await fetch(dataUrl(url), { signal: AbortSignal.timeout(config.timeouts.requestMs) });
     if (!res.ok || !res.headers.get('content-type')?.includes('json')) return null;
     return (await res.json()) as T;
   } catch {
@@ -172,13 +173,10 @@ export async function fetchBusRoute(serviceNo: string): Promise<BusRouteLookup> 
   }
 
   try {
-    const controller = new AbortController();
     // A cold serverless instance has to page through all LTA route data, so allow extra time
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    const res = await fetch(`/api/bus-route?ServiceNo=${encodeURIComponent(serviceNo)}`, {
-      signal: controller.signal,
+    const res = await fetch(apiUrl(`/api/bus-route?ServiceNo=${encodeURIComponent(serviceNo)}`), {
+      signal: AbortSignal.timeout(config.timeouts.routeMs),
     });
-    clearTimeout(timeout);
 
     if (res.status === 404) return { status: 'not_found' };
     if (!res.ok) return { status: 'unavailable' };
@@ -221,7 +219,7 @@ export function fetchStopNames(): Promise<Record<string, string>> {
 // Live LTA traffic incidents across Singapore; null if unavailable
 export async function fetchTrafficIncidents(): Promise<TrafficIncident[] | null> {
   try {
-    const res = await fetch('/api/traffic-incidents', { signal: AbortSignal.timeout(10000) });
+    const res = await fetch(apiUrl('/api/traffic-incidents'), { signal: AbortSignal.timeout(config.timeouts.requestMs) });
     if (!res.ok || !res.headers.get('content-type')?.includes('json')) return null;
     const data = await res.json();
     return Array.isArray(data?.incidents) ? data.incidents : null;

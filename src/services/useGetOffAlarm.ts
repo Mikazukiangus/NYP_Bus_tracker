@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { StopRef } from '../types/bus';
 import { RideProgress, rideProgress } from './getOffAlarm';
+import { config } from '../config';
 
 // The bus ride the alarm is for: the tracked bus from its boarding stop to the stop to get off at
 export interface AlarmRide {
@@ -102,7 +103,7 @@ export function useGetOffAlarm(ride: AlarmRide | null): GetOffAlarm {
           setOn(false);
         } else setGps('weak');
       },
-      { enableHighAccuracy: true, maximumAge: 5_000, timeout: 20_000 }
+      { enableHighAccuracy: true, maximumAge: 5_000, timeout: config.timeouts.alarmGpsMs }
     );
     return () => navigator.geolocation.clearWatch(id);
   }, [on, key, ring]);

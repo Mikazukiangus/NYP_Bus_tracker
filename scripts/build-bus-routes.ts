@@ -3,7 +3,8 @@
 // Runs before `vite build` on every Vercel deploy (LTA_ACCOUNT_KEY is available there), so the app can
 // load routes instantly from the CDN instead of waiting ~10 s for /api/bus-route to page through
 // LTA DataMall on a cold start. Without a key, or if LTA is down, it skips and the app falls back to the API.
-import 'dotenv/config';
+import { config } from '../config/server.ts';
+import { logger } from '../security/logger.ts';
 import { mkdir, rm, writeFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -17,7 +18,7 @@ async function main() {
   // Always start clean so a skipped run can't ship stale files from an earlier local build
   await rm(OUT_DIR, { recursive: true, force: true });
 
-  const accountKey = process.env.LTA_ACCOUNT_KEY?.trim();
+  const accountKey = config.lta.accountKey;
   if (!accountKey) {
     console.warn('[bus-routes] LTA_ACCOUNT_KEY not set; skipping. The app will use /api/bus-route instead.');
     return;
@@ -27,7 +28,7 @@ async function main() {
   try {
     data = await loadDatasets(accountKey);
   } catch (err) {
-    console.warn('[bus-routes] Could not load LTA DataMall data; skipping. The app will use /api/bus-route.', err);
+    logger.warn('build.routes_unavailable_using_api_fallback', { error: err });
     return;
   }
 
@@ -111,5 +112,5 @@ function buildNetwork(data: Datasets, generatedAt: string): NetworkFile {
 
 main().catch((err) => {
   // Never fail the deploy over this; the API fallback still works
-  console.warn('[bus-routes] Unexpected error; skipping.', err);
+  logger.warn('build.routes_failed_using_api_fallback', { error: err });
 });

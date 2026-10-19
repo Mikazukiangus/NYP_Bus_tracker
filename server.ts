@@ -1,5 +1,5 @@
 import express from 'express';
-import dotenv from 'dotenv';
+import { config } from './config/server.ts';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import busArrivalHandler from './api/bus-arrival.ts';
@@ -7,45 +7,34 @@ import busRouteHandler from './api/bus-route.ts';
 import healthHandler from './api/health.ts';
 import weatherHandler from './api/weather.ts';
 import trafficIncidentsHandler from './api/traffic-incidents.ts';
-
-dotenv.config();
+import { logger } from './security/logger.ts';
+import { asyncHandler, errorHandler } from './security/http-errors.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const PORT = config.server.port;
 
 app.use(express.json());
 
 // API Routes
-app.all('/api/health', (req, res) => {
-  return healthHandler(req, res);
-});
+app.all('/api/health', asyncHandler(healthHandler));
 
-app.all('/api/weather', (req, res) => {
-  return weatherHandler(req, res);
-});
+app.all('/api/weather', asyncHandler(weatherHandler));
 
-app.all('/api/bus-arrival', (req, res) => {
-  return busArrivalHandler(req, res);
-});
+app.all('/api/bus-arrival', asyncHandler(busArrivalHandler));
 
-app.all('/api/bus-route', (req, res) => {
-  return busRouteHandler(req, res);
-});
+app.all('/api/bus-route', asyncHandler(busRouteHandler));
 
-app.all('/api/traffic-incidents', (req, res) => {
-  return trafficIncidentsHandler(req, res);
-});
+app.all('/api/traffic-incidents', asyncHandler(trafficIncidentsHandler));
 
 // Also support case-insensitive BusArrival
-app.all('/api/BusArrival', (req, res) => {
-  return busArrivalHandler(req, res);
-});
+app.all('/api/BusArrival', asyncHandler(busArrivalHandler));
 
 async function startServer() {
-  if (process.env.NODE_ENV === 'production') {
+  let viteServer: { close(): Promise<void> } | undefined;
+  if (config.server.nodeEnv === 'production') {
     // Serve production static assets from dist
     app.use(express.static(path.resolve(__dirname, 'dist')));
     app.get('*', (req, res) => {
@@ -58,17 +47,28 @@ async function startServer() {
       server: {
         middlewareMode: true,
         port: PORT,
-        hmr: process.env.DISABLE_HMR !== 'true',
-        watch: process.env.DISABLE_HMR === 'true' ? null : {},
+        hmr: !config.server.disableHmr,
+        watch: config.server.disableHmr ? null : {},
       },
       appType: 'spa',
     });
+    viteServer = vite;
     app.use(vite.middlewares);
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running at http://0.0.0.0:${PORT}`);
+  app.use(errorHandler);
+
+  app.listen(PORT, config.server.host, () => {
+    logger.info('server.started', { host: config.server.host, port: PORT });
+  }).on('error', async (error) => {
+    logger.error('server.listen_failed', { error });
+    try { await viteServer?.close(); }
+    catch { logger.error('server.close_failed'); }
+    finally { process.exitCode = 1; }
   });
 }
 
-startServer();
+startServer().catch((error) => {
+  logger.error('server.start_failed', { error });
+  process.exitCode = 1;
+});

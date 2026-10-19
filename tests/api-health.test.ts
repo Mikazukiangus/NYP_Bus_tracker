@@ -1,24 +1,21 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
-import handler from '../api/health';
+import { createHealthHandler } from '../api/health';
+import { createConfig } from '../config/schema';
 
 const originalFetch = globalThis.fetch;
-const originalLtaKey = process.env.LTA_ACCOUNT_KEY;
-const originalNeaKey = process.env.DATA_GOV_SG_API_KEY;
+const env: Record<string, string> = {};
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  if (originalLtaKey === undefined) delete process.env.LTA_ACCOUNT_KEY;
-  else process.env.LTA_ACCOUNT_KEY = originalLtaKey;
-  if (originalNeaKey === undefined) delete process.env.DATA_GOV_SG_API_KEY;
-  else process.env.DATA_GOV_SG_API_KEY = originalNeaKey;
+  for (const key of Object.keys(env)) delete env[key];
 });
 
 async function healthResponse() {
   let statusCode = 0;
   let body: any;
   const headers: Record<string, string> = {};
-  await handler({}, {
+  await createHealthHandler(createConfig(env))({}, {
     setHeader(name: string, value: string) { headers[name] = value; },
     status(code: number) { statusCode = code; return this; },
     json(value: unknown) { body = value; },
@@ -31,8 +28,8 @@ const validBody = (url: string) => url.includes('BusArrival')
   : { code: 0, data: { items: [{ forecasts: [] }] } };
 
 test('healthy requires valid responses from both upstreams; credentials stay server-side', async () => {
-  process.env.LTA_ACCOUNT_KEY = 'test-lta-secret';
-  process.env.DATA_GOV_SG_API_KEY = 'test-nea-secret';
+  env.LTA_ACCOUNT_KEY = 'test-lta-secret';
+  env.DATA_GOV_SG_API_KEY = 'test-nea-secret';
   const calls: string[] = [];
   globalThis.fetch = async (url, options) => {
     calls.push(String(url));
@@ -54,7 +51,7 @@ test('healthy requires valid responses from both upstreams; credentials stay ser
 });
 
 test('a configured but rejected LTA key reports degraded rather than ready', async () => {
-  process.env.LTA_ACCOUNT_KEY = 'rejected-key';
+  env.LTA_ACCOUNT_KEY = 'rejected-key';
   globalThis.fetch = async (url) => String(url).includes('BusArrival')
     ? new Response('private upstream details', { status: 401 })
     : Response.json(validBody(String(url)));
@@ -68,7 +65,7 @@ test('a configured but rejected LTA key reports degraded rather than ready', asy
 });
 
 test('missing LTA credentials skip the authenticated probe and report degraded', async () => {
-  delete process.env.LTA_ACCOUNT_KEY;
+  delete env.LTA_ACCOUNT_KEY;
   globalThis.fetch = async (url) => {
     assert.ok(!String(url).includes('BusArrival'));
     return Response.json(validBody(String(url)));
@@ -80,7 +77,7 @@ test('missing LTA credentials skip the authenticated probe and report degraded',
 });
 
 test('HTTP 200 with an invalid NEA payload is unavailable', async () => {
-  process.env.LTA_ACCOUNT_KEY = 'test-key';
+  env.LTA_ACCOUNT_KEY = 'test-key';
   globalThis.fetch = async (url) => Response.json(String(url).includes('BusArrival')
     ? validBody(String(url)) : { code: 24, errorMsg: 'rate limited' });
   const { statusCode, body } = await healthResponse();
@@ -89,11 +86,30 @@ test('HTTP 200 with an invalid NEA payload is unavailable', async () => {
 });
 
 test('timed out probes report failure without exposing the fetch error', async () => {
-  process.env.LTA_ACCOUNT_KEY = 'test-key';
+  env.LTA_ACCOUNT_KEY = 'test-key';
   globalThis.fetch = async () => { throw new DOMException('private request details', 'TimeoutError'); };
   const { statusCode, body } = await healthResponse();
   assert.equal(statusCode, 503);
   assert.equal(body.ltaDataMall.reason, 'timeout');
   assert.equal(body.neaWeather.reason, 'timeout');
   assert.ok(!JSON.stringify(body).includes('private request details'));
+});
+
+test('health uses the configured provider bases and probe stop', async () => {
+  Object.assign(env, {
+    LTA_ACCOUNT_KEY: 'test-key', LTA_API_BASE_URL: 'https://lta.example.com/data',
+    VITE_NEA_API_BASE_URL: 'https://nea.example.com/api', HEALTH_BUS_STOP_CODE: '54009',
+  });
+  const calls: string[] = [];
+  globalThis.fetch = async (url) => {
+    calls.push(String(url));
+    return Response.json(String(url).includes('BusArrival')
+      ? { BusStopCode: '54009', Services: [] } : validBody(String(url)));
+  };
+  const { statusCode, body } = await healthResponse();
+  assert.equal(statusCode, 200);
+  assert.deepEqual(calls, [
+    'https://lta.example.com/data/v3/BusArrival?BusStopCode=54009', 'https://nea.example.com/api/two-hr-forecast',
+  ]);
+  assert.equal(body.neaWeather.source, 'https://nea.example.com/api');
 });

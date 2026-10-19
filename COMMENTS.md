@@ -6,6 +6,15 @@
 
 ---
 
+## Standing Project Instructions
+
+- Read this file before starting project work and update it on every project-related turn, before the final response. This includes code, configuration, setup, documentation, reviews and standing instructions.
+- Append a dated, sequential `Turn N` entry covering the request, actions/findings, actual validation and any outstanding work or delivery status. Preserve the history and never record credentials.
+- Ask explicitly whenever user confirmation is required. Otherwise the final response must be exactly: `This is completed`.
+- These instructions are also recorded in `AGENTS.md` and the always-applied `.cursor/rules/project-history.mdc` rule.
+
+---
+
 ## 1. Project Overview & Requirements
 
 This application is a real-time Singapore public bus tracking web app inspired by the clean, minimalist design language of Singapore transit portals (SBS Transit), customized for **Nanyang Polytechnic (NYP)** students and Singapore commuters.
@@ -323,6 +332,8 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
 | `LTA_ACCOUNT_KEY` | Land Transport Authority DataMall API Key | Vercel Project Environment Variables |
 | `DATA_GOV_SG_API_KEY` | Optional data.gov.sg API key; raises the rate limit for `/api/weather` (keyless works) | Vercel Project Environment Variables |
 | `PORT` | Local server port (Default: 3000) | Development environment |
+
+The complete reference, including operational settings added in Turn 51, is generated in [`.env.example`](.env.example) from `config/schema.ts` and its public allowlist in `config/public.ts`. See the README's Configuration section for file priority, validation and the server/browser boundary. The table above lists the original primary inputs, not every supported setting.
 
 ### Turn 19: Refresh Workflow Test & Hardening (10 October 2026)
 - **User Prompt**:
@@ -952,5 +963,72 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
   - On a phone (375 px) in the browser: a short drag left the sheet open and back in place. A long drag closed it without changing the location. The handle shows above the header, and the ✕ still closes the sheet.
   - On desktop (1280 px): the handle is `display: none`, and dragging the header 320 px left the dialog open with no transform. No console errors.
   - `npx tsc --noEmit` passes, and 48 tests pass.
+
+---
+
+### Turn 50: Local Node.js Virtual Environment (19 October 2026)
+- **User Prompt**:
+  > *"Setup a virtual environment for this project and show me how to activate it and install packages into it."*
+- **Setup**:
+  - Created `.venv` using Python's `venv` and nodeenv 1.11.0, with its own Node.js 24.19.0 and npm 11.17.0. npm's cache, user configuration and global install prefix stay inside `.venv`; app dependencies remain local to the project's `node_modules/`.
+  - Added `.venv/` to `.gitignore` and activation, package installation, deactivation and recreation instructions to `README.md`.
+  - Installed the existing dependencies with `npm ci` using the environment; npm reported 0 vulnerabilities.
+- **Validation**: activation resolves Node and npm inside `.venv`, with the intended versions and project-local npm paths; deactivation returns to the system runtime. `npm ls --depth=0`, TypeScript and all 48 tests pass. The app's dependency files are unchanged.
+
+---
+
+### Turn 51: Audit and Validate Environment Configuration (19 October 2026)
+- **User Prompt**:
+  > *"Audit my repo for hardcoded settings that should be environment variables, centralize them into one validated config object, and generate a complete .env.example."*
+- **Audit and implementation**:
+  - Centralized local runtime, provider URL/credentials, timeout, polling, cache, pagination, rate-limit and Overpass retry/deadline settings in one immutable typed config. Server/API/data scripts import `config/server.ts`; Vite validates the same schema and injects only the explicit `config.public` projection from `config/public.ts` into `src/config.ts`.
+  - All app reads of `process.env` are confined to `config/env.ts`. Repository `.env` files load in a documented order, with shell/platform variables taking priority. Invalid values fail before startup/build and errors never echo supplied credentials or URLs. Blank keys retain the existing offline/degraded behaviour.
+  - Replaced duplicated LTA/NEA/OneMap endpoints and operational numbers in callers. Added bounded timeouts to LTA arrivals and paginated dataset fetches, and retained the OneMap timeout when a search cancellation signal is supplied. Health now reports its configured weather request budget.
+  - `.env.example` is generated from schema defaults, with every supported setting, units/bounds, blank secrets and a CI deploy-hook note. Added `npm run config:example` and `npm run config:check`, plus the audit/usage guide in README. No local credential file was changed.
+  - Kept geographic and transit/weather rules, browser storage identifiers, branding, attribution and UI constants in code. Deployment-file settings also remain in code. Excluded configuration and test descriptions from Tailwind scanning.
+- **Validation**:
+  - TypeScript and 55 tests pass, including config parsing, constraints, redaction, public projection, environment precedence, generated-example consistency and custom health provider/stop integration.
+  - The production Vite build passes with code splitting. A separate production build with sentinel credentials contained none of the secrets or server-schema descriptions.
+  - Local fixture tests verified configured URLs and secret headers through all five API endpoints, custom health timeout/stop, CDN cache overrides, and invalid runtime/public-build settings failing early. Production-build browser checks at 375 px and 1280 px verified the configured API/data/OneMap paths, the 25-second refresh override, map rendering, and no overflow/browser exceptions. These checks used controlled providers, not production upstream credentials.
+- **Delivery**: changes are local on `codex/validated-config`; no deployment or production configuration was changed.
+
+---
+
+### Turn 52: Keep Project History Updated Every Time (19 October 2026)
+- **User instructions**:
+  > *"if there is anything that needs me to confirm, explicitly ask me for this or if there is nothing to confirm, jut say \"This is completed\""*
+  > *"ensure COMMENTS.md is updated everytime."*
+- **Action**: added standing instructions near the top of this file, a root `AGENTS.md` for future project work, and an always-applied `.cursor/rules/project-history.mdc` rule. Every project-related turn must update this history before its final response. Confirmation questions must be explicit; otherwise the final response uses the user's exact completion phrase.
+- **Validation**: checked the instruction files and Markdown diff for consistency. Documentation-only change; no application tests were needed.
+- **Status**: saved locally on `codex/validated-config`; no confirmation is needed.
+
+---
+
+### Turn 53: Secret Scan, Safe Storage and Redacted Logs (19 October 2026)
+- **User Prompt**:
+  > *"scan my code and git history for leaked secrets, then show me how to store them safely and redact them in logs and error output."*
+- **Scan**:
+  - Fetched origin refs/tags and confirmed a complete, non-shallow checkout. Installed official Gitleaks 8.30.1 into the ignored `.venv/bin`, checking its release archive's SHA-256 checksum.
+  - Scanned 2,052 current first-party/built/metadata inputs plus all 52 commits reachable from local refs, tags and reflogs. Included uncommitted/untracked files, local env/npm files when present, Git config and commit metadata. Excluded dependencies/virtualenv; GitHub caches, unfetched PR refs, forks and remote logs were outside scope.
+  - No confirmed credential leaks. Initial candidates were a public localStorage identifier (current and historical) and documentation prose. Verified each; added only an exact-value allowlist for the public identifier and reworded the prose. The final configured scan has zero findings. The remote contains no embedded credentials, and no local credential env files were present.
+  - Added `.gitleaks.toml`, provider-specific credential/deploy-hook rules and `npm run secrets:scan`. It validates the custom rule with synthetic/blank examples, captures raw output privately, prints only finding locations, and removes temporary reports/snapshots. A failed/incomplete scan cannot count as clean.
+- **Fixes and instructions**:
+  - Added a shared server logger/redactor for configured secrets and common encoded/auth/header/URL/private-key forms. Error objects become safe classifications; raw messages, stacks, causes and binary data are omitted. Removed upstream-body and raw-exception logging across APIs/build scripts and NEA error-message propagation.
+  - Express async API failures now reach a generic JSON error handler, including in development. Request bodies and raw errors are never sent back through that handler.
+  - Added safe storage and logging examples in `SECURITY.md`, linked from README: ignored, mode-600 `.env.local`; Vercel Secret variables; GitHub Actions deploy-hook secret; no credentials under `VITE_`; and revoke/rotate-before-history-cleanup guidance. Expanded ignores for local platform/npm and private-key files.
+- **Validation**: TypeScript, production Vite build and all 63 tests pass. Tests include nested/encoded/binary/error redaction, injection-safe JSON logging, async error forwarding and actual upstream credential-echo suppression. The real local development server returned generic 400/500 JSON for malformed input/async failures, with no sentinel values or stacks in responses/logs. Final Gitleaks scan reports zero findings across working tree/history.
+- **Delivery**: local on `codex/validated-config`. No credentials were changed/tested against providers, no history was rewritten and nothing was deployed. No confirmation is required; the report explains scan/redaction limits and handling of intentional ignored local credential files.
+
+---
+
+### Turn 54: Project Status Review (19 October 2026)
+- **User Prompt**:
+  > *"read COMMENTS.md to understand current status of project."*
+- **Findings**:
+  - Live on `main` and Vercel: up to commit `a41fee8` (Turn 49, the drag-to-close location picker).
+  - Turns 50–53 (the `.venv` Node environment, the validated config, the history instructions, and the secret scan with redacted logs) were done in this same folder on local branch `codex/validated-config`. That branch points at `a41fee8`. Its work is all uncommitted: 28 modified files plus new `config/`, `security/`, `SECURITY.md`, `AGENTS.md`, `.cursor/`, `.gitleaks.toml`, three scripts and two test files. None of it is pushed or deployed.
+  - The older `codex/arrival-reliability`, `codex/remember-location` and `codex/wada-259-palette` branches are already merged into `main`.
+- **Validation**: on the current working tree, `npx tsc --noEmit -p .` passes and all 63 tests pass. No files changed apart from this entry.
+- **Status**: waiting for the user to decide whether to commit and deploy the `codex/validated-config` work.
 
 ---

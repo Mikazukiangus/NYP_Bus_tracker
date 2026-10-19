@@ -2,9 +2,15 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
+import { readEnvironment } from './config/env.ts';
+import { createConfig } from './config/schema.ts';
 
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
+  const config = createConfig(readEnvironment(mode));
   return {
+    // Do not expose arbitrary VITE_* variables. Only this validated public branch reaches browser code.
+    envPrefix: [],
+    define: { __PUBLIC_CONFIG__: JSON.stringify(config.public) },
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
@@ -25,9 +31,9 @@ export default defineConfig(() => {
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
+      hmr: !config.server.disableHmr,
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      watch: config.server.disableHmr ? null : {},
     },
   };
 });

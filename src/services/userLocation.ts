@@ -1,4 +1,5 @@
 import type { UserLocation } from '../types/bus';
+import { config } from '../config';
 
 export const LOCATION_STORAGE_KEY = 'bustrackersg_location_v1';
 
@@ -59,7 +60,7 @@ export function locationFromGps(coords: Pick<GeolocationCoordinates, 'latitude' 
 export type GpsResult = { location: UserLocation } | { error: string };
 
 // One fresh GPS fix, with a message suitable for the user when it can't be used
-export function requestGpsLocation(timeoutMs = 8000): Promise<GpsResult> {
+export function requestGpsLocation(timeoutMs = config.timeouts.gpsMs): Promise<GpsResult> {
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
     return Promise.resolve({ error: 'Location services are not available in this browser.' });
   }

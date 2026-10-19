@@ -6,19 +6,17 @@
 import { mkdir, readdir, readFile, rm, writeFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { config } from '../config/server.ts';
+import { logger } from '../security/logger.ts';
 
-const OVERPASS_INSTANCES = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
-];
-const OVERPASS_ROUNDS = 3;
-const OVERPASS_RETRY_PAUSE_MS = 60_000; // 1 min after round 1, 2 min after round 2
-const OVERPASS_DEADLINE_MS = 25 * 60_000; // stay inside the workflow's 30-minute job limit
-const USER_AGENT ='BusTrackerSG/1.0 (https://nypbus-tracker.vercel.app)';
+const OVERPASS_INSTANCES = config.shapes.instances;
+const OVERPASS_ROUNDS = config.shapes.rounds;
+const OVERPASS_RETRY_PAUSE_MS = config.shapes.retryPauseMs;
+const OVERPASS_DEADLINE_MS = config.shapes.deadlineMs;
+const USER_AGENT = config.shapes.userAgent;
 // Singapore mainland bounding box (south, west, north, east); stops short of Johor Bahru
 const SG_BBOX = '1.15,103.6,1.475,104.1';
-const QUERY = `[out:json][timeout:300];relation["type"="route"]["route"="bus"](${SG_BBOX})->.routes;.routes out body;way(r.routes);out geom;`;
+const QUERY = `[out:json][timeout:${config.shapes.queryTimeoutSeconds}];relation["type"="route"]["route"="bus"](${SG_BBOX})->.routes;.routes out body;way(r.routes);out geom;`;
 const SIMPLIFY_TOLERANCE_DEG = 0.00003; // ~3 m
 const OUT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public/route-shapes');
 
@@ -145,17 +143,17 @@ async function fetchOverpass(): Promise<{ elements: (OverpassWay | OverpassRelat
       const remaining = deadline - Date.now();
       if (remaining < 30_000) break;
       try {
-        console.log(`Round ${round}/${OVERPASS_ROUNDS}: querying ${url} (this can take a minute or two)...`);
+        logger.info('build.shapes_query', { round, rounds: OVERPASS_ROUNDS, provider: new URL(url).hostname });
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': USER_AGENT },
           body: new URLSearchParams({ data: QUERY }).toString(),
-          signal: AbortSignal.timeout(Math.min(330_000, remaining)),
+          signal: AbortSignal.timeout(Math.min(config.shapes.timeoutMs, remaining)),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return await res.json();
       } catch (err) {
-        console.warn(`  failed: ${err instanceof Error ? err.message : err}`);
+        logger.warn('build.shapes_provider_failed', { error: err });
       }
     }
     const pauseMs = OVERPASS_RETRY_PAUSE_MS * round;
@@ -248,6 +246,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  logger.error('build.shapes_failed', { error: err });
   process.exit(1);
 });
