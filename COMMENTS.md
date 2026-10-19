@@ -870,3 +870,15 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
 - **Validation**: on the live site after the deploy (below the table in the reply), compared with before.
 
 ---
+
+### Turn 43: The Change Notes No Longer Change the CSS (19 October 2026)
+- **User Prompt**:
+  > *"add it"*
+- **Why**: Tailwind looks for class names in every file of the project, COMMENTS.md included. Words in these notes that look like class names (`sticky`, `container`, `table`) added CSS rules, so each new entry changed the CSS, renamed it and the app file, and made returning browsers download about 70 kB (gzipped) again, despite the year-long caching from Turn 42.
+- **Now**: `src/index.css` has `@source not "../COMMENTS.md";`, so Tailwind no longer reads the notes.
+- **Validation**:
+  - The CSS file is now the same (`index-bjwK25IH.css`) whether built with these notes, the notes from two turns ago, or the notes plus made-up class names.
+  - It lost exactly three rules, `.sticky`, `.container` and `.table`, which only the notes used. The app's `sm:sticky` and `@container` are still there, and in the production build the header still stays at the top after scrolling.
+  - `npx tsc --noEmit -p .` passes, and 48 tests pass.
+
+---
