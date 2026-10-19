@@ -1085,3 +1085,11 @@ The complete reference, including operational settings added in Turn 51, is gene
 - **Validation**: checked `git status`, the branches, and which `.env*` files exist (names only). No files changed apart from this entry.
 
 ---
+
+### Turn 59: Old Codex Branches Deleted (19 October 2026)
+- **User Prompt**:
+  > *"delete the old codex branches"*
+- **Now**: deleted the four local branches `codex/arrival-reliability`, `codex/remember-location`, `codex/validated-config` and `codex/wada-259-palette` with `git branch -d`. That command only deletes branches already merged, and `git branch --merged main` listed all four first. GitHub had no `codex/*` branches. Only `main` is left.
+- **Validation**: `git branch` shows only `main`, and `git ls-remote --heads origin` lists no `codex/*` branches.
+
+---
