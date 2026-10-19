@@ -892,3 +892,17 @@ Map basemap tiles and address / postal-code search (`https://www.onemap.gov.sg/a
 - **Validation**: the CSS builds to the same file as the live site (`index-bjwK25IH.css`) with the README, with made-up class names added to it, and with them added to COMMENTS.md.
 
 ---
+
+### Turn 45: Setup and Run Instructions in the README (19 October 2026)
+- **User Prompt**:
+  > *"add setup and run instructions to the README"*
+- **Now**: `README.md` has, above the caching section:
+  - **Setup**: Node.js 24, an LTA DataMall key, `npm ci` (not `npm install`, to get the live site's versions) and a `.env` copied from `.env.example`, with the two optional settings.
+  - **Run it**: `npm run dev` on port 3000, how to check the key at `/api/health`, a table of the other commands, why `npm run build` without a key leaves no route files (and `npx vite build` for building the site alone), and `NODE_ENV=production npm start` for the production build.
+  - **Deploying**: what Vercel runs, the environment variables it needs, and the monthly "Refresh route data" workflow with its `VERCEL_DEPLOY_HOOK_URL` secret (named only).
+- **Validation**:
+  - `NODE_ENV=production npm start` (with a test key, on another port) served the built page, and `/api/health` reported `ltaAccountKeyConfigured: true`, with `status: "degraded"` because the test key isn't a real one, as the README says.
+  - Each command in the table matches `package.json`.
+  - The CSS still builds to the live file (`index-bjwK25IH.css`), so the README doesn't change what visitors download.
+
+---
