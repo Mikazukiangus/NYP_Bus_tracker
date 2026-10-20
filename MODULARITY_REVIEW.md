@@ -1,6 +1,6 @@
 # Modularity review and implementation — BusTrackerSG
 
-Reviewed 19 October 2026 against `main` at `b34a4aa`. The recommended foundation and four main responsibility splits were implemented on `codex/modularity-refactor` on 20 October 2026. The user authorized review and publication through `main`; release verification and delivery status are recorded in Turn 66 of `COMMENTS.md`.
+Reviewed 19 October 2026 against `main` at `b34a4aa`. The recommended foundation and four main responsibility splits were implemented on `codex/modularity-refactor`, merged into `main` as `f296d21` and verified on the live Vercel site on 20 October 2026. Release verification and delivery details are recorded in Turn 66 of `COMMENTS.md`.
 
 ## What improved
 
