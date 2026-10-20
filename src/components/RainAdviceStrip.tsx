@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronRight, CircleCheck, Flag, Footprints, Hourglass, LucideIcon, Umbrella, Zap } from 'lucide-react';
 import type { RainAction, RainAdvice } from '../services/rainAdvice';
-import { toneClasses } from '../services/neaWeather';
+import { toneClasses } from '../features/weather/presentation';
 
 const ACTION_ICON: Record<RainAction, LucideIcon> = {
   'leave-now': Footprints,

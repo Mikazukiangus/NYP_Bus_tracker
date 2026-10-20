@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
-import { fetchAll } from '../api/bus-route';
+import { createLtaClient } from '../server/lta/client';
+import { createConfig } from '../config/schema';
+const { fetchAll } = createLtaClient(createConfig().lta);
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {

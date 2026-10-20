@@ -1,14 +1,9 @@
+import type { AlarmRide } from '../features/alarm/model';
+export type { AlarmRide } from '../features/alarm/model';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { StopRef } from '../types/bus';
+
 import { RideProgress, rideProgress } from './getOffAlarm';
 import { config } from '../config';
-
-// The bus ride the alarm is for: the tracked bus from its boarding stop to the stop to get off at
-export interface AlarmRide {
-  key: string; // a different bus or stop is a new ride, and turns the alarm off
-  serviceNo: string;
-  stops: StopRef[]; // boarding stop first, the stop to get off at last
-}
 
 export type AlarmAlert = 'next-stop' | 'get-off';
 

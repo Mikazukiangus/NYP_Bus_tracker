@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ArrivalDataSource, StopServiceArrivals } from '../types/bus';
-import { fetchStopArrivals } from './busTrackerService';
+import { fetchStopArrivals } from '../features/arrivals/client';
 import { config } from '../config';
 
 export const REFRESH_SECONDS = config.polling.arrivalsSeconds;

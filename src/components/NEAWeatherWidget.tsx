@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Tone, WeatherSummary } from '../types/weather';
-import { forecastIconType, formatSgTime, toneClasses } from '../services/neaWeather';
+import { forecastIconType, formatSgTime, toneClasses } from '../features/weather/presentation';
 import {
   CalendarDays,
   ChevronRight,

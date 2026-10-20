@@ -1,23 +1,14 @@
+import type { RankedTrip, TripPlannerState } from '../features/journey/model';
 import React, { useState } from 'react';
 import { BusFront, Check, ChevronDown, ChevronRight, Flag, Footprints, LoaderCircle, Map as MapIcon, Route, X } from 'lucide-react';
 import type { PlaceResult } from '../services/placeSearch';
-import type { LiveDeparture, TripLeg, TripOption, TripPlan, TripTimeline } from '../services/tripPlanner';
+import type { TripLeg, TripOption, TripTimeline } from '../services/tripPlanner';
 import { expectedTotalMin, legServiceNos, tripTimeline } from '../services/tripPlanner';
 import { useIsPhone } from '../services/useIsPhone';
 import { leaveLabel } from '../services/leaveWithin';
 import { LiveSignal, Minutes } from './ArrivalBits';
 import { ServiceChoice } from './ServiceChoice';
 import { legStyle } from './tripLegs';
-
-export interface RankedTrip {
-  option: TripOption;
-  live: LiveDeparture;
-}
-
-export type TripPlannerState =
-  | { status: 'loading' } // bus network still downloading
-  | { status: 'unavailable' }
-  | { status: 'ready'; plan: TripPlan; trips: RankedTrip[] };
 
 interface TripPlannerCardProps {
   destination: PlaceResult;

@@ -1,33 +1,13 @@
 import { BusRoute, BusStop, RouteDirection } from '../types/bus';
-import { calculateDistanceMeters } from '../data/singaporeBuses';
-import { config, dataUrl } from '../config';
+import { calculateDistanceMeters } from '../../shared/geo/distance.ts';
 
-interface RouteShape {
-  osmId: number;
-  name?: string;
-  path: [number, number][];
-}
+import type { RouteShape } from '../../shared/transit/shapes';
 
 // Endpoints of an OSM route line must sit within this distance of the LTA origin/destination stops
 const MAX_ENDPOINT_OFFSET_M = 1000;
 // ...and nearly every LTA stop must be close to the line, otherwise the OSM route is outdated
 const MAX_STOP_OFFSET_M = 100;
 const MIN_STOP_COVERAGE = 0.9;
-
-// Pre-built from OpenStreetMap by scripts/build-route-shapes.ts and served as static files
-export async function fetchRouteShapes(serviceNo: string): Promise<RouteShape[]> {
-  try {
-    const res = await fetch(dataUrl(`/route-shapes/${encodeURIComponent(serviceNo.toUpperCase())}.json`), {
-      signal: AbortSignal.timeout(config.timeouts.requestMs),
-    });
-    // Unknown services fall through to the SPA's index.html, so check it's really JSON
-    if (!res.ok || !res.headers.get('content-type')?.includes('json')) return [];
-    const data = await res.json();
-    return Array.isArray(data?.shapes) ? data.shapes : [];
-  } catch {
-    return [];
-  }
-}
 
 // Approximate metres from a point to a line segment (equirectangular projection; fine at city scale)
 function distanceToSegmentMeters(p: [number, number], a: [number, number], b: [number, number]): number {

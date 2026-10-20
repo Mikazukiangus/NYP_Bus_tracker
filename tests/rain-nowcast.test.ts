@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { rainNowcast } from '../src/services/rainNowcast';
 import { rainAdvice } from '../src/services/rainAdvice';
-import { parseRainfall } from '../api/weather';
+import { parseRainfall } from '../shared/weather/parsers';
 import type { RainfallHistory, RainNowcast } from '../src/types/weather';
 
 // A place, and rain gauges along a line east of it (plus a second row 1 km north, so a shower can cover two

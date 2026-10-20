@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { BusArrivalInfo, FavoriteItem } from '../types/bus';
-import { fetchStopArrivals } from './busTrackerService';
+import { fetchStopArrivals } from '../features/arrivals/client';
 import { config } from '../config';
 
 export type FavoriteArrival =

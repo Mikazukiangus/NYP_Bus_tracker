@@ -1,5 +1,5 @@
 import type { RainNowcast, Tone } from '../types/weather';
-import { isWetForecast } from './neaWeather';
+import { isWetForecast } from '../features/weather/bands';
 import { firstCatchable } from './leaveWithin';
 
 // Whether to leave now, wait or take an umbrella, from the rain around you (rainNowcast), NEA's 2-hour forecast,

@@ -1,6 +1,6 @@
 import { config, dataUrl } from '../config';
 import type { NetworkFile } from '../types/network';
-import { calculateDistanceMeters } from '../data/singaporeBuses';
+import { calculateDistanceMeters } from '../../shared/geo/distance.ts';
 
 export interface NetStop {
   index: number;

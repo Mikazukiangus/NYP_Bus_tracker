@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
-import { fetchStopArrivals } from '../src/services/busTrackerService';
+import { fetchStopArrivals } from '../src/features/arrivals/client';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });

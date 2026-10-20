@@ -1,4 +1,5 @@
-import { calculateDistanceMeters } from '../data/singaporeBuses';
+import { psiBand, pm25Band, uvBand, heatBand, forecastIconType, isWetForecast } from './bands';
+import { calculateDistanceMeters } from '../../../shared/geo/distance';
 import type {
   LatLng,
   Tone,
@@ -6,49 +7,8 @@ import type {
   WeatherRegion,
   WeatherSnapshot,
   WeatherSummary,
-} from '../types/weather';
-import { rainBand, rainNowcast } from './rainNowcast';
-import { config, apiUrl } from '../config';
-
-const DIRECT_TWO_HR = `${config.urls.neaBase}/two-hr-forecast`;
-
-// Fetch the Singapore-wide NEA snapshot from /api/weather. If our API is unreachable, fall back to the
-// keyless 2-hour forecast straight from data.gov.sg so the widget still shows something real.
-export async function fetchWeatherSnapshot(): Promise<WeatherSnapshot> {
-  try {
-    const res = await fetch(apiUrl('/api/weather'), { signal: AbortSignal.timeout(config.timeouts.requestMs) });
-    if (res.ok && res.headers.get('content-type')?.includes('json')) {
-      const data = (await res.json()) as WeatherSnapshot;
-      if (data?.source === 'NEA_DATA_GOV_SG') return data;
-    }
-  } catch {
-    // Fall through to the direct forecast
-  }
-
-  const res = await fetch(DIRECT_TWO_HR, { signal: AbortSignal.timeout(config.timeouts.externalMs) });
-  if (!res.ok) throw new Error(`NEA responded ${res.status}`);
-  const raw = await res.json();
-  const item = raw.data.items[0];
-  const forecasts = new Map<string, string>(item.forecasts.map((f: any) => [f.area, f.forecast]));
-  return {
-    forecast2h: {
-      validText: item.valid_period?.text,
-      updated: item.update_timestamp,
-      areas: raw.data.area_metadata
-        .filter((a: any) => forecasts.has(a.name))
-        .map((a: any) => ({
-          name: a.name,
-          lat: a.label_location.latitude,
-          lng: a.label_location.longitude,
-          forecast: forecasts.get(a.name)!,
-        })),
-    },
-    fetchedAt: { forecast2h: new Date().toISOString() },
-    missing: ['temperature', 'rainfall', 'psi', 'pm25', 'humidity', 'forecast24h', 'uv', 'lightning', 'wbgt', 'windSpeed', 'outlook4d'],
-    stale: [],
-    source: 'NEA_DATA_GOV_SG',
-  };
-}
+} from '../../types/weather';
+import { rainBand, rainNowcast } from '../../services/rainNowcast';
 
 // NEA's PSI reporting regions, used when the PSI dataset (which carries them) is unavailable
 const REGION_CENTRES: (LatLng & { name: WeatherRegion })[] = [
@@ -74,59 +34,9 @@ function nearest<T extends LatLng>(items: T[] | undefined, lat: number, lng: num
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-// NEA PSI health bands
-export function psiBand(psi: number): { label: string; tone: Tone } {
-  if (psi <= 50) return { label: 'Good', tone: 'good' };
-  if (psi <= 100) return { label: 'Moderate', tone: 'moderate' };
-  if (psi <= 200) return { label: 'Unhealthy', tone: 'bad' };
-  if (psi <= 300) return { label: 'Very Unhealthy', tone: 'severe' };
-  return { label: 'Hazardous', tone: 'severe' };
-}
-
-// NEA 1-hour PM2.5 concentration bands (µg/m³)
-export function pm25Band(value: number): { label: string; tone: Tone } {
-  if (value <= 55) return { label: 'Normal', tone: 'good' };
-  if (value <= 150) return { label: 'Elevated', tone: 'warn' };
-  if (value <= 250) return { label: 'High', tone: 'bad' };
-  return { label: 'Very High', tone: 'severe' };
-}
-
-export function uvBand(value: number): { label: string; tone: Tone } {
-  if (value <= 2) return { label: 'Low', tone: 'good' };
-  if (value <= 5) return { label: 'Moderate', tone: 'moderate' };
-  if (value <= 7) return { label: 'High', tone: 'warn' };
-  if (value <= 10) return { label: 'Very High', tone: 'bad' };
-  return { label: 'Extreme', tone: 'severe' };
-}
-
-function heatBand(heatStress: string): Tone {
-  const s = heatStress.toLowerCase();
-  if (s.includes('high')) return 'bad';
-  if (s.includes('moderate')) return 'warn';
-  return 'good';
-}
-
-export function forecastIconType(forecast: string): WeatherSummary['iconType'] {
-  const f = forecast.toLowerCase();
-  if (f.includes('thunder')) return 'thunder';
-  if (f.includes('rain') || f.includes('shower') || f.includes('drizzle')) return 'rain';
-  if (f.includes('haz') || f.includes('mist') || f.includes('fog')) return 'haze';
-  if (f.includes('fair') || f.includes('sunny')) return f.includes('night') ? 'fair-night' : 'fair';
-  return 'cloudy';
-}
-
-export const isWetForecast = (forecast?: string) => Boolean(forecast && /rain|shower|thunder|drizzle/i.test(forecast));
-
 // NEA's 2-hour forecast for the area nearest a place
 export const forecastAt = (snapshot: WeatherSnapshot, lat: number, lng: number) =>
   nearest(snapshot.forecast2h?.areas, lat, lng)?.forecast;
-
-export function formatSgTime(iso?: string) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Singapore' });
-}
 
 // Resolve the Singapore-wide snapshot into readings for one location: nearest station for the
 // measurements, nearest region for air quality, plus commuter alerts built only from real data
@@ -325,11 +235,3 @@ function buildAlerts(s: WeatherSummary): WeatherAlert[] {
 }
 
 const TONE_RANK: Record<Tone, number> = { good: 0, moderate: 1, warn: 2, bad: 3, severe: 4 };
-
-export const toneClasses: Record<Tone, { text: string; bg: string; border: string; dot: string }> = {
-  good: { text: 'text-green-blue-ink', bg: 'bg-green-blue-soft', border: 'border-green-blue/30', dot: 'bg-green-blue' },
-  moderate: { text: 'text-helvetia-800', bg: 'bg-helvetia-50', border: 'border-helvetia-200', dot: 'bg-helvetia' },
-  warn: { text: 'text-amber-900', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-500' },
-  bad: { text: 'text-orange-900', bg: 'bg-orange-50', border: 'border-orange-200', dot: 'bg-orange-500' },
-  severe: { text: 'text-red-900', bg: 'bg-red-50', border: 'border-red-200', dot: 'bg-red-600' },
-};

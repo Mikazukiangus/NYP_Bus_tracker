@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { StopServiceArrivals } from '../types/bus';
-import { fetchStopArrivals } from './busTrackerService';
+import { fetchStopArrivals } from '../features/arrivals/client';
 import { config } from '../config';
 
 const REFRESH_MS = config.polling.multiStopSeconds * 1000;

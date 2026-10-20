@@ -2,7 +2,7 @@
 // Finds direct buses and trips with one change between stops near the start and the destination.
 // Times are estimates: straight-line walking with a detour factor, and typical bus speeds.
 import type { StopServiceArrivals } from '../types/bus';
-import { calculateDistanceMeters } from '../data/singaporeBuses';
+import { calculateDistanceMeters } from '../../shared/geo/distance.ts';
 import { BusNetwork, NetPattern, NetStop, stopsWithin } from './busNetwork';
 import { LeaveWithin, firstCatchable, leaveWithin, walkMinutes, walkMinutesFor } from './leaveWithin';
 

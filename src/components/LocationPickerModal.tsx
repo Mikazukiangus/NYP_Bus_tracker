@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { UserLocation } from '../types/bus';
-import { SINGAPORE_LOCATIONS } from '../data/singaporeBuses';
+import { SINGAPORE_LOCATIONS } from '../data/locations';
 import { requestGpsLocation } from '../services/userLocation';
 import type { BusNetwork } from '../services/busNetwork';
 import { PlaceResult, placeToLocation } from '../services/placeSearch';

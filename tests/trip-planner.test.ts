@@ -6,7 +6,7 @@ import { buildBusNetwork, nearestStops, searchStops } from '../src/services/busN
 import { alightFor, expectedTotalMin, legServiceNos, liveDeparture, planTrips, tripTimeline, withServices } from '../src/services/tripPlanner';
 import { addRecentPlace, loadRecentPlaces, parseOneMapResults, titleCase } from '../src/services/placeSearch';
 import { leaveWithin, walkMinutes } from '../src/services/leaveWithin';
-import { calculateDistanceMeters } from '../src/data/singaporeBuses';
+import { calculateDistanceMeters } from '../shared/geo/distance';
 
 // A small made-up network: an east-west line A-F along lat 1.30 (~550 m apart) served by 10 and 10A,
 // and a north-south line from D up to J served by 20. Getting from A to J needs a change at D.

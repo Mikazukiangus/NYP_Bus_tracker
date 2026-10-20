@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, BusFront, ChevronDown, ChevronRight } from 'lucide-react';
 import { ArrivalDataSource, BusStop, StopServiceArrivals } from '../types/bus';
-import { fetchStopNames } from '../services/busTrackerService';
+import { fetchStopNames } from '../features/network/stopNames';
 import { useIsPhone } from '../services/useIsPhone';
 import { LoadMeter, Minutes, operatorName } from './ArrivalBits';
 import { BUS_TYPE_SHORT, BusTypeIcon } from './BusTypeIcon';

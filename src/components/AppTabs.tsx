@@ -1,7 +1,7 @@
 import React from 'react';
 import { Clock, CloudSun, ListOrdered, LucideIcon, Map as MapIcon } from 'lucide-react';
 import type { Tone } from '../types/weather';
-import { toneClasses } from '../services/neaWeather';
+import { toneClasses } from '../features/weather/presentation';
 
 export type AppTab = 'arrivals' | 'map' | 'stops' | 'weather';
 

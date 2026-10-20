@@ -4,6 +4,12 @@ Live Singapore bus arrivals, live bus positions on a map, trip planning and NEA 
 
 Live site: https://nypbus-tracker.vercel.app
 
+## Code structure
+
+`src/App.tsx` composes feature owners in `src/features/` for tracking, journey planning, location, saved buses, weather, incidents and maps. Browser data clients live with their features; `src/services/` retains focused algorithms and arrival/alarm hooks. `server/lta/` and `server/weather/` hold reusable provider services, while `api/` and `scripts/` provide HTTP and build entry points. `shared/` contains environment-neutral geometry, contracts and weather parsers.
+
+See [the modularity review and implementation notes](MODULARITY_REVIEW.md) for the responsibility boundaries, extraction results and optional follow-ups. `npm test` includes checks that protect the server/browser boundary and keep Leaflet behind its lazy import.
+
 ## Setup
 
 You need Node.js 24 (what Vercel and the GitHub workflow use) and an LTA DataMall account key, free from https://datamall.lta.gov.sg/.

@@ -1,4 +1,4 @@
-import { calculateDistanceMeters } from '../data/singaporeBuses';
+import { calculateDistanceMeters } from '../../shared/geo/distance.ts';
 import type { RainfallHistory, RainNowcast, Tone } from '../types/weather';
 
 export type { RainNowcast };

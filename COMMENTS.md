@@ -10,7 +10,7 @@
 
 - Read this file before starting project work and update it on every project-related turn, before the final response. This includes code, configuration, setup, documentation, reviews and standing instructions.
 - Append a dated, sequential `Turn N` entry covering the request, actions/findings, actual validation and any outstanding work or delivery status. Preserve the history and never record credentials.
-- Ask explicitly whenever user confirmation is required. Otherwise the final response must be exactly: `This is completed`.
+- Ask explicitly whenever user confirmation is required. Otherwise respond normally with a concise summary of the work and relevant results.
 - These instructions are also recorded in `AGENTS.md` and the always-applied `.cursor/rules/project-history.mdc` rule.
 
 ---
@@ -1091,5 +1091,87 @@ The complete reference, including operational settings added in Turn 51, is gene
   > *"delete the old codex branches"*
 - **Now**: deleted the four local branches `codex/arrival-reliability`, `codex/remember-location`, `codex/validated-config` and `codex/wada-259-palette` with `git branch -d`. That command only deletes branches already merged, and `git branch --merged main` listed all four first. GitHub had no `codex/*` branches. Only `main` is left.
 - **Validation**: `git branch` shows only `main`, and `git ls-remote --heads origin` lists no `codex/*` branches.
+
+---
+
+### Turn 60: Read Current Project Status (19 October 2026)
+- **User Prompt**:
+  > *"Read COMMENTS.md to understand current status of project."*
+- **Review**: read the project history and `AGENTS.md`. The configuration centralization, virtual environment, secret scanning and safe logging work was committed and deployed in Turn 55; its recorded checks passed 63 tests and verified production APIs and mobile rendering. The four merged local Codex branches were deleted in Turn 59.
+- **Current checkout**: `main` at `b34a4aa`, matching the local `origin/main` reference, with a clean working tree before this entry. No remote fetch or live deployment checks were performed during this documentation review.
+- **Outstanding items recorded in Turn 58**: local LTA credential setup, a real-phone check of drag-to-close, and optional preview-environment credentials. Branch cleanup is complete. These items do not require confirmation for this reading request.
+- **Validation and delivery**: documentation only; checked Git status/history and the Markdown diff. No application tests rerun. This history entry is local and uncommitted.
+
+---
+
+### Turn 61: Review Modularity and Responsibility Boundaries (19 October 2026)
+- **User Prompt**:
+  > *"review my structure for modularity: which files do too much, and how should i split them along responsibility seams?"*
+- **Review**: inspected the 67 production/tool TypeScript files by size/import relationships and traced state, effects and shared logic in the main modules. Saved evidence, proposed owners/contracts and a staged extraction plan in `MODULARITY_REVIEW.md`.
+- **Findings**: prioritize `App.tsx` (route/journey/GPS/weather/saved-state coordination plus layout) and reusable LTA logic currently exported from `api/bus-route.ts` to its build script. Next separate Leaflet lifecycle/layers/markup, weather parsing/cache scheduling/presentation, generic geometry from fallback route data, and transport from domain rules in `busTrackerService.ts`. Large UI files have lower-priority subcomponent seams; existing walking, rain and alarm modules remain useful boundaries.
+- **Recommendations**: preserve request identity, cache/timer ownership, the server/browser config boundary, shared departure rules, map lazy loading and existing response/static-file formats. Extract pure selectors and focused state owners before splitting layouts; avoid replacing App with one equally broad hook/global store.
+- **Validation**: `npm run lint` passes and all 63 tests pass via `node --import tsx --test tests/*.test.ts`. Checked report source references and documentation diff. No new tests, build, browser checks or live requests were needed for this review; proposed refactors remain unimplemented.
+- **Delivery**: report and this history entry are local and uncommitted on `main`; preserved the existing Turn 60 entry. No source changes, commit, push or deployment. No confirmation is required.
+
+---
+
+### Turn 62: Clarify the Recommended Improvements (19 October 2026)
+- **User Prompt**:
+  > *"is there no improvements?"*
+- **Clarification**: the modularity review found several improvements; the earlier completion phrase did not communicate them clearly. Explained the priorities directly: extract focused state owners from App, move reusable LTA data logic below HTTP/build entry points, separate Leaflet lifecycle/layers/markup, and divide weather parsing/cache/presentation responsibilities.
+- **Status**: recommendations are documented in `MODULARITY_REVIEW.md` and remain unimplemented. This question did not request applying the refactors. No application code, commits or deployments changed.
+- **Validation**: checked the history and documentation diff; no application tests rerun for this clarification.
+
+---
+
+### Turn 63: Implement the Recommended Modularity Refactor (20 October 2026)
+- **User Prompts**:
+  > *"proceed with your recommendation."*
+  > *"continue from last action"*
+- **Implementation**:
+  - Created local branch `codex/modularity-refactor`, preserving the existing uncommitted history/review work. Shared geometry, transit/network/weather contracts and provider parsers now live in `shared/`; presets and offline routes are separate.
+  - Extracted LTA transport, dataset/cache ownership, route mapping and network serialization into `server/lta/`. The API and actual build CLI consume these services independently. Provider operators are validated at the mapping boundary.
+  - Reduced App from 1,356 to 642 lines and from 22 to three local state calls. Focused feature hooks own route tracking, journey selection, GPS/storage, saved buses, network loading, polling and navigation. Pure journey selectors/presentation and commute-advice assembly are separate from effects and layout. Kept route request IDs, trip geometry keys, late-GPS protection and the shared selected-stop arrival snapshot.
+  - Reduced the map component from 666 to 57 lines, separating Leaflet lifecycle, layer ownership/cleanup, viewport behavior, escaped marker builders, controls and legend. Preserved lazy loading, attribution and zoom-animation teardown handling.
+  - Separated weather catalog/cache/budget service, shared provider normalization, browser transport, summary/bands, UI presentation and refresh state. Removed duplicate two-hour forecast parsing. Route and weather API adapters are now 51 and 28 lines respectively; their public paths and supported response formats remain intact.
+  - Replaced the mixed bus service module with focused arrivals, routes, incidents and stop-name clients; separated route-shape transport from geometry algorithms. Updated README and `MODULARITY_REVIEW.md` with the implementation and optional smaller UI follow-ups.
+- **Validation**:
+  - TypeScript and the separate unused-local check pass. All 78 tests pass (63 existing plus 15 new cases for contracts, cache coalescing/expiry/isolation/failures, weather budgets/stale data, journey timing/transfer/alarm/geometry, marker escaping and import boundaries).
+  - Production Vite build passes with separate app/React/lazy-map chunks. CSS remains `index-CK6caHgK.css` and React remains `react-CyONRaQH.js`. The actual route-build CLI produced correct route/index/network JSON against a controlled LTA provider in a temporary output directory, preserving existing route data.
+  - Local fixture checks passed all five API endpoints, configured URLs/headers, health timeouts and arrival cache headers. Production client builds contain no credential sentinels or server schema text.
+  - Browser checks at 375 px and 1280 px passed trip auto-selection/map overlays, destination swap/clear, delayed route-response races, saved buses, persisted location/search across reload, protection against late startup GPS, and repeated map teardown during zoom. No page exceptions, duplicate live-bus markers or horizontal overflow. These checks used local provider fixtures rather than production upstream credentials.
+  - Gitleaks 8.30.1 reports zero findings across 2,109 working-tree/built/metadata inputs and 59 commits reachable from local refs/tags/reflogs; checkout is non-shallow and the remote has no embedded credentials. No remote fetch was performed for this refactor audit. Documentation links and diff whitespace checks pass.
+- **Delivery**: implementation, tests and documentation are local and uncommitted on `codex/modularity-refactor`. No push, deployment or production configuration change. Smaller UI-only extractions listed in the review remain optional follow-ups; the four recommended responsibility splits and their foundation are implemented. No confirmation is required.
+
+---
+
+### Turn 64: Restore Normal Completion Responses (20 October 2026)
+- **User Prompt**:
+  > *"remove the rule on \"This is completed\" when the task is complete, and back to your usual"*
+- **Action**: removed the fixed completion phrase from `AGENTS.md` and this file's standing instructions. Responses now use normal, concise summaries. The `.cursor/rules/project-history.mdc` rule delegates to `AGENTS.md`, so it inherits the updated guidance without an edit. This supersedes the completion-phrase instructions recorded in Turns 52, 56 and 57; those entries remain as historical records.
+- **Validation**: verified the active instructions no longer require a fixed phrase and checked the Markdown diff. Documentation-only change; no application tests needed.
+- **Status**: saved locally on `codex/modularity-refactor`, preserving the existing refactor and history updates. The requirements to update this file every project turn and ask explicitly when confirmation is needed remain in effect.
+
+---
+
+### Turn 65: Options After Completing the Refactor (20 October 2026)
+- **User Prompt**:
+  > *"what are my options after \"Continue from last action\""*
+- **Current state**: confirmed the refactor remains local and uncommitted on `codex/modularity-refactor`, with HEAD at `b34a4aa`. Turn 63 records 78 passing tests, the production build, local API/CLI/browser checks and a clean secret scan; those checks were not rerun for this status question.
+- **Options**: review and publish the completed batch to main/Vercel; create a pull request and preview for review before production; or continue the optional smaller UI/place-search extractions. Recommended finishing review and delivery of the current batch before expanding the refactor.
+- **Validation and delivery**: read the current history/review and checked Git status. Documentation-only update; no commit, push, PR or deployment performed in response to this question.
+
+---
+
+### Turn 66: Review and Publish the Modularity Refactor (20 October 2026)
+- **User Prompt**:
+  > *"go with your recommendation"* (review, commit, merge into main, deploy and verify live)
+- **Review**: checked the extracted state owners, request/geometry guards, map lifecycle/layers, provider services and entry points. No blocking issue found. Fetched origin branches/tags; remote `main` remains at `b34a4aa`, the refactor's base. Confirmed Vercel's existing `nypbus-tracker` project in `carbon-bc04` is linked to this GitHub repository; no new project or credential change is needed.
+- **Release checks**:
+  - TypeScript with unused-local checking passes; all 78 tests pass; the production Vite build passes with the map still lazy loaded and unchanged CSS/React asset filenames.
+  - Repeated the actual route-build CLI fixture check and all five local API checks, including configured provider URLs/headers, health timeout, cache headers, invalid settings and client-build secret exclusion.
+  - Repeated production-build browser checks at both 375 px and 1280 px: destination/trip selection and map overlay, swap/clear, delayed route races, saved buses and location persistence, late-GPS protection and repeated map cleanup. No page exceptions, duplicate bus markers or horizontal overflow.
+  - After fetching remote refs, Gitleaks reports zero findings in 2,109 scanned inputs and 59 commits; the checkout is non-shallow and the remote has no embedded credentials. Diff whitespace validation is performed before committing.
+- **Delivery**: release checks complete locally. Commit, push, deployment readiness and live verification results will be recorded below after they occur.
 
 ---

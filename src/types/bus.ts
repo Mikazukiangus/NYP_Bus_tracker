@@ -1,21 +1,8 @@
+import type { BusOperator, BusStop } from '../../shared/transit/routes';
+export type { BusOperator, BusStop, FirstLastTimes, RouteDirection, BusRoute } from '../../shared/transit/routes';
 export type BusLoad = 'SEA' | 'SDA' | 'LSD'; // Seats Available, Standing Available, Limited Standing
 export type BusType = 'SD' | 'DD' | 'BD'; // Single Deck, Double Deck, Bendy
-export type BusOperator = 'SBST' | 'SMRT' | 'TTS' | 'GAS';
 export type ArrivalDataSource = 'LOADING' | 'LTA_DATAMALL_V3' | 'FALLBACK_SIMULATED';
-
-// First and last bus of a service at a stop as "HHmm" (LTA BusRoutes); null when it doesn't run that day
-export type FirstLastTimes = [string, string] | null;
-
-export interface BusStop {
-  code: string; // e.g. "09037"
-  name: string; // e.g. "Opp Mandarin Orchard"
-  road: string; // e.g. "Orchard Rd"
-  lat: number;
-  lng: number;
-  distanceMeters?: number;
-  // Only on LTA route data, for the service being viewed
-  firstLastBus?: { weekday: FirstLastTimes; saturday: FirstLastTimes; sunday: FirstLastTimes };
-}
 
 export interface BusArrivalInfo {
   estimatedMinutes: number; // 0 means "Arr"
@@ -70,23 +57,6 @@ export interface IncomingBus {
   load: BusLoad;
   type?: BusType;
   feature: 'WAB' | '';
-}
-
-export interface RouteDirection {
-  origin: string;
-  destination: string;
-  stops: BusStop[];
-  path: [number, number][];
-  pathSource?: 'OPENSTREETMAP'; // set when path follows real roads; otherwise straight stop-to-stop lines
-}
-
-export interface BusRoute {
-  serviceNo: string;
-  operator: BusOperator;
-  category: 'Trunk' | 'Feeder' | 'Express';
-  source?: 'LTA_DATAMALL' | 'OFFLINE';
-  direction1: RouteDirection;
-  direction2?: RouteDirection;
 }
 
 export interface UserLocation {
