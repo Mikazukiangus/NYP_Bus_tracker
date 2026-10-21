@@ -1,11 +1,17 @@
 import type { BusOperator, BusStop } from '../../shared/transit/routes';
 export type { BusOperator, BusStop, FirstLastTimes, RouteDirection, BusRoute } from '../../shared/transit/routes';
-export type BusLoad = 'SEA' | 'SDA' | 'LSD'; // Seats Available, Standing Available, Limited Standing
-export type BusType = 'SD' | 'DD' | 'BD'; // Single Deck, Double Deck, Bendy
+import type { BusLoad, BusType } from '../../shared/transit/arrivals';
+export type { BusLoad, BusType } from '../../shared/transit/arrivals';
 export type ArrivalDataSource = 'LOADING' | 'LTA_DATAMALL_V3' | 'FALLBACK_SIMULATED';
 
 export interface BusArrivalInfo {
-  estimatedMinutes: number; // 0 means "Arr"
+  estimatedMinutes: number; // derived display value; 0 means arriving
+  estimatedArrivalAtMs?: number; // absolute instant; absent only on legacy/injected display fixtures
+  originCode?: string;
+  destinationCode?: string;
+  visitNumber?: number;
+  position?: { lat: number; lng: number } | null; // one validated coordinate pair
+  monitoring?: 'live' | 'scheduled' | 'unknown';
   load: BusLoad;
   type?: BusType; // LTA gives each bus's type; missing if it didn't
   feature: 'WAB' | '';
@@ -17,20 +23,14 @@ export interface BusArrivalInfo {
 // One service's next three buses at a stop, from LTA BusArrival for the whole stop
 export interface StopServiceArrivals {
   serviceNo: string;
-  operator: string;
-  destinationCode?: string;
+  operator: BusOperator;
   nextBus: BusArrivalInfo | null;
   nextBus2: BusArrivalInfo | null;
   nextBus3: BusArrivalInfo | null;
 }
 
 // LTA DataMall TrafficIncidents entry (from /api/traffic-incidents)
-export interface TrafficIncident {
-  type: string;
-  lat: number;
-  lng: number;
-  message: string;
-}
+export type { TrafficIncident } from '../../shared/transit/incidents';
 
 export interface BusServiceArrivals {
   serviceNo: string;
@@ -59,15 +59,7 @@ export interface IncomingBus {
   feature: 'WAB' | '';
 }
 
-export interface UserLocation {
-  lat: number;
-  lng: number;
-  name: string;
-  isSimulated: boolean; // false only for the device's own GPS position
-  accuracyMeters?: number;
-  kind?: 'place' | 'address' | 'postal' | 'stop'; // how a searched location was found
-  address?: string;
-}
+export type { UserLocation } from '../../shared/geo/location';
 
 // A planned trip drawn on the map: walk to the first stop, one or two bus legs, walk to the destination
 export interface JourneyOverlay {
@@ -85,7 +77,7 @@ export interface JourneyOverlay {
   activeLeg?: number; // the leg on the bus being tracked; the others are drawn fainter
 }
 
-export type StopRef = Pick<BusStop, 'code' | 'name' | 'road' | 'lat' | 'lng'>;
+export type StopRef = Pick<BusStop, 'code' | 'name' | 'road' | 'lat' | 'lng' | 'call'>;
 
 // A suggested trip that the tracked bus is part of, so the other leg of a trip with a change can be shown with it
 export interface TripView {
@@ -137,4 +129,7 @@ export interface FavoriteItem {
   direction: number;
   destination: string;
   savedAt: number;
+  occurrence?: number; // absent in legacy records means first visit
+  labelSnapshot?: { stopName: string; roadName: string; destination: string }; // offline fallback, not authoritative
+
 }

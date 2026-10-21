@@ -1,9 +1,11 @@
 // Bus trip planning in the browser, from the static LTA network (public/bus-routes/network.json).
 // Finds direct buses and trips with one change between stops near the start and the destination.
 // Times are estimates: straight-line walking with a detour factor, and typical bus speeds.
+import type { StopCallRef, Direction } from '../../shared/transit/routes';
 import type { StopServiceArrivals } from '../types/bus';
 import { calculateDistanceMeters } from '../../shared/geo/distance.ts';
-import { BusNetwork, NetPattern, NetStop, stopsWithin } from './busNetwork';
+import type { BusNetwork, NetPattern, NetStop } from '../features/network/model';
+import { stopsWithin, transferNeighbours } from '../features/network/domain/queries';
 import { LeaveWithin, firstCatchable, leaveWithin, walkMinutes, walkMinutesFor } from './leaveWithin';
 
 const BUS_KMH = 22; // between stops
@@ -27,7 +29,7 @@ export interface TripLeg {
   serviceNo: string;
   alsoServiceNos: string[]; // other services between the same two stops (e.g. 159 and 159A)
   alternatives: TripLeg[]; // those services' legs, quickest first
-  direction: number;
+  direction: Direction;
   towards: string; // last stop of this direction
   patternIndex: number;
   boardPos: number; // positions within the pattern
@@ -67,6 +69,13 @@ interface Point {
 // Ride time from the start of a pattern to position k, so ride(i -> j) = cum(j) - cum(i)
 const cumRide = (p: NetPattern, k: number) => rideMinutesFor(p.distM[k], k);
 
+export function patternCall(net: BusNetwork, p: NetPattern, position: number): StopCallRef {
+  const stopCode = net.stops[p.stops[position]].code;
+  return { patternId: `${p.serviceNo.toUpperCase()}:${p.direction}`, sequence: position + 1, stopCode,
+    occurrence: p.stops.slice(0, position + 1).filter(i => net.stops[i].code === stopCode).length,
+    ...(net.datasetVersion ? { datasetVersion: net.datasetVersion } : {}) };
+}
+
 function makeLeg(net: BusNetwork, p: NetPattern, boardPos: number, alightPos: number): TripLeg {
   const distanceM = p.distM[alightPos] - p.distM[boardPos];
   const stopCount = alightPos - boardPos;
@@ -79,8 +88,8 @@ function makeLeg(net: BusNetwork, p: NetPattern, boardPos: number, alightPos: nu
     patternIndex: p.index,
     boardPos,
     alightPos,
-    board: net.stops[p.stops[boardPos]],
-    alight: net.stops[p.stops[alightPos]],
+    board: { ...net.stops[p.stops[boardPos]], call: patternCall(net, p, boardPos) },
+    alight: { ...net.stops[p.stops[alightPos]], call: patternCall(net, p, alightPos) },
     stopCount,
     distanceM,
     rideMin: rideMinutesFor(distanceM, stopCount),
@@ -93,7 +102,7 @@ function makeOption(legs: TripLeg[], walkStartM: number, transferWalkM: number, 
   const walkEndMin = walkMinutesFor(walkEndM);
   const ride = legs.reduce((sum, leg) => sum + leg.rideMin, 0);
   return {
-    id: legs.map((l) => `${l.serviceNo}:${l.board.code}-${l.alight.code}`).join('|'),
+    id: legs.map((l) => `${l.serviceNo}:${l.direction}:${l.board.code}@${l.boardPos}-${l.alight.code}@${l.alightPos}`).join('|'),
     legs,
     walkStartM,
     walkStartMin,
@@ -198,16 +207,7 @@ function findTransfers(net: BusNetwork, origin: Map<number, number>, dest: Map<n
     }
   }
 
-  const neighbourCache = new Map<number, { index: number; distanceM: number }[]>();
-  const neighbours = (stopIndex: number) => {
-    let list = neighbourCache.get(stopIndex);
-    if (!list) {
-      const s = net.stops[stopIndex];
-      list = stopsWithin(net, s.lat, s.lng, TRANSFER_RADIUS_M).map(({ stop, distanceM }) => ({ index: stop.index, distanceM }));
-      neighbourCache.set(stopIndex, list);
-    }
-    return list;
-  };
+  const neighbours = (stopIndex: number) => transferNeighbours(net, stopIndex, TRANSFER_RADIUS_M);
 
   const best = new Map<string, { score: number; build: () => TripOption }>();
   for (const { p: p1, reach } of firstLegs) {
@@ -342,13 +342,14 @@ export type AlightAdvice =
 // Where to get off one bus (service, direction, boarding stop) for a destination: the later stop with the
 // least riding + walking, within the planner's walking reach. null when the bus or stop isn't in the
 // network, or when walking from the boarding stop would be just as quick.
-export function alightFor(net: BusNetwork, serviceNo: string, direction: number, boardCode: string, to: Point): AlightAdvice | null {
+export function alightFor(net: BusNetwork, serviceNo: string, direction: number, boardCode: string, to: Point, boardCall?: StopCallRef): AlightAdvice | null {
   const board = net.byCode.get(boardCode);
   if (!board) return null;
   const svc = serviceNo.toUpperCase();
   const served = net.patternsAtStop[board.index].map((i) => net.patterns[i]).filter((p) => p.serviceNo.toUpperCase() === svc);
-  const p = served.find((x) => x.direction === direction) ?? served[0];
-  const boardPos = p ? p.stops.indexOf(board.index) : -1;
+  const p = served.find((x) => x.direction === direction);
+  if (boardCall?.datasetVersion && net.datasetVersion && boardCall.datasetVersion !== net.datasetVersion) return null;
+  const boardPos = p ? p.stops.findIndex((s, pos) => s === board.index && (!boardCall || patternCall(net, p, pos).occurrence === boardCall.occurrence)) : -1;
   if (!p || boardPos < 0 || boardPos >= p.stops.length - 1) return null;
 
   const later: { pos: number; distanceM: number }[] = [];

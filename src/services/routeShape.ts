@@ -1,6 +1,8 @@
 import { BusRoute, BusStop, RouteDirection } from '../types/bus';
 import { calculateDistanceMeters } from '../../shared/geo/distance.ts';
 
+import { callIndex } from '../../shared/transit/stopCalls';
+import type { StopCallRef } from '../../shared/transit/routes';
 import type { RouteShape } from '../../shared/transit/shapes';
 
 // Endpoints of an OSM route line must sit within this distance of the LTA origin/destination stops
@@ -190,12 +192,14 @@ export function matchStopsToPath(stops: BusStop[], path: [number, number][]): (P
 export function legPath(
   dir: RouteDirection,
   boardCode: string,
-  alightCode: string
+  alightCode: string,
+  boardCall?: StopCallRef,
+  alightCall?: StopCallRef
 ): { path: [number, number][]; followsRoads: boolean } | null {
   const stops = dir.stops;
-  const from = stops.findIndex((s) => s.code === boardCode);
-  const to = from < 0 ? -1 : stops.findIndex((s, k) => k > from && s.code === alightCode);
-  if (to < 0) return null;
+  const from = callIndex(stops, { code: boardCode, call: boardCall });
+  const to = from < 0 ? -1 : alightCall ? callIndex(stops, { code: alightCode, call: alightCall }) : stops.findIndex((s, k) => k > from && s.code === alightCode);
+  if (to <= from) return null;
   const straight = stops.slice(from, to + 1).map((s): [number, number] => [s.lat, s.lng]);
   if (dir.pathSource !== 'OPENSTREETMAP' || dir.path.length < 2) return { path: straight, followsRoads: false };
 

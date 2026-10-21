@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { UserLocation } from '../../types/bus';
-import { BusNetwork, loadBusNetwork, nearestStops } from '../../services/busNetwork';
+import type { UserLocation } from '../../../types/bus';
+import type { BusNetwork } from '../model';
+import { nearestStops } from '../domain/queries';
+import { networkRepository } from '../data/networkRepository';
 
 export function useBusNetwork(userLocation: UserLocation) {
   // LTA bus network (every stop and service direction, built at deploy time) for nearby buses,
@@ -10,7 +12,7 @@ export function useBusNetwork(userLocation: UserLocation) {
 
   useEffect(() => {
     let active = true;
-    loadBusNetwork().then((net) => {
+    networkRepository.load().then((net) => {
       if (!active) return;
       setNetwork(net);
       setNetworkStatus(net ? 'ready' : 'unavailable');
@@ -27,5 +29,6 @@ export function useBusNetwork(userLocation: UserLocation) {
     [network, networkStatus, userLocation.lat, userLocation.lng]
   );
 
-  return { network, networkStatus, nearbyStops };
+  const stopNames = useMemo(() => network ? Object.fromEntries(network.stops.map(stop => [stop.code, stop.name])) : {}, [network]);
+  return { network, networkStatus, nearbyStops, stopNames };
 }

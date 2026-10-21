@@ -15,7 +15,8 @@
     "routes": "tsx scripts/build-bus-routes.ts",
     "config:example": "tsx scripts/write-env-example.ts",
     "config:check": "tsx scripts/check-config.ts",
-    "secrets:scan": "tsx scripts/scan-secrets.ts"
+    "secrets:scan": "tsx scripts/scan-secrets.ts",
+    "profile:lookups": "tsx scripts/profile-lookups.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

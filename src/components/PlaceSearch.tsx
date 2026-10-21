@@ -1,7 +1,9 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { BuildingComplex, BusFront, Clock, Hash, House, LoaderCircle, MapPin, Search, X } from 'lucide-react';
-import type { BusNetwork } from '../services/busNetwork';
-import { PlaceKind, PlaceResult, isPostalCode, usePlaceSearch } from '../services/placeSearch';
+import type { BusNetwork } from '../features/network/model';
+import type { PlaceKind, PlaceResult } from '../features/places/model';
+import { isPostalCode } from '../features/places/domain/searchPolicy';
+import { usePlaceSearch } from '../features/places/application/usePlaceSearch';
 
 interface PlaceSearchProps {
   network: BusNetwork | null;

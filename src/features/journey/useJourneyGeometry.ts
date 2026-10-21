@@ -8,7 +8,8 @@ import type { TripRoadPaths } from './model';
 export function useJourneyGeometry(selectedTrip: TripOption | null) {
   // Road-following lines for the chosen trip's bus legs (straight stop-to-stop lines until they load)
   const [tripRoadPaths, setTripRoadPaths] = useState<TripRoadPaths | null>(null);
-  const tripPathKey = selectedTrip ? `${selectedTrip.id}|${selectedTrip.legs.map((l) => l.serviceNo).join('>')}` : '';
+  const tripPathKey = selectedTrip ? JSON.stringify([selectedTrip.id,
+    selectedTrip.legs.map(l => [l.serviceNo.trim().toUpperCase(), l.board.call?.datasetVersion ?? null])]) : '';
 
   useEffect(() => {
     if (!selectedTrip) return;
@@ -16,11 +17,14 @@ export function useJourneyGeometry(selectedTrip: TripOption | null) {
     const key = tripPathKey;
     Promise.all(
       selectedTrip.legs.map(async (leg) => {
-        const result = await fetchBusRoute(leg.serviceNo);
+        const [result, shapes] = await Promise.all([
+          fetchBusRoute(leg.serviceNo, leg.board.call?.datasetVersion),
+          fetchRouteShapes(leg.serviceNo),
+        ]);
         if (result.status !== 'ok') return null;
-        const shaped = applyRouteShapes(result.route, await fetchRouteShapes(leg.serviceNo));
+        const shaped = applyRouteShapes(result.route, shapes);
         const dir = leg.direction === 2 && shaped.direction2 ? shaped.direction2 : shaped.direction1;
-        return legPath(dir, leg.board.code, leg.alight.code);
+        return legPath(dir, leg.board.code, leg.alight.code, leg.board.call, leg.alight.call);
       })
     ).then((legs) => {
       if (active) setTripRoadPaths({ key, legs });

@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { UserLocation } from '../types/bus';
 import { SINGAPORE_LOCATIONS } from '../data/locations';
 import { requestGpsLocation } from '../services/userLocation';
-import type { BusNetwork } from '../services/busNetwork';
-import { PlaceResult, placeToLocation } from '../services/placeSearch';
+import type { BusNetwork } from '../features/network/model';
+import type { PlaceResult } from '../features/places/model';
+import { placeToLocation } from '../features/places/domain/locations';
 import { PlaceSearch, PlaceKindIcon } from './PlaceSearch';
 import { X, Navigation, Locate, MapPin, Check, LoaderCircle, GraduationCap, Clock } from 'lucide-react';
 
@@ -48,7 +49,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   if (!isOpen) return null;
 
   const nypLocation = SINGAPORE_LOCATIONS.find((l) => l.name.includes('Nanyang Polytechnic')) ?? SINGAPORE_LOCATIONS[0];
-  const isNypSelected = currentLocation.isSimulated && sameSpot(currentLocation, nypLocation, 0.0005);
+  const isNypSelected = (currentLocation.source !== 'gps') && sameSpot(currentLocation, nypLocation, 0.0005);
   // Typing straight away is the fastest path on a computer; on phones the keyboard would hide the GPS option
   const autoFocusSearch = typeof window !== 'undefined' && window.matchMedia?.('(min-width: 640px)').matches;
 
@@ -167,7 +168,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               onClick={handleUseGps}
               disabled={isLocating}
               className={`w-full p-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 border transition-all ${
-                !currentLocation.isSimulated
+                (currentLocation.source === 'gps')
                   ? 'bg-green-blue-soft border-green-blue/40 text-green-blue-ink'
                   : 'bg-green-blue-ink hover:bg-helvetia-800 border-green-blue-ink text-white'
               }`}
@@ -180,7 +181,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               ) : (
                 <>
                   <Locate className="w-4 h-4" />
-                  <span>{!currentLocation.isSimulated ? 'Update my GPS position' : 'Use my current GPS position'}</span>
+                  <span>{(currentLocation.source === 'gps') ? 'Update my GPS position' : 'Use my current GPS position'}</span>
                 </>
               )}
             </button>
@@ -199,7 +200,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               </h3>
               <div className="rounded-xl border border-warm-200 divide-y divide-warm-100 overflow-hidden">
                 {recentPlaces.map((place) => {
-                  const selected = currentLocation.isSimulated && sameSpot(currentLocation, place);
+                  const selected = (currentLocation.source !== 'gps') && sameSpot(currentLocation, place);
                   return (
                     <button
                       key={place.id}
@@ -259,7 +260,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             <h3 className="text-[11px] font-bold uppercase tracking-wider text-warm-500 mb-1.5">Suggested places</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {SINGAPORE_LOCATIONS.filter((loc) => loc !== nypLocation).map((loc) => {
-                const isSelected = currentLocation.isSimulated && sameSpot(currentLocation, loc);
+                const isSelected = (currentLocation.source !== 'gps') && sameSpot(currentLocation, loc);
                 return (
                   <button
                     key={loc.name}

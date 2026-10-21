@@ -75,3 +75,58 @@ test('Leaflet stays outside the eagerly imported application graph', () => {
   visit(path.join(root, 'src/main.tsx'));
   assert.ok(visited.has(path.join(root, 'src/App.tsx')));
 });
+
+test('domain rules and plain feature models stay independent of React, adapters and browser state', () => {
+  const pureServices = new Set(['tripPlanner.ts', 'leaveWithin.ts', 'routeShape.ts', 'rainAdvice.ts', 'rainNowcast.ts', 'getOffAlarm.ts']);
+  const roots = files(path.join(root, 'src')).filter(file => {
+    const relative = path.relative(root, file);
+    // Map's model describes React/Leaflet renderer refs, rather than plain domain values.
+    return /^src\/features\/.*\/domain\//.test(relative) ||
+      (/^src\/features\/.*\/model\.ts$/.test(relative) && relative !== 'src/features/map/model.ts') ||
+      (path.dirname(relative) === 'src/services' && pureServices.has(path.basename(file)));
+  });
+  const visited = new Set<string>();
+  function visit(file: string) {
+    if (visited.has(file)) return;
+    visited.add(file);
+    const relative = path.relative(root, file);
+    assert.ok(!/^(?:api\/|server\/|config\/|security\/|src\/(?:components\/|config\.|data\/))/.test(relative) &&
+      !/^src\/features\/.*\/(?:data|application)\//.test(relative), `domain reaches ${relative}`);
+    const source = readFileSync(file, 'utf8');
+    assert.ok(!/\b(?:fetch\s*\(|localStorage\b|sessionStorage\b|navigator\s*\.|Date\.now\s*\()/.test(source), `domain reads external state in ${relative}`);
+    for (const { specifier } of imports(file)) {
+      const target = resolve(file, specifier);
+      assert.ok(target, `domain reaches external or unresolved module ${specifier} from ${relative}`);
+      visit(target!);
+    }
+  }
+  roots.forEach(visit);
+  assert.ok(visited.has(path.join(root, 'src/features/network/domain/queries.ts')));
+});
+
+test('UI components use application hooks rather than data adapters or raw storage/network calls', () => {
+  for (const file of files(path.join(root, 'src/components'))) {
+    assert.ok(!/\b(?:fetch\s*\(|localStorage\b|sessionStorage\b)/.test(readFileSync(file, 'utf8')), `${path.relative(root, file)} owns data access`);
+    for (const { specifier } of imports(file)) {
+      const target = resolve(file, specifier);
+      assert.ok(!target || !/^src\/features\/.*\/data\//.test(path.relative(root, target)), `${path.relative(root, file)} imports a data adapter`);
+    }
+  }
+});
+
+test('transit and weather HTTP adapters delegate provider requests to server services', () => {
+  for (const name of ['bus-arrival', 'bus-route', 'traffic-incidents', 'weather']) {
+    const file = path.join(root, `api/${name}.ts`);
+    assert.ok(!/\bfetch\s*\(/.test(readFileSync(file, 'utf8')), `${name} owns provider transport`);
+    assert.ok(imports(file).some(({ specifier }) => resolve(file, specifier)?.startsWith(path.join(root, 'server') + path.sep)));
+  }
+});
+
+test('all arrival polling owners use the shared repository rather than uncached transport', () => {
+  for (const name of ['useStopArrivals', 'useStopsArrivals', 'favoriteArrivals']) {
+    const file = path.join(root, `src/services/${name}.ts`);
+    const targets = imports(file).map(({ specifier }) => resolve(file, specifier));
+    assert.ok(targets.some(target => target?.endsWith('/features/arrivals/data/arrivalRepository.ts')));
+    assert.ok(!targets.some(target => target?.endsWith('/features/arrivals/client.ts')));
+  }
+});

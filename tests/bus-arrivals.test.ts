@@ -33,11 +33,11 @@ test('server simulations are not accepted as live data', async () => {
   assert.equal(await fetchStopArrivals('55329'), null);
 });
 
-test('invalid timestamps give no estimate instead of an invented 99-minute ETA', async () => {
+test('invalid timestamps reject the snapshot rather than inventing an ETA', async () => {
   const body = response();
   body.Services[0].NextBus.EstimatedArrival = 'invalid';
   globalThis.fetch = async () => Response.json(body);
-  assert.equal((await fetchStopArrivals('55329'))?.[0].nextBus, null);
+  assert.equal(await fetchStopArrivals('55329'), null);
 });
 
 test('empty live services are different from an unavailable feed', async () => {

@@ -8,7 +8,8 @@ export function useUserLocation() {
   const [userLocation, setUserLocation] = useState<UserLocation>(() => loadSavedLocation() ?? SINGAPORE_LOCATIONS[0]);
   const [isDefaultLocation, setIsDefaultLocation] = useState(() => !loadSavedLocation());
   const revision = useRef(0);
-  const selectLocation = useCallback((location: UserLocation) => {
+  const selectLocation = useCallback((candidate: UserLocation) => {
+    const location: UserLocation = { ...candidate, ...(candidate.source !== 'gps' ? { source: 'selected-place', selectedAtMs: Date.now() } : {}) };
     revision.current += 1;
     setUserLocation(location);
     setIsDefaultLocation(false);

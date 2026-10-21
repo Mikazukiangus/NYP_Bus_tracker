@@ -90,7 +90,7 @@ export const LoadMeter: React.FC<{ load: BusLoad; className?: string; emptyClass
 
 // Whether LTA's estimate is based on the bus's live GPS position or only on the timetable
 export const TrackingBadge: React.FC<{ bus: Pick<BusArrivalInfo, 'monitored'>; compact?: boolean }> = ({ bus, compact }) =>
-  bus.monitored ? (
+  bus.monitored === undefined ? <span className="text-[10px] text-warm-500">Tracking unknown</span> : bus.monitored ? (
     <span
       className="inline-flex items-center gap-1 text-[10px] font-bold text-green-blue-ink"
       title="Estimate from the bus's live GPS position"

@@ -17,6 +17,9 @@ test('configuration defaults preserve offline startup and existing public refres
   assert.equal(config.public.polling.arrivalsSeconds, 15);
   assert.equal(config.public.polling.multiStopSeconds, 30);
   assert.equal(config.public.polling.weatherSeconds, 300);
+  assert.equal(config.public.cache.routeAssetsSeconds, 300);
+  assert.equal(createPublicConfig({ VITE_ROUTE_ASSETS_CACHE_SECONDS: '0' }).cache.routeAssetsSeconds, 0);
+  assert.equal(createPublicConfig({ VITE_ROUTE_ASSETS_CACHE_SECONDS: '60' }).cache.routeAssetsSeconds, 60);
   assert.ok(Object.isFrozen(config.public.timeouts));
   assert.ok(Object.isFrozen(config.shapes.instances));
 });
@@ -48,6 +51,7 @@ test('invalid numbers, booleans, modes, URLs and header values fail with field n
   for (const [key, value] of Object.entries({
     PORT: '3000junk', LTA_PAGE_CONCURRENCY: '99', VITE_ARRIVALS_REFRESH_SECONDS: '-1',
     NEA_KEYLESS_BUDGET: '7', DISABLE_HMR: 'yes', NODE_ENV: 'staging', HEALTH_BUS_STOP_CODE: '5532',
+    VITE_ROUTE_ASSETS_CACHE_SECONDS: '3601',
     LTA_API_BASE_URL: 'https://private-name:private-password@example.com',
     VITE_API_BASE_URL: 'http://untrusted.example.com', VITE_ONEMAP_BASE_URL: 'javascript:alert(1)',
     OVERPASS_URLS: 'https://example.com,,https://example.org', OVERPASS_USER_AGENT: 'private\r\nHeader: value',

@@ -1,7 +1,7 @@
 import type { WeatherSnapshot, WeatherSummary } from '../../types/weather';
 import type { AlightHint, BusServiceArrivals, TripView, UserLocation } from '../../types/bus';
-import type { NearbyStop } from '../../services/busNetwork';
-import type { PlaceResult } from '../../services/placeSearch';
+import type { NearbyStop } from '../network/model';
+import type { PlaceResult } from '../places/model';
 import type { TripOption } from '../../services/tripPlanner';
 import { rainNowcast } from '../../services/rainNowcast';
 import { rainAdvice, type RainAdviceInput } from '../../services/rainAdvice';

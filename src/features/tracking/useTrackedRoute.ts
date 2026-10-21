@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BusRoute, BusStop, UserLocation } from '../../types/bus';
-import type { NearbyStop } from '../../services/busNetwork';
+import type { NearbyStop } from '../network/model';
 import { getOrCreateBusRoute, POPULAR_ROUTES } from '../../data/offlineRoutes';
+import { annotateStopCalls, callIndex } from '../../../shared/transit/stopCalls';
+import type { StopCallRef } from '../../../shared/transit/routes';
 import { findNearestBusStop, pickDirectionForStop, pickNearestDirection } from './routeSelection';
 import { fetchBusRoute } from './routeRepository';
 import { applyRouteShapes } from '../../services/routeShape';
@@ -18,7 +20,7 @@ export function useTrackedRoute(userLocation: UserLocation, nearbyStops: NearbyS
   // Active bus service and route. A bundled route is only a placeholder until the real LTA route loads (Bus 72,
   // which stops at NYP, when there's none for that bus, or while a first visit waits for the nearest stop's buses).
   const [currentRoute, setCurrentRoute] = useState<BusRoute>(() =>
-    getOrCreateBusRoute(POPULAR_ROUTES[searchedBus] ? searchedBus : '72')
+    annotateStopCalls(getOrCreateBusRoute(POPULAR_ROUTES[searchedBus] ? searchedBus : '72'))
   );
   const [isRouteLoading, setIsRouteLoading] = useState(true);
   const busChosen = useRef(false); // a bus has been chosen (at startup, by the user or by a trip)
@@ -27,16 +29,18 @@ export function useTrackedRoute(userLocation: UserLocation, nearbyStops: NearbyS
   const currentRouteRef = useRef(currentRoute);
   currentRouteRef.current = currentRoute;
 
-  // Selected stop code (null = follow the nearest stop; user can pick any other stop)
-  const [selectedStopCode, setSelectedStopCode] = useState<string | null>(null);
+  // Physical stop + route occurrence (null follows the nearest stop).
+  const [selectedStopRef, setSelectedStopRef] = useState<{ code: string; call?: StopCallRef } | null>(null);
 
   // Load a service's real stop sequence from LTA DataMall, falling back to bundled data if offline
   const loadRoute = useCallback(
-    async (serviceNo: string, opts: { direction?: number; stopCode?: string; remember?: boolean } = {}): Promise<boolean> => {
+    async (serviceNo: string, opts: { direction?: number; stopCode?: string; stopCall?: StopCallRef; datasetVersion?: string; remember?: boolean } = {}): Promise<boolean> => {
       busChosen.current = true;
       const requestId = ++routeRequestId.current;
       setIsRouteLoading(true);
-      const result = await fetchBusRoute(serviceNo);
+      // Start optional geometry immediately; publishing stops never waits for it.
+      const shapesPromise = fetchRouteShapes(serviceNo);
+      const result = await fetchBusRoute(serviceNo, opts.datasetVersion);
       if (requestId !== routeRequestId.current) return false;
       setIsRouteLoading(false);
 
@@ -45,8 +49,12 @@ export function useTrackedRoute(userLocation: UserLocation, nearbyStops: NearbyS
         return false;
       }
 
-      const route =
-        result.status === 'ok' ? { ...result.route, source: 'LTA_DATAMALL' as const } : getOrCreateBusRoute(serviceNo);
+      if (result.status !== 'ok' && opts.datasetVersion) {
+        setRouteNotice('This trip’s route data has changed. Refresh to plan it again.');
+        return false;
+      }
+      const route = annotateStopCalls(
+        result.status === 'ok' ? { ...result.route, source: 'LTA_DATAMALL' as const } : getOrCreateBusRoute(serviceNo));
       setRouteNotice(
         result.status === 'ok'
           ? null
@@ -64,10 +72,10 @@ export function useTrackedRoute(userLocation: UserLocation, nearbyStops: NearbyS
           (opts.stopCode ? pickDirectionForStop(route, opts.stopCode) : undefined) ??
           pickNearestDirection(route, loc.lat, loc.lng)
       );
-      setSelectedStopCode(opts.stopCode ?? null);
+      setSelectedStopRef(opts.stopCode ? { code: opts.stopCode, call: opts.stopCall } : null);
 
       // Upgrade straight stop-to-stop lines to road-following OpenStreetMap geometry when it matches the stops
-      void fetchRouteShapes(route.serviceNo).then((shapes) => {
+      void shapesPromise.then((shapes) => {
         if (requestId !== routeRequestId.current) return;
         const shaped = applyRouteShapes(route, shapes);
         if (shaped !== route) setCurrentRoute(shaped);
@@ -91,22 +99,22 @@ export function useTrackedRoute(userLocation: UserLocation, nearbyStops: NearbyS
   const stopsWithDistance = nearestResult.allStopsWithDistance;
 
   const selectedStop = useMemo<BusStop>(
-    () => routeDir.stops.find((s) => s.code === selectedStopCode) ?? nearestStop,
-    [routeDir, selectedStopCode, nearestStop]
+    () => selectedStopRef ? routeDir.stops[callIndex(routeDir.stops, selectedStopRef)] ?? nearestStop : nearestStop,
+    [routeDir, selectedStopRef, nearestStop]
   );
 
   const handleSelectStop = useCallback((stop: BusStop) => {
-    setSelectedStopCode(stop.code);
+    setSelectedStopRef({ code: stop.code, call: stop.call });
   }, []);
 
   const handleSetDirection = useCallback((dir: number) => {
     setDirection(dir);
-    setSelectedStopCode(null);
+    setSelectedStopRef(null);
   }, []);
 
   const retarget = useCallback((loc: UserLocation) => {
     userLocationRef.current = loc;
-    setSelectedStopCode(null);
+    setSelectedStopRef(null);
     setDirection(pickNearestDirection(currentRouteRef.current, loc.lat, loc.lng));
   }, []);
   // Open on the bus last searched for; on a first visit, on the first bus at the stop nearest the user once the bus

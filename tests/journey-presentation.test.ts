@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildBusNetwork } from '../src/services/busNetwork';
+import { buildBusNetwork } from '../src/features/network/domain/buildNetwork';
 import { planTrips } from '../src/services/tripPlanner';
 import { rankTrips, trackedLegIndex } from '../src/features/journey/selectors';
 import { buildJourney, buildTripView, buildAlightHint, buildAlarmRide, buildAfterGetOff } from '../src/features/journey/presentation';
 import { busMarkerHtml, busPopupHtml, etaCalloutHtml } from '../src/features/map/markerHtml';
 import type { BusRoute, IncomingBus, StopServiceArrivals, UserLocation } from '../src/types/bus';
-import type { PlaceResult } from '../src/services/placeSearch';
+import type { PlaceResult } from '../src/features/places/model';
 
 const network = buildBusNetwork({
   generatedAt: 'fixture',
@@ -17,7 +17,7 @@ const network = buildBusNetwork({
   ],
   patterns: [['10', 1, [0, 1, 2, 3], [0, 6, 6, 6]], ['20', 1, [2, 4, 5], [0, 6, 12]]],
 });
-const userLocation: UserLocation = { ...network.stops[0], isSimulated: true };
+const userLocation: UserLocation = { ...network.stops[0], source: 'selected-place' };
 const destination: PlaceResult = { ...network.stops[5], id: 'destination', kind: 'place' };
 const tripPlan = planTrips(network, userLocation, destination);
 const selectedTrip = tripPlan.options[0];

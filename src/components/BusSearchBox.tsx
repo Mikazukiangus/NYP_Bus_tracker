@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Search, ArrowRightLeft, X, MapPinned, ChevronDown } from 'lucide-react';
 import { BusRoute } from '../types/bus';
-import type { NearbyStop, StopService } from '../services/busNetwork';
+import type { NearbyStop, StopService } from '../features/network/model';
 import { operatorName } from './ArrivalBits';
 
 interface BusSearchBoxProps {

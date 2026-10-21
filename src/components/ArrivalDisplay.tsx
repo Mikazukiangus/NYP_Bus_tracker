@@ -1,3 +1,4 @@
+import { serviceDayType } from '../features/arrivals/domain/serviceSchedule';
 import React, { useState } from 'react';
 import { RefreshCw, Accessibility, Info, Clock, CalendarClock, ChevronDown, Flag, ArrowLeftRight, ChevronRight, ChevronLeft, Heart, Footprints } from 'lucide-react';
 import { AlightHint, ArrivalDataSource, BusArrivalInfo, BusServiceArrivals, BusStop, FirstLastTimes } from '../types/bus';
@@ -36,14 +37,6 @@ function formatHHmm(hhmm: string) {
 }
 
 const formatTimes = (t: FirstLastTimes) => (t ? `${formatHHmm(t[0])} – ${formatHHmm(t[1])}` : 'No service');
-
-// LTA publishes separate first/last bus times for weekdays, Saturdays and Sundays/public holidays.
-// Before 4 am the previous day's late buses are still running, so use the previous day's schedule.
-function todaysDayType(): 'weekday' | 'saturday' | 'sunday' {
-  const sgNow = new Date(Date.now() + 8 * 3600 * 1000 - 4 * 3600 * 1000); // SGT, shifted back 4 h
-  const day = sgNow.getUTCDay();
-  return day === 0 ? 'sunday' : day === 6 ? 'saturday' : 'weekday';
-}
 
 const DAY_LABEL = { weekday: 'Weekdays', saturday: 'Saturdays', sunday: 'Sundays & PH' } as const;
 
@@ -220,7 +213,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   const isLive = dataSource === 'LTA_DATAMALL_V3';
   const isLoading = dataSource === 'LOADING';
   const firstLast = activeStop.firstLastBus;
-  const dayType = todaysDayType();
+  const dayType = serviceDayType(Date.now());
   const buses = [arrivals.nextBus, arrivals.nextBus2, arrivals.nextBus3].filter((b) => b !== null);
 
   const renderSingleBusCard = (
@@ -274,7 +267,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         <div className="my-1 @2xl:my-2">
           <Minutes
             min={bus.estimatedMinutes}
-            signal={isLive ? (bus.monitored ? 'live' : 'scheduled') : undefined}
+            signal={isLive ? (bus.monitored === undefined ? undefined : bus.monitored ? 'live' : 'scheduled') : undefined}
             size="lg"
             className={isArr ? 'animate-pulse' : 'text-warm-900'}
           />
@@ -444,7 +437,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
               {updatedAgo(arrivals.lastUpdated)} · updates every {REFRESH_SECONDS}&nbsp;s
             </p>
           )}
-          <TimeKey live={buses.some((b) => b.monitored)} timetable={buses.some((b) => !b.monitored)} />
+          <TimeKey live={buses.some((b) => b.monitored)} timetable={buses.some((b) => b.monitored === false)} />
         </div>
       )}
 

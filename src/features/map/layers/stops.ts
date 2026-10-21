@@ -1,3 +1,4 @@
+import { sameStopCall } from '../../../../shared/transit/stopCalls';
 import { useEffect } from 'react';
 import L from 'leaflet';
 import type { MapRef, StopEtas } from '../model';
@@ -21,9 +22,9 @@ export function useStopLayer(mapInstanceRef: MapRef, routeDir: RouteDirection, n
     if (!showStops) return;
 
     routeDir.stops.forEach((stop) => {
-      const isNearest = stop.code === nearestStop.code;
-      const isSelected = stop.code === selectedStop.code;
-      const isAlight = stop.code === alightStop?.stop.code;
+      const isNearest = sameStopCall(stop, nearestStop);
+      const isSelected = sameStopCall(stop, selectedStop);
+      const isAlight = !!alightStop && sameStopCall(stop, alightStop.stop);
 
       let iconHtml: string;
       let size: number;
@@ -66,13 +67,13 @@ export function useStopLayer(mapInstanceRef: MapRef, routeDir: RouteDirection, n
           ${isNearest ? '<span class="bg-lemon-soft text-helvetia-950 text-[10px] font-bold px-1.5 py-0.5 rounded">Nearest Stop to You</span><br/>' : ''}
           ${isAlight && alightStop ? `<span class="bg-helvetia-950 text-lemon text-[10px] font-bold px-1.5 py-0.5 rounded">${escapeHtml(nextBus ? `Get off to change to Bus ${nextBus.serviceNo}` : `Get off here for ${alightStop.destinationName}`)}</span><br/>` : ''}
           <div class="mt-2 text-right">
-            <button id="select-stop-${stop.code}" class="bg-helvetia text-white text-xs font-bold px-3 py-1.5 rounded-md">View Arrivals</button>
+            <button id="select-stop-${stop.code}-${stop.call?.occurrence ?? 1}" class="bg-helvetia text-white text-xs font-bold px-3 py-1.5 rounded-md">View Arrivals</button>
           </div>
         </div>`
       );
 
       marker.on('popupopen', () => {
-        const btn = document.getElementById(`select-stop-${stop.code}`);
+        const btn = document.getElementById(`select-stop-${stop.code}-${stop.call?.occurrence ?? 1}`);
         if (btn) {
           btn.onclick = () => {
             onSelectStop(stop);

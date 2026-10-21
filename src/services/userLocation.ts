@@ -3,22 +3,10 @@ import { config } from '../config';
 
 export const LOCATION_STORAGE_KEY = 'bustrackersg_location_v1';
 
-export function isSingaporeLocation(lat: number, lng: number): boolean {
-  return Number.isFinite(lat) && Number.isFinite(lng) &&
-    lat >= 1.15 && lat <= 1.48 && lng >= 103.55 && lng <= 104.1;
-}
+import { isSingaporeLocation } from '../../shared/geo/singapore';
+export { isSingaporeLocation } from '../../shared/geo/singapore';
 
-function isUserLocation(value: unknown): value is UserLocation {
-  if (!value || typeof value !== 'object') return false;
-  const loc = value as Partial<UserLocation>;
-  return typeof loc.name === 'string' && loc.name.trim().length > 0 &&
-    typeof loc.lat === 'number' && typeof loc.lng === 'number' &&
-    isSingaporeLocation(loc.lat, loc.lng) && typeof loc.isSimulated === 'boolean' &&
-    (loc.accuracyMeters === undefined ||
-      (typeof loc.accuracyMeters === 'number' && Number.isFinite(loc.accuracyMeters) && loc.accuracyMeters >= 0)) &&
-    (loc.kind === undefined || ['place', 'address', 'postal', 'stop'].includes(loc.kind)) &&
-    (loc.address === undefined || typeof loc.address === 'string');
-}
+import { parseLocation } from '../../shared/geo/locationValidation';
 
 // The device's own position, as map apps name it
 const GPS_NAME = 'Your location';
@@ -26,10 +14,11 @@ const GPS_NAME = 'Your location';
 export function loadSavedLocation(storage?: Pick<Storage, 'getItem'>): UserLocation | null {
   try {
     const raw = (storage ?? window.localStorage).getItem(LOCATION_STORAGE_KEY);
-    const loc: unknown = raw ? JSON.parse(raw) : null;
-    if (!isUserLocation(loc)) return null;
-    // A GPS position saved by an older version has its old name ("My Device GPS Location")
-    return loc.isSimulated ? loc : { ...loc, name: GPS_NAME };
+    const data: unknown = raw ? JSON.parse(raw) : null;
+    if (data && typeof data === 'object' && 'schemaVersion' in data) {
+      return data.schemaVersion === 2 && 'location' in data ? parseLocation(data.location) : null;
+    }
+    return parseLocation(data, true);
   } catch {
     // Storage can be blocked, or contain an old/corrupt value.
     return null;
@@ -37,21 +26,22 @@ export function loadSavedLocation(storage?: Pick<Storage, 'getItem'>): UserLocat
 }
 
 export function saveUserLocation(loc: UserLocation, storage?: Pick<Storage, 'setItem'>): void {
-  if (!isUserLocation(loc)) return;
+  if (!parseLocation(loc)) return;
   try {
-    (storage ?? window.localStorage).setItem(LOCATION_STORAGE_KEY, JSON.stringify(loc));
+    (storage ?? window.localStorage).setItem(LOCATION_STORAGE_KEY, JSON.stringify({ schemaVersion: 2, location: loc }));
   } catch {
     // A storage failure must not prevent changing location for this visit.
   }
 }
 
-export function locationFromGps(coords: Pick<GeolocationCoordinates, 'latitude' | 'longitude' | 'accuracy'>): UserLocation | null {
+export function locationFromGps(coords: Pick<GeolocationCoordinates, 'latitude' | 'longitude' | 'accuracy'>, capturedAtMs = Date.now()): UserLocation | null {
   if (!isSingaporeLocation(coords.latitude, coords.longitude)) return null;
   return {
     name: GPS_NAME,
     lat: coords.latitude,
     lng: coords.longitude,
-    isSimulated: false,
+    source: 'gps',
+    capturedAtMs,
     ...(Number.isFinite(coords.accuracy) && coords.accuracy >= 0
       ? { accuracyMeters: Math.round(coords.accuracy) } : {}),
   };

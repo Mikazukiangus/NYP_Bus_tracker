@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { LOCATION_STORAGE_KEY, loadSavedLocation, locationFromGps, saveUserLocation } from '../src/services/userLocation';
 import { loadLastBusSearch, saveLastBusSearch } from '../src/services/lastBusSearch';
 
-const orchard = { name: 'Orchard Rd', lat: 1.3018, lng: 103.8362, isSimulated: true };
+const orchard = { name: 'Orchard Rd', lat: 1.3018, lng: 103.8362, source: 'selected-place' as const };
 
 test('restores the saved preset and the last GPS fix', () => {
   for (const loc of [orchard, locationFromGps({ latitude: 1.3698, longitude: 103.8496, accuracy: 12.4 })!]) {
@@ -16,7 +16,7 @@ test('restores the saved preset and the last GPS fix', () => {
 test('ignores corrupt, incomplete and out-of-Singapore saved locations', () => {
   for (const raw of [null, '{', 'null', JSON.stringify({ ...orchard, lat: '1.3' }),
     JSON.stringify({ ...orchard, name: '' }), JSON.stringify({ ...orchard, lng: 0 }),
-    JSON.stringify({ ...orchard, isSimulated: undefined }), JSON.stringify({ ...orchard, accuracyMeters: -1 })]) {
+    JSON.stringify({ ...orchard, source: undefined }), JSON.stringify({ ...orchard, accuracyMeters: -1 })]) {
     assert.equal(loadSavedLocation({ getItem() { return raw; } }), null);
   }
 });
@@ -36,8 +36,8 @@ test('blocked browser storage does not break location changes', () => {
 test('GPS fixes must be in Singapore, with usable accuracy retained', () => {
   assert.equal(locationFromGps({ latitude: NaN, longitude: 103.8, accuracy: 10 }), null);
   assert.equal(locationFromGps({ latitude: 51.5, longitude: -0.1, accuracy: 10 }), null);
-  assert.deepEqual(locationFromGps({ latitude: 1.3698, longitude: 103.8496, accuracy: 12.4 }), {
-    name: 'Your location', lat: 1.3698, lng: 103.8496, isSimulated: false, accuracyMeters: 12,
+  assert.deepEqual(locationFromGps({ latitude: 1.3698, longitude: 103.8496, accuracy: 12.4 }, 1000), {
+    name: 'Your location', lat: 1.3698, lng: 103.8496, source: 'gps', capturedAtMs: 1000, accuracyMeters: 12,
   });
 });
 

@@ -1,17 +1,30 @@
 import { config, dataUrl } from '../../config';
+import { parseShapes } from '../../../shared/transit/parsers';
 import type { RouteShape } from '../../../shared/transit/shapes';
+import { createAssetCache, type AssetCacheSettings } from './assetCache';
 
-// Pre-built from OpenStreetMap by scripts/build-route-shapes.ts and served as static files
-export async function fetchRouteShapes(serviceNo: string): Promise<RouteShape[]> {
-  try {
-    const res = await fetch(dataUrl(`/route-shapes/${encodeURIComponent(serviceNo.toUpperCase())}.json`), {
-      signal: AbortSignal.timeout(config.timeouts.requestMs),
-    });
-    // Unknown services fall through to the SPA's index.html, so check it's really JSON
-    if (!res.ok || !res.headers.get('content-type')?.includes('json')) return [];
-    const data = await res.json();
-    return Array.isArray(data?.shapes) ? data.shapes : [];
-  } catch {
-    return [];
+type ShapeLookup = { status: 'ok'; shapes: RouteShape[] } | { status: 'unavailable' };
+
+export function createShapeRepository(settings: AssetCacheSettings, dependencies: { request?: typeof fetch; now?: () => number } = {}) {
+  const request = dependencies.request ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
+  const get = createAssetCache<ShapeLookup>(settings, result => result.status === 'ok', dependencies.now);
+  async function load(serviceNo: string): Promise<ShapeLookup> {
+    try {
+      const res = await request(dataUrl(`/route-shapes/${encodeURIComponent(serviceNo)}.json`), {
+        signal: AbortSignal.timeout(config.timeouts.requestMs),
+      });
+      if (!res.ok || !res.headers.get('content-type')?.includes('json')) return { status: 'unavailable' };
+      const shapes = parseShapes(await res.json(), serviceNo);
+      return shapes ? { status: 'ok', shapes } : { status: 'unavailable' };
+    } catch { return { status: 'unavailable' }; }
   }
+  async function fetchRouteShapes(serviceNo: string): Promise<RouteShape[]> {
+    const code = serviceNo.trim().toUpperCase();
+    const result = await get(code, () => load(code));
+    return result.status === 'ok' ? result.shapes : [];
+  }
+  return { fetchRouteShapes };
 }
+
+// Both tracking and selected-trip geometry share these parsed, validated assets.
+export const { fetchRouteShapes } = createShapeRepository({ freshnessMs: config.cache.routeAssetsSeconds * 1000 });

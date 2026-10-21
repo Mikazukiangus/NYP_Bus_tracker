@@ -16,6 +16,9 @@ export const publicSchema = {
     weatherRetryMs: ms('VITE_WEATHER_RETRY_MS', 12000, 'PUBLIC. Delay to fill incomplete weather snapshots.', 10000, 120000),
     weatherRetryAttempts: integer('VITE_WEATHER_RETRY_ATTEMPTS', 3, 0, 10, 'PUBLIC. Retries to fill an incomplete weather snapshot.'),
   },
+  cache: {
+    routeAssetsSeconds: seconds('VITE_ROUTE_ASSETS_CACHE_SECONDS', 300, 'PUBLIC. Browser route/shape success-cache lifetime; 0 shares pending requests only.', 0, 3600),
+  },
   timeouts: {
     arrivalsMs: ms('VITE_ARRIVALS_TIMEOUT_MS', 5000, 'PUBLIC. Arrival request timeout.'),
     requestMs: ms('VITE_REQUEST_TIMEOUT_MS', 10000, 'PUBLIC. Static route/shape, weather and incident timeout.'),

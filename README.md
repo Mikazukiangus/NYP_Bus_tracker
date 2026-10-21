@@ -6,9 +6,15 @@ Live site: https://nypbus-tracker.vercel.app
 
 ## Code structure
 
-`src/App.tsx` composes feature owners in `src/features/` for tracking, journey planning, location, saved buses, weather, incidents and maps. Browser data clients live with their features; `src/services/` retains focused algorithms and arrival/alarm hooks. `server/lta/` and `server/weather/` hold reusable provider services, while `api/` and `scripts/` provide HTTP and build entry points. `shared/` contains environment-neutral geometry, contracts and weather parsers.
+`src/App.tsx` composes feature owners in `src/features/` for tracking, journey planning, location, saved buses, weather, incidents and maps. Places, network and saved-bus features separate pure `domain/` rules, `data/` adapters and `application/` hooks; browser data clients live with their features; `src/services/` retains focused algorithms and arrival/alarm hooks. `server/lta/` and `server/weather/` hold reusable provider services, while `api/` and `scripts/` provide HTTP and build entry points. `shared/` contains environment-neutral geometry, contracts and weather parsers.
 
-See [the modularity review and implementation notes](MODULARITY_REVIEW.md) for the responsibility boundaries, extraction results and optional follow-ups. `npm test` includes checks that protect the server/browser boundary and keep Leaflet behind its lazy import.
+See [the modularity review and implementation notes](MODULARITY_REVIEW.md) for the responsibility boundaries, extraction results and optional follow-ups. `npm test` includes checks that protect domain/UI/data and server/browser boundaries and keep Leaflet behind its lazy import.
+
+The [bus-arrival response contract](docs/api/bus-arrival.md) includes an example JSON response, accepted empty-bus values, runtime validation and fallback behavior.
+
+The [data-model guide](docs/data-model.md) explains stop visits, absolute arrival times, generated-file validation and the backward-compatible saved-record formats. It also records [implemented lookup indexes and shared arrival requests](docs/data-model.md#implemented-lookup-and-request-optimizations--21-october-2026); `npm run profile:lookups` compares the optimized lookups with an uncached baseline without calling providers.
+
+Route and shape loaders now share pending requests and a bounded success cache, and load independent geometry in parallel. See the [N+1 review and implementation](docs/n-plus-one-review.md#implementation-follow-up--21-october-2026) for behavior, expiry and validation. `VITE_ROUTE_ASSETS_CACHE_SECONDS` defaults to 300; zero keeps pending sharing while disabling settled caching.
 
 ## Setup
 

@@ -1,51 +1,58 @@
 import { config, apiUrl, dataUrl } from '../../config';
+import { parseRoute } from '../../../shared/transit/parsers';
 import type { BusRoute } from '../../types/bus';
+import { createAssetCache, type AssetCacheSettings } from './assetCache';
 
 export type BusRouteLookup =
   | { status: 'ok'; route: BusRoute }
   | { status: 'not_found' }
   | { status: 'unavailable' };
 
-// Fetch a static JSON file built at deploy time; null if it isn't there (the SPA rewrite serves index.html)
-async function fetchStaticJson<T>(url: string): Promise<T | null> {
-  try {
-    const res = await fetch(dataUrl(url), { signal: AbortSignal.timeout(config.timeouts.requestMs) });
-    if (!res.ok || !res.headers.get('content-type')?.includes('json')) return null;
-    return (await res.json()) as T;
-  } catch {
-    return null;
-  }
-}
+export function createRouteRepository(settings: AssetCacheSettings, dependencies: { request?: typeof fetch; now?: () => number } = {}) {
+  const request = dependencies.request ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
+  const getRoute = createAssetCache<BusRouteLookup>(settings, result => result.status === 'ok', dependencies.now);
+  const getIndex = createAssetCache<string[] | null>({ ...settings, maxEntries: 1 }, value => value !== null, dependencies.now);
 
-let staticRouteIndex: Promise<{ services: string[] } | null> | null = null;
-
-// Fetch the real stop sequence for a service (LTA DataMall BusRoutes + BusStops):
-// first from the static copy generated at build time (scripts/build-bus-routes.ts), else from /api/bus-route
-export async function fetchBusRoute(serviceNo: string): Promise<BusRouteLookup> {
-  const fileName = encodeURIComponent(serviceNo.trim().toUpperCase());
-  const staticRoute = await fetchStaticJson<BusRoute>(`/bus-routes/${fileName}.json`);
-  if (staticRoute?.direction1?.stops?.length) return { status: 'ok', route: staticRoute };
-
-  // If the build produced an index and the service isn't in it, it isn't an LTA service: answer instantly
-  staticRouteIndex ??= fetchStaticJson<{ services: string[] }>('/bus-routes/index.json');
-  const index = await staticRouteIndex;
-  if (index?.services?.length && !index.services.includes(serviceNo.trim().toUpperCase())) {
-    return { status: 'not_found' };
+  // SPA fallback serves HTML for missing JSON; never treat that as an artifact.
+  async function fetchStaticJson(url: string): Promise<unknown> {
+    try {
+      const res = await request(dataUrl(url), { signal: AbortSignal.timeout(config.timeouts.requestMs) });
+      if (!res.ok || !res.headers.get('content-type')?.includes('json')) return null;
+      return await res.json();
+    } catch { return null; }
   }
 
-  try {
-    // A cold serverless instance has to page through all LTA route data, so allow extra time
-    const res = await fetch(apiUrl(`/api/bus-route?ServiceNo=${encodeURIComponent(serviceNo)}`), {
-      signal: AbortSignal.timeout(config.timeouts.routeMs),
+  async function load(serviceNo: string, expectedVersion?: string): Promise<BusRouteLookup> {
+    const staticRoute = await fetchStaticJson(`/bus-routes/${encodeURIComponent(serviceNo)}.json`);
+    const parsedStatic = parseRoute(staticRoute, serviceNo, expectedVersion);
+    if (parsedStatic) return { status: 'ok', route: parsedStatic };
+
+    const index = await getIndex('index', async () => {
+      const raw = await fetchStaticJson('/bus-routes/index.json');
+      const services = raw && typeof raw === 'object' && 'services' in raw ? raw.services : null;
+      return Array.isArray(services) && services.length > 0 && services.every(s => typeof s === 'string')
+        ? services as string[] : null;
     });
+    if (index && !index.includes(serviceNo)) return { status: 'not_found' };
 
-    if (res.status === 404) return { status: 'not_found' };
-    if (!res.ok) return { status: 'unavailable' };
-
-    const data = await res.json();
-    if (!data?.direction1?.stops?.length) return { status: 'unavailable' };
-    return { status: 'ok', route: data as BusRoute };
-  } catch {
-    return { status: 'unavailable' };
+    try {
+      // A cold serverless instance may page through all LTA route data.
+      const res = await request(apiUrl(`/api/bus-route?ServiceNo=${encodeURIComponent(serviceNo)}`), {
+        signal: AbortSignal.timeout(config.timeouts.routeMs),
+      });
+      if (res.status === 404) return { status: 'not_found' };
+      if (!res.ok) return { status: 'unavailable' };
+      const route = parseRoute(await res.json(), serviceNo, expectedVersion);
+      return route ? { status: 'ok', route } : { status: 'unavailable' };
+    } catch { return { status: 'unavailable' }; }
   }
+
+  function fetchBusRoute(serviceNo: string, expectedVersion?: string): Promise<BusRouteLookup> {
+    const code = serviceNo.trim().toUpperCase();
+    // Unversioned tracking must not reuse an incompatible planned-leg result.
+    return getRoute(JSON.stringify([code, expectedVersion ?? null]), () => load(code, expectedVersion));
+  }
+  return { fetchBusRoute };
 }
+
+export const { fetchBusRoute } = createRouteRepository({ freshnessMs: config.cache.routeAssetsSeconds * 1000 });

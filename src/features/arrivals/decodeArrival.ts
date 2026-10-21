@@ -1,28 +1,19 @@
-import type { BusArrivalInfo, BusLoad, BusType } from '../../types/bus';
+import type { BusArrivalInfo } from '../../types/bus';
+import type { LTAArrivalSlot, LTABusArrival } from '../../../shared/transit/arrivals';
 
-const BUS_TYPES: unknown[] = ['SD', 'DD', 'BD'];
-
-// Parse LTA ISO EstimatedArrival string to countdown minutes
-function parseLTAEstimatedMinutes(isoString?: string): number {
-  if (!isoString) return 99;
-  const etaTime = new Date(isoString).getTime();
-  if (isNaN(etaTime)) return 99;
-  const diffMs = etaTime - Date.now();
-  const mins = Math.round(diffMs / 60000);
-  return mins <= 0 ? 0 : mins;
-}
-
-export function parseBus(raw?: any): BusArrivalInfo | null {
-  if (!raw || !raw.EstimatedArrival || !Number.isFinite(Date.parse(raw.EstimatedArrival))) return null;
-  const lat = raw.Latitude ? parseFloat(raw.Latitude) : undefined;
-  const lng = raw.Longitude ? parseFloat(raw.Longitude) : undefined;
+// Only validated wire records reach this mapper. Provider visits are not route stop sequences.
+export function parseBus(raw?: LTAArrivalSlot, nowMs = Date.now()): BusArrivalInfo | null {
+  if (!raw?.EstimatedArrival) return null;
+  const bus = raw as LTABusArrival;
+  const estimatedArrivalAtMs = Date.parse(bus.EstimatedArrival);
+  const lat = Number(bus.Latitude), lng = Number(bus.Longitude);
+  const position = bus.Latitude && bus.Longitude && Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0 ? { lat, lng } : null;
+  const monitoring = bus.Monitored === 1 ? 'live' : bus.Monitored === 0 ? 'scheduled' : 'unknown';
   return {
-    estimatedMinutes: parseLTAEstimatedMinutes(raw.EstimatedArrival),
-    load: (raw.Load as BusLoad) || 'SEA',
-    type: BUS_TYPES.includes(raw.Type) ? (raw.Type as BusType) : undefined,
-    feature: raw.Feature === 'WAB' ? 'WAB' : '',
-    lat,
-    lng,
-    monitored: raw.Monitored === 1,
+    estimatedArrivalAtMs, estimatedMinutes: Math.max(0, Math.round((estimatedArrivalAtMs - nowMs) / 60000)),
+    ...(bus.OriginCode ? { originCode: bus.OriginCode } : {}), ...(bus.DestinationCode ? { destinationCode: bus.DestinationCode } : {}),
+    ...(bus.VisitNumber ? { visitNumber: Number(bus.VisitNumber) } : {}),
+    load: bus.Load, type: bus.Type, feature: bus.Feature, position, monitoring,
+    ...(position ?? {}), ...(bus.Monitored === undefined ? {} : { monitored: bus.Monitored === 1 }),
   };
 }

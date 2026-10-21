@@ -1,3 +1,4 @@
+import { callIndex, sameStopCall } from '../../shared/transit/stopCalls';
 import React, { useEffect, useRef, useState } from 'react';
 import { AlightHint, BusStop, BusRoute } from '../types/bus';
 import { Search, ChevronRight, ChevronDown, Check, Flag, ArrowLeftRight, ArrowRight, ArrowRightLeft } from 'lucide-react';
@@ -57,7 +58,7 @@ const NextLegBlock: React.FC<{
   const style = legStyle(legIndex);
   const between = leg.stops.slice(1, -1);
   const stopRow = (stop: TripLegView['stops'][number], extra: React.ReactNode, icon: React.ReactNode) => (
-    <li key={stop.code} className="flex items-start gap-2">
+    <li key={`${stop.code}@${stop.call?.occurrence ?? 1}`} className="flex items-start gap-2">
       {icon}
       <span className="min-w-0">
         <span className="font-semibold text-warm-900">{stop.name}</span>{' '}
@@ -179,10 +180,10 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
   );
 
   // Positions (1-based) of the boarding stop and the stop to get off at; the stops between are ridden
-  const boardSeq = stopsWithDistance.findIndex((s) => s.code === selectedStop.code) + 1;
+  const boardSeq = callIndex(stopsWithDistance, selectedStop) + 1;
   const alightSeq =
     alight?.status === 'alight'
-      ? stopsWithDistance.findIndex((s, i) => i + 1 > boardSeq && s.code === alight.stop.code) + 1
+      ? (alight.stop.call ? callIndex(stopsWithDistance, alight.stop) : stopsWithDistance.findIndex((s, i) => i + 1 > boardSeq && s.code === alight.stop.code)) + 1
       : 0;
   const showingTrip = alightSeq > 0 && !filterQuery;
 
@@ -306,8 +307,8 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
         className="mt-3 max-h-[500px] max-sm:max-h-[max(16rem,calc(100dvh-24rem))] overflow-y-auto pr-1"
       >
         {filteredStops.map((stop) => {
-          const isNearest = stop.code === nearestStop.code;
-          const isSelected = stop.code === selectedStop.code;
+          const isNearest = sameStopCall(stop, nearestStop);
+          const isSelected = sameStopCall(stop, selectedStop);
           const isAlight = stop.sequence === alightSeq;
           const isBoard = alightSeq > 0 && stop.sequence === boardSeq;
           const isRidden = alightSeq > 0 && stop.sequence > boardSeq && stop.sequence < alightSeq;

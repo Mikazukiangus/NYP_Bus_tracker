@@ -1,3 +1,4 @@
+import { sameStopCall } from '../../shared/transit/stopCalls';
 import React from 'react';
 import { MapPin, Navigation, Heart, Map as MapIcon, ChevronRight } from 'lucide-react';
 import { BusStop, UserLocation } from '../types/bus';
@@ -26,7 +27,7 @@ export const NearestStopBanner: React.FC<NearestStopBannerProps> = ({
   onViewOnMap,
   onOpenStopsList
 }) => {
-  const isCurrentlySelected = selectedStop.code === nearestStop.code;
+  const isCurrentlySelected = sameStopCall(selectedStop, nearestStop);
 
   // Rough walking time, as everywhere else in the app (straight line plus a detour, at ~80 m/min), so it is
   // labelled as an estimate

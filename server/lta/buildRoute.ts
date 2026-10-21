@@ -1,4 +1,5 @@
 import type { BusRoute, BusOperator, BusStop, RouteDirection, FirstLastTimes } from '../../shared/transit/routes.ts';
+import { annotateStopCalls } from '../../shared/transit/stopCalls.ts';
 import type { Datasets, LTABusStop, LTABusRouteRow } from './types.ts';
 
 function parseOperator(value: string): BusOperator {
@@ -10,7 +11,7 @@ function mapCategory(category?: string): BusRoute['category'] {
   const c = (category || '').toUpperCase();
   if (c.includes('FEEDER')) return 'Feeder';
   if (c.includes('EXPRESS')) return 'Express';
-  return 'Trunk';
+  return c.includes('TRUNK') ? 'Trunk' : 'Other';
 }
 
 const TIME_RE = /^\d{4}$/;
@@ -29,6 +30,8 @@ function buildDirection(rows: LTABusRouteRow[], stops: Map<string, LTABusStop>):
       sunday: firstLast(row.SUN_FirstBus, row.SUN_LastBus),
     };
     routeStops.push({
+      call: { patternId: `${row.ServiceNo.toUpperCase()}:${row.Direction}`, sequence: row.StopSequence, occurrence: 1, stopCode: stop.BusStopCode },
+      ...(typeof row.Distance === 'number' && Number.isFinite(row.Distance) ? { distanceM: row.Distance * 1000 } : {}),
       code: stop.BusStopCode,
       name: stop.Description,
       road: stop.RoadName,
@@ -56,12 +59,16 @@ export function buildRoute(serviceNo: string, data: Datasets): BusRoute | null {
   if (!direction1) return null;
 
   const service = data.services.get(key);
-  return {
+  return annotateStopCalls({
+    schemaVersion: 1,
+    datasetVersion: new Date(data.loadedAt).toISOString(),
+    generatedAt: new Date(data.loadedAt).toISOString(),
     serviceNo: rows[0].ServiceNo,
     operator: parseOperator(rows[0].Operator),
     category: mapCategory(service?.Category),
+    ...(service?.Category ? { rawCategory: service.Category } : {}),
     direction1,
     ...(direction2 ? { direction2 } : {}),
     source: 'LTA_DATAMALL',
-  };
+  });
 }

@@ -46,5 +46,5 @@ export function buildNetwork(data: Datasets, generatedAt: string): NetworkFile {
       patterns.push([ordered[0].ServiceNo, direction, indexes, hopHm]);
     }
   }
-  return { generatedAt, stops, patterns };
+  return { schemaVersion: 1, datasetVersion: generatedAt, generatedAt, stops, patterns };
 }

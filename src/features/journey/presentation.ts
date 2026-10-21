@@ -1,11 +1,13 @@
+import { callIndex } from '../../../shared/transit/stopCalls';
+import { patternCall } from '../../services/tripPlanner';
 import type { AlightHint, BusRoute, BusStop, JourneyOverlay, RouteDirection, TripView, UserLocation } from '../../types/bus';
-import type { BusNetwork } from '../../services/busNetwork';
+import type { BusNetwork } from '../network/model';
 import { alightFor, legServiceNos, type TripLeg, type TripOption, type TripPlan } from '../../services/tripPlanner';
 import { walkMinutes } from '../../services/leaveWithin';
 import type { AlarmRide } from '../alarm/model';
-import type { PlaceResult } from '../../services/placeSearch';
+import type { PlaceResult } from '../places/model';
 import type { TripRoadPaths } from './model';
-const stopRef = ({ code, name, road, lat, lng }: BusStop) => ({ code, name, road, lat, lng });
+const stopRef = ({ code, name, road, lat, lng, call }: BusStop) => ({ code, name, road, lat, lng, ...(call ? { call } : {}) });
 
 interface PresentationContext {
   network: BusNetwork | null;
@@ -68,7 +70,7 @@ export function buildTripView({ network, destination, selectedTrip, trackedLeg, 
       towards: leg.towards,
       board: stopRef(leg.board),
       alight: stopRef(leg.alight),
-      stops: network.patterns[leg.patternIndex].stops.slice(leg.boardPos, leg.alightPos + 1).map((i) => stopRef(network.stops[i])),
+      stops: network.patterns[leg.patternIndex].stops.slice(leg.boardPos, leg.alightPos + 1).map((i, offset) => stopRef({ ...network.stops[i], call: patternCall(network, network.patterns[leg.patternIndex], leg.boardPos + offset) })),
       rideMin: leg.rideMin,
     })),
     transferWalkM: selectedTrip.transferWalkM,
@@ -80,6 +82,7 @@ export function buildTripView({ network, destination, selectedTrip, trackedLeg, 
 
 export function buildAlightHint({ network, destination, selectedTrip, tripView, routeDir, selectedStop, currentRoute, direction }: Pick<PresentationContext, 'network' | 'destination' | 'selectedTrip' | 'tripView' | 'routeDir' | 'selectedStop' | 'currentRoute' | 'direction'>): AlightHint | null {
   if (!network || !destination) return null;
+  if (network.datasetVersion && currentRoute.datasetVersion && network.datasetVersion !== currentRoute.datasetVersion) return null;
 
   // Part of the shown trip: get off where that trip says, which is the change stop on the first bus of a trip with a change
   if (selectedTrip && tripView) {
@@ -98,9 +101,9 @@ export function buildAlightHint({ network, destination, selectedTrip, tripView, 
   }
 
   // Otherwise the stop on this bus that gets closest to the destination
-  const boardIndex = routeDir.stops.findIndex((s) => s.code === selectedStop.code);
+  const boardIndex = callIndex(routeDir.stops, selectedStop);
   const isLaterStop = (code: string) => routeDir.stops.some((s, i) => i > boardIndex && s.code === code);
-  const advice = alightFor(network, currentRoute.serviceNo, direction, selectedStop.code, destination);
+  const advice = alightFor(network, currentRoute.serviceNo, direction, selectedStop.code, destination, selectedStop.call);
   if (advice?.status === 'alight' && isLaterStop(advice.leg.alight.code)) {
     return {
       status: 'alight',
@@ -122,14 +125,14 @@ export function buildAlarmRide({ alightHint, routeDir, selectedStop, currentRout
   if (alightHint?.status !== 'alight') return null;
   let stops = alightHint.trip?.legs[alightHint.trip.legIndex].stops;
   if (!stops) {
-    const from = routeDir.stops.findIndex((s) => s.code === selectedStop.code);
-    const to = routeDir.stops.findIndex((s, i) => i > from && s.code === alightHint.stop.code);
-    if (from < 0 || to < 0) return null;
+    const from = callIndex(routeDir.stops, selectedStop);
+    const to = alightHint.stop.call ? callIndex(routeDir.stops, alightHint.stop) : routeDir.stops.findIndex((s, i) => i > from && s.code === alightHint.stop.code);
+    if (from < 0 || to <= from) return null;
     stops = routeDir.stops.slice(from, to + 1).map(stopRef);
   }
   if (stops.length < 2) return null;
   const svc = currentRoute.serviceNo;
-  return { key: `${svc}|${stops[0].code}|${stops[stops.length - 1].code}`, serviceNo: svc, stops };
+  return { key: `${svc}|${stops[0].call?.patternId ?? ''}|${stops[0].call?.datasetVersion ?? ''}|${stops.map(s => `${s.code}@${s.call?.occurrence ?? 1}`).join('>')}`, serviceNo: svc, stops };
 }
 
 export function buildAfterGetOff({ alightHint }: Pick<PresentationContext, 'alightHint'>): string | undefined {

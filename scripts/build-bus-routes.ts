@@ -9,6 +9,7 @@ import { mkdir, rm, writeFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { buildRoute } from '../server/lta/buildRoute.ts';
+import { annotateStopCalls } from '../shared/transit/stopCalls.ts';
 import { buildNetwork } from '../server/lta/buildNetwork.ts';
 import { createDatasetStore } from '../server/lta/datasets.ts';
 
@@ -44,14 +45,14 @@ async function main() {
     if (!/^[0-9A-Z]{1,6}$/.test(serviceNo)) continue;
     const route = buildRoute(serviceNo, data);
     if (!route) continue;
-    const body = JSON.stringify({ ...route, generatedAt });
+    const body = JSON.stringify(annotateStopCalls({ ...route, generatedAt, datasetVersion: generatedAt }));
     totalBytes += body.length;
     await writeFile(path.join(OUT_DIR, `${serviceNo}.json`), body);
     services.push(serviceNo);
   }
 
   services.sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
-  await writeFile(path.join(OUT_DIR, 'index.json'), JSON.stringify({ generatedAt, services }));
+  await writeFile(path.join(OUT_DIR, 'index.json'), JSON.stringify({ schemaVersion: 1, datasetVersion: generatedAt, generatedAt, services }));
 
   // Every stop and service direction in one compact file: stop names for the "all buses at this stop" board,
   // plus nearest bus stops, stop search and trip planning in the browser

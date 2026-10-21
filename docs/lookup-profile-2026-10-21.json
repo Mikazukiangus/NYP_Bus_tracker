@@ -1,0 +1,105 @@
+{
+  "scope": "Local CPU microbenchmarks; no production telemetry or HTTP timings. Batched p95 values describe per-batch averages.",
+  "runtime": "v24.19.0",
+  "stops": 5208,
+  "patterns": 798,
+  "generatedAt": "2026-10-10T16:39:01.780Z",
+  "scenarios": [
+    "Nanyang Polytechnic (NYP Campus / AMK Ave 8) -> Orchard Rd (Mandarin Gallery / 313@Somerset)",
+    "Nanyang Polytechnic (NYP Campus / AMK Ave 8) -> Clementi Interchange & Mall",
+    "Nanyang Polytechnic (NYP Campus / AMK Ave 8) -> Chinatown Point (New Bridge Rd)",
+    "Yio Chu Kang MRT & Interchange (Beside NYP) -> Bedok Interchange & Mall",
+    "Ang Mo Kio Hub & Bus Interchange -> HarbourFront / VivoCity",
+    "Orchard Rd (Mandarin Gallery / 313@Somerset) -> Singapore Polytechnic (SP / Dover Rd)",
+    "Raffles Place (CBD / Republic Plaza) -> Ngee Ann Polytechnic (NP / Clementi Rd)",
+    "Bugis Junction (Victoria St) -> NUS Kent Ridge Campus (Central Library)"
+  ],
+  "results": [
+    {
+      "name": "planTrips / eight OD pairs",
+      "samples": 120,
+      "repeats": 1,
+      "medianMs": 3.580750000000023,
+      "p95Ms": 4.8720839999999725,
+      "maxMs": 5.0276250000000005
+    },
+    {
+      "name": "nearestStops / 20 presets",
+      "samples": 200,
+      "repeats": 10,
+      "medianMs": 0.17226670000000013,
+      "p95Ms": 0.23141669999999975,
+      "maxMs": 0.5931584000000043
+    },
+    {
+      "name": "searchStops / eight mixed queries",
+      "samples": 200,
+      "repeats": 10,
+      "medianMs": 0.18920000000000528,
+      "p95Ms": 0.21620419999999285,
+      "maxMs": 0.40979590000001737
+    },
+    {
+      "name": "searchStops / exact stop code",
+      "samples": 200,
+      "repeats": 100,
+      "medianMs": 0.010611670000000685,
+      "p95Ms": 0.01180667000000085,
+      "maxMs": 0.011991250000000946
+    },
+    {
+      "name": "existing byCode / exact stop code",
+      "samples": 200,
+      "repeats": 100,
+      "medianMs": 0.00001042000000097687,
+      "p95Ms": 0.00002125000000205546,
+      "maxMs": 0.00011166000000002896
+    },
+    {
+      "name": "favoriteLabels / 20 favorites",
+      "samples": 200,
+      "repeats": 10,
+      "medianMs": 0.060445899999990615,
+      "p95Ms": 0.13315829999999096,
+      "maxMs": 0.13789999999999053
+    },
+    {
+      "name": "prototype byServiceDirection / 20 favorites",
+      "samples": 200,
+      "repeats": 10,
+      "medianMs": 0.0010833999999931621,
+      "p95Ms": 0.001404099999990649,
+      "maxMs": 0.0021666999999979454
+    },
+    {
+      "name": "prototype shared transfer-neighbors / eight OD pairs",
+      "samples": 120,
+      "repeats": 1,
+      "medianMs": 0.859333000000106,
+      "p95Ms": 1.320417000000134,
+      "maxMs": 1.6757910000001175
+    },
+    {
+      "name": "planTrips / second baseline",
+      "samples": 120,
+      "repeats": 1,
+      "medianMs": 3.5778340000001663,
+      "p95Ms": 4.891957999999704,
+      "maxMs": 4.990041000000019
+    },
+    {
+      "name": "prototype first-use transfer-neighbors / fresh network",
+      "samples": 24,
+      "repeats": 1,
+      "medianMs": 4.228583999999955,
+      "p95Ms": 5.541917000000012,
+      "maxMs": 6.3800420000002305
+    }
+  ],
+  "indexCardinality": {
+    "cachedStops": 1929,
+    "entries": 5362
+  },
+  "prototypeOutputsMatch": true,
+  "consumed": 139960
+}

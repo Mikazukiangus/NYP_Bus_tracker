@@ -2,9 +2,12 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { NetworkFile } from '../src/types/network';
 import type { StopServiceArrivals } from '../src/types/bus';
-import { buildBusNetwork, nearestStops, searchStops } from '../src/services/busNetwork';
+import { nearestStops, searchStops } from '../src/features/network/domain/queries';
+import { buildBusNetwork } from '../src/features/network/domain/buildNetwork';
 import { alightFor, expectedTotalMin, legServiceNos, liveDeparture, planTrips, tripTimeline, withServices } from '../src/services/tripPlanner';
-import { addRecentPlace, loadRecentPlaces, parseOneMapResults, titleCase } from '../src/services/placeSearch';
+import { addRecentPlace } from '../src/features/places/domain/recentPlaces';
+import { loadRecentPlaces, saveRecentPlaces } from '../src/features/places/data/recentPlacesStore';
+import { parseOneMapResults, titleCase } from '../src/features/places/data/oneMapMapper';
 import { leaveWithin, walkMinutes } from '../src/services/leaveWithin';
 import { calculateDistanceMeters } from '../shared/geo/distance';
 
@@ -275,9 +278,11 @@ test('recent places keep the latest six, most recent first, and survive bad stor
   const storage = { setItem: (_: string, v: string) => { saved = v; }, getItem: () => saved };
   let list = loadRecentPlaces(storage);
   for (let i = 0; i < 8; i++) {
-    list = addRecentPlace({ id: `p${i}`, kind: 'place', name: `Place ${i}`, lat: 1.3, lng: 103.8 + i / 1000 }, list, storage);
+    list = addRecentPlace({ id: `p${i}`, kind: 'place', name: `Place ${i}`, lat: 1.3, lng: 103.8 + i / 1000 }, list);
+    saveRecentPlaces(list, storage);
   }
-  list = addRecentPlace(list[3], list, storage);
+  list = addRecentPlace(list[3], list);
+  saveRecentPlaces(list, storage);
   assert.deepEqual(loadRecentPlaces(storage).map((p) => p.id), ['p4', 'p7', 'p6', 'p5', 'p3', 'p2']);
   assert.deepEqual(loadRecentPlaces({ getItem: () => '{bad' }), []);
   assert.deepEqual(loadRecentPlaces({ getItem: () => JSON.stringify([{ id: 'x', name: 'Far', kind: 'place', lat: 51, lng: 0 }]) }), []);

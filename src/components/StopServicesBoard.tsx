@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, BusFront, ChevronDown, ChevronRight } from 'lucide-react';
 import { ArrivalDataSource, BusStop, StopServiceArrivals } from '../types/bus';
-import { fetchStopNames } from '../features/network/stopNames';
 import { useIsPhone } from '../services/useIsPhone';
 import { LoadMeter, Minutes, operatorName } from './ArrivalBits';
 import { BUS_TYPE_SHORT, BusTypeIcon } from './BusTypeIcon';
@@ -9,6 +8,7 @@ import { BUS_TYPE_SHORT, BusTypeIcon } from './BusTypeIcon';
 interface StopServicesBoardProps {
   stop: BusStop;
   services: StopServiceArrivals[] | null; // null while loading or when the live feed is down
+  stopNames: Readonly<Record<string, string>>;
   dataSource: ArrivalDataSource;
   currentServiceNo: string;
   onSelectService: (serviceNo: string) => void;
@@ -22,17 +22,13 @@ const PHONE_COLLAPSED_COUNT = 4;
 export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
   stop,
   services,
+  stopNames,
   dataSource,
   currentServiceNo,
   onSelectService,
 }) => {
-  const [stopNames, setStopNames] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState(false);
   const collapsedCount = useIsPhone() ? PHONE_COLLAPSED_COUNT : COLLAPSED_COUNT;
-
-  useEffect(() => {
-    fetchStopNames().then(setStopNames);
-  }, []);
 
   useEffect(() => setExpanded(false), [stop.code]);
 
@@ -78,7 +74,7 @@ export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
           <ul className="mt-2 grid grid-cols-1 @2xl:grid-cols-2 gap-1.5 @2xl:gap-x-3">
             {shown.map((svc) => {
               const isCurrent = svc.serviceNo.toUpperCase() === currentServiceNo.toUpperCase();
-              const destination = svc.destinationCode ? stopNames[svc.destinationCode] : undefined;
+              const destination = svc.nextBus?.destinationCode ? stopNames[svc.nextBus.destinationCode] : undefined;
               const buses = [svc.nextBus, svc.nextBus2, svc.nextBus3].filter((b) => b !== null);
               const type = svc.nextBus?.type;
               return (
@@ -117,7 +113,7 @@ export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
                             {i === 0 ? (
                               <Minutes
                                 min={bus.estimatedMinutes}
-                                signal={bus.monitored ? 'live' : 'scheduled'}
+                                signal={bus.monitored === undefined ? undefined : bus.monitored ? 'live' : 'scheduled'}
                                 signalClassName={isCurrent ? 'text-lemon' : 'text-green-blue'}
                                 arrClassName={isCurrent ? 'text-lemon' : 'text-green-blue-ink'}
                                 className={isCurrent ? 'text-white' : 'text-warm-900'}

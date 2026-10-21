@@ -1,3 +1,4 @@
+import { sameStopCall } from '../shared/transit/stopCalls';
 import { ARRIVALS_CARD_ID, useAppNavigation } from './app/useAppNavigation';
 import { useJourneyPlan } from './features/journey/useJourneyPlan';
 import { useJourneyGeometry } from './features/journey/useJourneyGeometry';
@@ -5,8 +6,8 @@ import { buildJourney, buildTripView, buildAlightHint, buildAlarmRide, buildAfte
 import { buildCommuteAdvice, WALKABLE_STOP_M } from './features/weather/commuteAdvice';
 import { useWeatherSnapshot } from './features/weather/useWeatherSnapshot';
 import { useRouteIncidents } from './features/incidents/useRouteIncidents';
-import { useSavedBuses } from './features/saved/useSavedBuses';
-import { useBusNetwork } from './features/network/useBusNetwork';
+import { useSavedBuses } from './features/saved/application/useSavedBuses';
+import { useBusNetwork } from './features/network/application/useBusNetwork';
 import { useTrackedRoute } from './features/tracking/useTrackedRoute';
 import { useUserLocation } from './features/location/useUserLocation';
 
@@ -15,9 +16,9 @@ import { BusServiceArrivals, FavoriteItem, IncomingBus, UserLocation } from './t
 
 import { generateArrivalTimings } from './features/arrivals/simulatedArrivals';
 
-import { NearbyStop, StopService } from './services/busNetwork';
+import type { NearbyStop, StopService } from './features/network/model';
 
-import { PlaceResult, addRecentPlace, loadRecentPlaces } from './services/placeSearch';
+import { useRecentPlaces } from './features/places/application/useRecentPlaces';
 
 import { summarizeWeather } from './features/weather/summary';
 import { formatSgTime } from './features/weather/presentation';
@@ -69,7 +70,7 @@ export default function App() {
     whenIdle(() => void loadLiveBusMap());
   }, []);
 
-  const { network, networkStatus, nearbyStops } = useBusNetwork(userLocation);
+  const { network, networkStatus, nearbyStops, stopNames } = useBusNetwork(userLocation);
   const { searchedBus, direction, currentRoute, isRouteLoading, routeNotice, routeDir,
     nearestStop, distanceMeters, stopsWithDistance, selectedStop, loadRoute,
     handleSelectStop, handleSetDirection, retarget } = useTrackedRoute(userLocation, nearbyStops);
@@ -91,10 +92,7 @@ export default function App() {
   }, [selectLocation, retarget]);
 
   // Places chosen recently as a start or destination
-  const [recentPlaces, setRecentPlaces] = useState<PlaceResult[]>(() => loadRecentPlaces());
-  const rememberPlace = useCallback((place: PlaceResult) => {
-    setRecentPlaces((current) => addRecentPlace(place, current));
-  }, []);
+  const { recentPlaces, rememberPlace } = useRecentPlaces();
 
   const { destination, tripPlan, selectedTrip, trackedLeg, selectTrip, trackTripLeg,
     trackTripLegAt, chooseTripService, chooseTripServiceAt, trackService, handleSetDestination,
@@ -187,12 +185,12 @@ export default function App() {
   );
 
   const { favorites, isCurrentFavorite, handleToggleFavorite, handleRemoveFavorite } =
-    useSavedBuses(currentRoute.serviceNo, selectedStop, direction, routeDir.destination);
+    useSavedBuses(currentRoute.serviceNo, selectedStop, direction, routeDir.destination, undefined, undefined, network);
   const [isFavoritesModalOpen, setIsFavoritesModalOpen] = useState(false);
   const favoriteArrivals = useFavoriteArrivals(favorites, isFavoritesModalOpen || activeTab === 'arrivals');
 
   const handleSelectFavorite = (fav: FavoriteItem) => {
-    trackService(fav.serviceNo, { direction: fav.direction, stopCode: fav.stopCode });
+    trackService(fav.serviceNo, { direction: fav.direction, stopCode: fav.stopCode, stopCall: { patternId: `${fav.serviceNo.toUpperCase()}:${fav.direction}`, stopCode: fav.stopCode, occurrence: fav.occurrence ?? 1, sequence: 1 } });
     revealArrivals();
   };
 
@@ -270,7 +268,7 @@ export default function App() {
 
   // The advice is for where the trip starts (the From row: GPS or a chosen place), so it says so
   // The place's short name, or for a GPS position words that read well in a sentence ("For where you are")
-  const fromPlace = userLocation.isSimulated ? userLocation.name.split('(')[0].trim() : null;
+  const fromPlace = (userLocation.source !== 'gps') ? userLocation.name.split('(')[0].trim() : null;
   const rainSource = weatherSnapshot?.rainfall?.history
     ? `For ${fromPlace ?? 'where you are'} · NEA rain gauges ${formatSgTime(weatherSnapshot.rainfall.timestamp)} & 2-hr forecast`
     : weather?.forecast2h
@@ -306,7 +304,7 @@ export default function App() {
           ? {
               stopInfo: {
                 distanceM: selectedStopDistance,
-                isNearest: selectedStop.code === nearestStop.code,
+                isNearest: sameStopCall(selectedStop, nearestStop),
                 onShowNearest: () => handleSelectStop(nearestStop),
               },
               isFavorite: isCurrentFavorite,
@@ -421,6 +419,7 @@ export default function App() {
             <StopServicesBoard
               stop={selectedStop}
               services={stopServices}
+              stopNames={stopNames}
               dataSource={dataSource}
               currentServiceNo={currentRoute.serviceNo}
               onSelectService={handleSelectBoardService}
@@ -545,6 +544,7 @@ export default function App() {
                 <StopServicesBoard
                   stop={selectedStop}
                   services={stopServices}
+                  stopNames={stopNames}
                   dataSource={dataSource}
                   currentServiceNo={currentRoute.serviceNo}
                   onSelectService={(serviceNo) => trackService(serviceNo, { stopCode: selectedStop.code })}

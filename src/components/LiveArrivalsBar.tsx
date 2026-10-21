@@ -69,7 +69,7 @@ export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({
             ? leaveLabel(leave)
             : arrivals.nextBus.monitored
               ? 'Live GPS'
-              : 'Timetable time';
+              : arrivals.nextBus.monitored === undefined ? 'Tracking unknown' : 'Timetable time';
 
   return (
     <div

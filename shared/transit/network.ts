@@ -8,6 +8,8 @@ export type NetworkStopRow = [code: string, name: string, road: string, lat: num
 export type NetworkPatternRow = [serviceNo: string, direction: number, stops: number[], hopHm: number[]];
 
 export interface NetworkFile {
+  schemaVersion?: 1;
+  datasetVersion?: string;
   generatedAt: string;
   stops: NetworkStopRow[];
   patterns: NetworkPatternRow[];

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowUpDown, Clock, Flag, LoaderCircle, Locate, MapPin } from 'lucide-react';
 import type { UserLocation } from '../types/bus';
-import type { BusNetwork } from '../services/busNetwork';
-import type { PlaceResult } from '../services/placeSearch';
+import type { BusNetwork } from '../features/network/model';
+import type { PlaceResult } from '../features/places/model';
 import { requestGpsLocation } from '../services/userLocation';
 import { PlaceKindIcon, PlaceSearch } from './PlaceSearch';
 
@@ -40,7 +40,7 @@ export const LocationBar: React.FC<LocationBarProps> = ({
 }) => {
   const [isLocating, setIsLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isGps = !location.isSimulated;
+  const isGps = (location.source === 'gps');
 
   useEffect(() => {
     if (!error) return;

@@ -1,11 +1,11 @@
 import type { RankedTrip, TripPlannerState } from '../features/journey/model';
 import React, { useState } from 'react';
 import { BusFront, Check, ChevronDown, ChevronRight, Flag, Footprints, LoaderCircle, Map as MapIcon, Route, X } from 'lucide-react';
-import type { PlaceResult } from '../services/placeSearch';
+import type { PlaceResult } from '../features/places/model';
 import type { TripLeg, TripOption, TripTimeline } from '../services/tripPlanner';
 import { expectedTotalMin, legServiceNos, tripTimeline } from '../services/tripPlanner';
 import { useIsPhone } from '../services/useIsPhone';
-import { leaveLabel } from '../services/leaveWithin';
+import { AT_STOP_M, leaveLabel } from '../services/leaveWithin';
 import { LiveSignal, Minutes } from './ArrivalBits';
 import { ServiceChoice } from './ServiceChoice';
 import { legStyle } from './tripLegs';
@@ -41,8 +41,6 @@ const clockIn = (minutes: number) =>
   });
 // "10:25", for the time axis and the steps
 const clockShort = (minutes: number) => clockIn(minutes).replace(/\s*[ap]\.?m\.?$/i, '');
-// Closer than this, a walk is no walk (as on the arrivals card)
-const AT_STOP_M = 50;
 
 // A leg's bus, or every bus between the same stops with the chosen one filled in (in the leg's colour, as on the
 // trip bar and the map)

@@ -1,9 +1,11 @@
+import type { StopCallRef } from '../../../shared/transit/routes';
 import { rankTrips, trackedLegIndex } from './selectors';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BusRoute, BusStop, RouteDirection, StopServiceArrivals, ArrivalDataSource, UserLocation } from '../../types/bus';
-import type { BusNetwork } from '../../services/busNetwork';
+import type { BusNetwork } from '../network/model';
 import { TripLeg, TripOption, legServiceNos, planTrips, withServices } from '../../services/tripPlanner';
-import { PlaceResult, placeToLocation } from '../../services/placeSearch';
+import type { PlaceResult } from '../places/model';
+import { placeToLocation } from '../places/domain/locations';
 import { useStopsArrivals } from '../../services/useStopsArrivals';
 import type { RankedTrip, TripPlannerState } from './model';
 
@@ -16,7 +18,7 @@ interface JourneyInputs {
   selectedStop: BusStop;
   dataSource: ArrivalDataSource;
   stopServices: StopServiceArrivals[] | null;
-  loadRoute: (serviceNo: string, opts?: { direction?: number; stopCode?: string; remember?: boolean }) => Promise<boolean>;
+  loadRoute: (serviceNo: string, opts?: { direction?: number; stopCode?: string; stopCall?: StopCallRef; datasetVersion?: string; remember?: boolean }) => Promise<boolean>;
   rememberPlace: (place: PlaceResult) => void;
   applyUserLocation: (location: UserLocation) => void;
 }
@@ -56,8 +58,8 @@ export function useJourneyPlan({ network, networkStatus, userLocation, currentRo
 
   // Which leg of a trip the tracked bus is, from the tracked stop (-1 if it isn't part of that trip)
   const legOfTrackedBus = useCallback((option: TripOption) =>
-    trackedLegIndex(option, currentRoute.serviceNo, routeDir, selectedStop.code),
-    [currentRoute.serviceNo, routeDir, selectedStop.code]);
+    trackedLegIndex(option, currentRoute.serviceNo, routeDir, selectedStop.code, selectedStop.call),
+    [currentRoute.serviceNo, routeDir, selectedStop]);
 
   // The trip shown with the tracked bus: the one chosen in the trip list, or else a suggested trip that uses
   // the tracked bus from the tracked stop (direct trips first), so a bus picked another way still shows the
@@ -94,7 +96,7 @@ export function useJourneyPlan({ network, networkStatus, userLocation, currentRo
     (option: TripOption) => {
       setSelectedTripId(option.id);
       const leg = option.legs[0];
-      loadRoute(leg.serviceNo, { direction: leg.direction, stopCode: leg.board.code });
+      loadRoute(leg.serviceNo, { direction: leg.direction, stopCode: leg.board.code, stopCall: leg.board.call, datasetVersion: leg.board.call?.datasetVersion });
     },
     [loadRoute]
   );
@@ -107,7 +109,7 @@ export function useJourneyPlan({ network, networkStatus, userLocation, currentRo
       if (!leg) return;
       setTripServices((current) => ({ ...current, [option.id]: option.legs.map((l) => l.serviceNo) }));
       setSelectedTripId(option.id);
-      loadRoute(leg.serviceNo, { direction: leg.direction, stopCode: leg.board.code });
+      loadRoute(leg.serviceNo, { direction: leg.direction, stopCode: leg.board.code, stopCall: leg.board.call, datasetVersion: leg.board.call?.datasetVersion });
     },
     [loadRoute]
   );
@@ -149,7 +151,7 @@ export function useJourneyPlan({ network, networkStatus, userLocation, currentRo
   // Choosing a bus some other way (search, nearby, favourites...) leaves the trip list and drops the chosen
   // trip; a suggested trip that uses that bus from that stop is still shown
   const trackService = useCallback(
-    (serviceNo: string, opts: { direction?: number; stopCode?: string; remember?: boolean } = {}) => {
+    (serviceNo: string, opts: { direction?: number; stopCode?: string; stopCall?: StopCallRef; datasetVersion?: string; remember?: boolean } = {}) => {
       setSelectedTripId(null);
       return loadRoute(serviceNo, opts);
     },
@@ -194,7 +196,7 @@ export function useJourneyPlan({ network, networkStatus, userLocation, currentRo
     setDestination({
       id: `swap-${from.lat.toFixed(5)},${from.lng.toFixed(5)}`,
       kind: from.kind ?? 'address',
-      name: from.isSimulated ? from.name : 'Your location',
+      name: (from.source !== 'gps') ? from.name : 'Your location',
       ...(from.address ? { subtitle: from.address } : {}),
       lat: from.lat,
       lng: from.lng,
