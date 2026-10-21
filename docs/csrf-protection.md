@@ -34,6 +34,6 @@ This is a future integration requirement, not a claim that a generic CSRF guard 
 
 These are server-side HTTP probes with explicit synthetic headers; they do not claim to authenticate a real session or test browser SameSite cookie-delivery behavior. No session exists to run an authenticated end-to-end token flow. No live attack/provider request, cookie creation or production configuration change was performed. Adding an API source file fails the inventory test until the new route and its protection requirements are reviewed.
 
-The original CSRF check is recorded in `COMMENTS.md` Turn 89; Turn 90 records the later CORS policy, updated regression expectations and delivery status.
+The original CSRF check is recorded in `COMMENTS.md` Turn 89; Turns 90–91 record the later CORS policy, updated regression expectations and verified production delivery.
 
 Reference: [OWASP CSRF prevention guidance](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html).

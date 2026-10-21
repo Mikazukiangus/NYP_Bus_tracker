@@ -1,6 +1,6 @@
 # API CORS policy
 
-Implemented locally on 21 October 2026. Not committed or deployed; `COMMENTS.md` Turn 90 records actual validation and delivery status.
+Released and verified on 21 October 2026 in application commit `5a83319`. `COMMENTS.md` Turns 90–91 record implementation, validation and production delivery.
 
 ## Current defaults
 
@@ -41,7 +41,7 @@ VITE_API_BASE_URL="https://api.example.com"
 
 `CORS_ALLOWED_ORIGINS` is server-only and is not baked into the browser's public configuration. It accepts at most 20 comma-separated additional origins. Surrounding list whitespace is trimmed. Host casing/default ports/trailing root slashes are normalized and duplicates removed. Origins include scheme, host and nondefault port; different ports and sibling hosts need separate entries. Wildcards, paths, credentials, query strings, fragments, internal control/whitespace characters and empty list entries fail validation without printing supplied values.
 
-HTTP localhost/loopback origins may be explicitly listed for development. Production, Vercel and client builds require HTTPS even for loopback. Use environment-specific settings rather than carrying a development HTTP allowlist into a production build. Restart the local server after changes; changing deployment settings requires a redeploy. Current production settings were not changed for this local task.
+HTTP localhost/loopback origins may be explicitly listed for development. Production, Vercel and client builds require HTTPS even for loopback. Use environment-specific settings rather than carrying a development HTTP allowlist into a production build. Restart the local server after changes; changing deployment settings requires a redeploy. The production release uses the canonical live origin without adding extra frontends or changing environment settings.
 
 For the existing development server, frontend and API use the same port, so no additional origin is usually needed. If using a separate frontend dev server, add its exact origin to the local API setting. Do not allow all localhost ports or all `*.vercel.app` hosts.
 
@@ -57,7 +57,7 @@ Header comparisons are case-insensitive. Authorization, API-key/custom headers, 
 
 Responses include `Access-Control-Allow-Methods: GET, HEAD`, the fixed Allow-Headers set and `Access-Control-Max-Age: 300`. HTTP caching of preflights/denials is disabled with `Cache-Control: no-store`; browsers may retain approved preflight permission for up to five minutes, so allowlist changes can take that long to affect a previously approved browser preflight. Successful ordinary data reads keep their existing public cache lifetimes.
 
-Every normal API response varies on Origin, including requests without Origin, so a cached grant cannot be reused across origin variants. Preflights also vary on requested method and headers; existing Vary values are preserved. No global wildcard CORS headers were added to `vercel.json`. An additional CDN/proxy must honor Vary or avoid caching origin-dependent responses; this implementation has not been deployed to test production CDN variants yet.
+Every normal API response varies on Origin, including requests without Origin, so a cached grant cannot be reused across origin variants. Preflights also vary on requested method and headers; existing Vary values are preserved. No global wildcard CORS headers were added to `vercel.json`. Production verification alternated no-Origin, approved-origin and denied-origin requests on every API and the arrivals alias. Repeated approved and no-Origin data responses returned CDN HITs with their correct distinct grants, while denials stayed 403 without a grant. Health responses were MISS/no-store. An additional CDN/proxy must honor Vary or avoid caching origin-dependent responses; these checks cover the current Vercel deployment, not every possible proxy or location.
 
 ## Validation
 
@@ -65,4 +65,4 @@ Seven CORS regression tests cover configuration, exact-origin grants/denials, Va
 
 An isolated HTTPS browser exercise uses separate API, allowed frontend and denied frontend origins with synthetic provider responses. It verifies an allowed read, OPTIONS then GET for an approved JSON header, readable 400 errors, denied-origin reads/preflights without provider calls, rejected Authorization and JSON-write preflights, a simple write returning 405, blocked credentialed reads and a successful return to the allowed origin. Temporary fixture certificates are accepted only by its isolated browser; no production credential, setting or live attack request was used.
 
-See `COMMENTS.md` Turn 90 for final full-suite/build/browser results. References: [MDN CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS), [MDN exact-origin response headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin), [Vercel CDN Vary behavior](https://vercel.com/docs/caching/cdn-cache#vary-header).
+Production verification also passed 58 HTTP policy checks, a real Chrome denial from an unapproved frontend origin, and normal app flows at 375 px and 1280 px. See `COMMENTS.md` Turns 90–91 for full-suite/build/browser results and delivery status. References: [MDN CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS), [MDN exact-origin response headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin), [Vercel CDN Vary behavior](https://vercel.com/docs/caching/cdn-cache#vary-header).
