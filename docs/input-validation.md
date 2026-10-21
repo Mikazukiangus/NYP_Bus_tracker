@@ -1,6 +1,6 @@
 # Input boundaries and validation
 
-Implemented on 21 October 2026. See `COMMENTS.md` Turn 85 for commit, deployment and live verification status.
+Implemented and verified live on 21 October 2026 in application release `fe8a857`. See `COMMENTS.md` Turn 85 for commit, deployment and verification details.
 
 ## Public HTTP APIs
 
@@ -40,7 +40,7 @@ New declarative schemas use pinned **Zod 4.6.7** through `shared/input/zod.ts`, 
 
 ## Verification and limits
 
-The new regressions exercise every API with unsupported methods, malformed bodies and unknown/repeated/array/nested/conflicting queries, asserting rejection before provider calls and safe diagnostics. Other checks cover broken LTA pages/rows with retry recovery, incident batches, raw/normalized weather and stale caches, OneMap/search bounds, route assets, GPS/storage and malformed Overpass CLI input before output. Existing tests were updated to use valid HTTP methods and complete weather fixtures; an invalid incident row is now rejected by the new boundary rather than silently filtered by mapping logic.
+All 178 tests pass after release corrections, including guards for explicit production ESM import extensions and the legacy arrival URL rewrite. The new regressions exercise every API with unsupported methods, malformed bodies and unknown/repeated/array/nested/conflicting queries, asserting rejection before provider calls and safe diagnostics. Other checks cover broken LTA pages/rows with retry recovery, incident batches, raw/normalized weather and stale caches, OneMap/search bounds, route assets, GPS/storage and malformed Overpass CLI input before output. Existing tests were updated to use valid HTTP methods and complete weather fixtures; an invalid incident row is now rejected by the new boundary rather than silently filtered by mapping logic.
 
 Production-build HTTPS fixtures at 375 px and 1280 px verify valid requests and the app's trip/map, saved-location, route-race and map-cleanup flows. Wire checks exercise malformed JSON POST/GET bodies on all five endpoints and verify no extra provider requests, plus working HEAD/legacy aliases. Malformed weather/incident browser responses recover through validation/fallback without page errors; invalid bus input makes no request. Explicit policy listeners and Chrome audits check that validation runs without CSP violations. No provider or request values are logged in validation errors.
 
