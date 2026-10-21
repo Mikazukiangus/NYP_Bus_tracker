@@ -1,6 +1,6 @@
 # Outbound URL and SSRF protection
 
-Implemented locally on 22 October 2026; see `COMMENTS.md` Turn 92 for checks and delivery status.
+Released and verified on 22 October 2026 in application commit `ecb4daa`; see `COMMENTS.md` Turns 92–93 for implementation, checks and production delivery.
 
 ## Where the guard applies
 
@@ -42,7 +42,9 @@ This policy also blocks private provider destinations during development. The fr
 
 Regressions cover IPv4/IPv6 range boundaries, numeric encodings and malformed URLs, exact public lookup outputs, changed DNS answers, mixed-family private answers, private literals, real native socket rejection with zero trap connections, forced dispatch/redirect policy, native redirect refusal, safe errors and all default provider/health transports. An architecture check prevents raw fetch/alternate HTTP transports in server and provider build entry points.
 
-Node 24's native fetch is paired with pinned Undici 7.30.1 and ipaddr.js 2.5.0. A real credential-free NEA HTTPS response passed its current runtime schema with TLS verification enabled; configured provider hostnames passed public DNS checks. A real public HTTP-to-HTTPS redirect was refused. These checks do not claim an exhaustive network-boundary audit or production deployment.
+Node 24's native fetch is paired with pinned Undici 7.30.1 and ipaddr.js 2.5.0. A real credential-free NEA HTTPS response passed its current runtime schema with TLS verification enabled; configured provider hostnames passed public DNS checks. A real public HTTP-to-HTTPS redirect was refused. These bounded checks do not claim an exhaustive network-boundary audit.
+
+Production delivery reached READY at the exact application commit. Its guarded route downloader generated 601 services and a network with 5,209 stops / 797 directions. Real LTA arrivals, route/incident data, NEA weather and health responses passed live checks; weather initially missed seven datasets and missed two on follow-up. All 58 CORS policy checks and normal browser flows at 375 px and 1280 px passed. Private-address/DNS-rebinding/redirect attack cases were tested locally with controlled fixtures; no arbitrary URL endpoint, live private-network probe or security bypass was added for verification.
 
 Network egress controls remain a separate defense against infrastructure-specific routing, transparent proxies or custom network translation that application IP classification cannot observe. No firewall, Vercel environment, real credential or production setting was changed.
 
