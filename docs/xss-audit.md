@@ -1,6 +1,6 @@
 # XSS audit and rendering hardening — 21 October 2026
 
-The audit of application release `e904c64` found no confirmed exploitable XSS path. Its recommendations are implemented; see `COMMENTS.md` Turn 88 for commit/deployment and live verification status. The original review and subsequent implementation/validation are recorded in `COMMENTS.md` Turns 86–87.
+The audit of application release `e904c64` found no confirmed exploitable XSS path. Its recommendations are committed and verified live in application release `1025ec1`. See `COMMENTS.md` Turn 88 for deployment and live verification details. The original review and subsequent implementation/validation are recorded in `COMMENTS.md` Turns 86–87.
 
 ## Implemented output boundaries
 
