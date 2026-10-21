@@ -7,8 +7,9 @@ export const isPlace = (value: unknown): value is PlaceResult => {
   return (
     !!p &&
     typeof p.id === 'string' &&
+    p.id.length > 0 &&
     typeof p.name === 'string' &&
-    p.name.length > 0 &&
+    p.name.trim().length > 0 &&
     ['place', 'address', 'postal', 'stop'].includes(p.kind as string) &&
     typeof p.lat === 'number' &&
     typeof p.lng === 'number' &&

@@ -18,6 +18,8 @@ Route and shape loaders now share pending requests and a bounded success cache, 
 
 The [HTTPS and cookie policy](docs/https-security.md) covers production redirects, HSTS/CSP, trusted proxies, secure cookie defaults and mixed-content findings. Run `npm run security:https` to flag insecure browser resource URLs; production builds run it automatically. HTTP loopback endpoints are permitted only for development.
 
+The [input-validation guide](docs/input-validation.md) lists HTTP, provider, artifact, storage and GPS boundaries. Public APIs accept body-free GET/HEAD requests and reject malformed input before service work. Runtime schemas use the CSP-safe validator entry point; existing successful formats and saved-record migrations remain supported.
+
 ## Setup
 
 You need Node.js 24 (what Vercel and the GitHub workflow use) and an LTA DataMall account key, free from https://datamall.lta.gov.sg/.

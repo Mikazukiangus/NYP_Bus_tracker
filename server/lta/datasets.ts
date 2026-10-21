@@ -1,17 +1,22 @@
 import type { AppConfig } from '../../config/schema.ts';
 import { createLtaClient } from './client.ts';
 import type { Datasets, LTABusStop, LTABusRouteRow, LTABusServiceRow } from './types.ts';
+import { parseStopRows, parseRouteRows, parseServiceRows } from './schemas';
 
 export function createDatasetStore(settings: AppConfig['lta'], request?: typeof fetch, now = Date.now) {
   const { fetchAll } = createLtaClient(settings, request);
   let datasetsPromise: Promise<Datasets> | null = null;
   let datasetsLoadedAt = 0;
   async function loadDatasets(accountKey: string): Promise<Datasets> {
-    const [stopRows, routeRows, serviceRows] = await Promise.all([
+    const [rawStops, rawRoutes, rawServices] = await Promise.all([
       fetchAll<LTABusStop>('BusStops', accountKey),
       fetchAll<LTABusRouteRow>('BusRoutes', accountKey),
       fetchAll<LTABusServiceRow>('BusServices', accountKey),
     ]);
+    // Validate all rows before creating indexes or joining provider datasets.
+    const stopRows = parseStopRows(rawStops);
+    const routeRows = parseRouteRows(rawRoutes);
+    const serviceRows = parseServiceRows(rawServices);
 
     const stops = new Map(stopRows.map((s) => [s.BusStopCode, s]));
 

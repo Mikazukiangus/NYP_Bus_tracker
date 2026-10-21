@@ -4,13 +4,7 @@ import { createConfig } from '../config/schema';
 import { createWeatherService } from '../server/weather/service';
 import { parseForecast2h } from '../shared/weather/parsers';
 
-const raw = () => ({ code: 0, data: {
-  area_metadata: [{ name: 'Ang Mo Kio', label_location: { latitude: 1.38, longitude: 103.85 } }],
-  items: [{ update_timestamp: 'fixture-time', valid_period: { text: 'This afternoon' },
-    forecasts: [{ area: 'Ang Mo Kio', forecast: 'Fair' }], readings: {} }],
-  stations: [], readings: [{ timestamp: 'fixture-time', data: [] }], regionMetadata: [],
-  records: [{ general: { temperature: {}, relativeHumidity: {}, wind: {} }, periods: [], index: [], item: { readings: [] }, forecasts: [] }],
-} });
+import { neaFixture as raw } from './fixtures/nea';
 
 test('weather refresh consumes only its window budget, then fills a partial snapshot', async () => {
   let now = Date.UTC(2026, 9, 19);

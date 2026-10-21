@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
 import { createHealthHandler } from '../api/health';
 import { createConfig } from '../config/schema';
+import { neaFixture } from './fixtures/nea';
 
 const originalFetch = globalThis.fetch;
 const env: Record<string, string> = {};
@@ -15,7 +16,7 @@ async function healthResponse() {
   let statusCode = 0;
   let body: any;
   const headers: Record<string, string> = {};
-  await createHealthHandler(createConfig(env))({}, {
+  await createHealthHandler(createConfig(env))({ method: 'GET' }, {
     setHeader(name: string, value: string) { headers[name] = value; },
     status(code: number) { statusCode = code; return this; },
     json(value: unknown) { body = value; },
@@ -25,7 +26,7 @@ async function healthResponse() {
 
 const validBody = (url: string) => url.includes('BusArrival')
   ? { BusStopCode: '55329', Services: [] }
-  : { code: 0, data: { items: [{ forecasts: [] }] } };
+  : neaFixture();
 
 test('healthy requires valid responses from both upstreams; credentials stay server-side', async () => {
   env.LTA_ACCOUNT_KEY = 'test-lta-secret';

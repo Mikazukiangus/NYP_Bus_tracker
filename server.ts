@@ -19,7 +19,8 @@ const PORT = config.server.port;
 
 app.set('trust proxy', config.security.trustedProxyCidrs);
 app.use(createTransportSecurity({ production: config.server.nodeEnv === 'production' || config.server.vercel, appOrigin: config.security.appOrigin }));
-app.use(express.json());
+// All APIs are read-only and reject request bodies at their handler boundary.
+// Do not parse an unused payload before that guard runs.
 
 // API Routes
 app.all('/api/health', asyncHandler(healthHandler));

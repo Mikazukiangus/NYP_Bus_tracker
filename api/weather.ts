@@ -3,11 +3,13 @@ import { config } from '../config/server.ts';
 import { cdnCache } from '../config/schema.ts';
 import { logger } from '../security/logger.ts';
 import { createWeatherService } from '../server/weather/service.ts';
+import { validateReadRequest, emptyQuerySchema } from '../server/http/request';
 
 // Cache/budget state survives requests in this warm function instance.
 const weatherService = createWeatherService(config.weather, config.public.urls.neaBase, { logger });
 
-export default async function handler(_req: Request | any, res: Response | any) {
+export default async function handler(req: Request | any, res: Response | any) {
+  if (!validateReadRequest(req, res, emptyQuerySchema)) return;
   const body = await weatherService.snapshot();
   const complete = body.missing.length === 0 && body.stale.length === 0;
   // Incomplete snapshots expire quickly so the client's follow-up request (after the rate-limit window) fills the gaps

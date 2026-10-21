@@ -1,6 +1,7 @@
 import type { WeatherSnapshot } from '../../types/weather';
 import { config, apiUrl } from '../../config';
 import { parseForecast2h } from '../../../shared/weather/parsers';
+import { parseWeatherSnapshot } from '../../../shared/weather/validation';
 
 const DIRECT_TWO_HR = `${config.urls.neaBase}/two-hr-forecast`;
 
@@ -10,8 +11,7 @@ export async function fetchWeatherSnapshot(): Promise<WeatherSnapshot> {
   try {
     const res = await fetch(apiUrl('/api/weather'), { signal: AbortSignal.timeout(config.timeouts.requestMs) });
     if (res.ok && res.headers.get('content-type')?.includes('json')) {
-      const data = (await res.json()) as WeatherSnapshot;
-      if (data?.source === 'NEA_DATA_GOV_SG') return data;
+      return parseWeatherSnapshot(await res.json());
     }
   } catch {
     // Fall through to the direct forecast
@@ -19,6 +19,7 @@ export async function fetchWeatherSnapshot(): Promise<WeatherSnapshot> {
 
   const res = await fetch(DIRECT_TWO_HR, { signal: AbortSignal.timeout(config.timeouts.externalMs) });
   if (!res.ok) throw new Error(`NEA responded ${res.status}`);
+  if (!res.headers.get('content-type')?.includes('json')) throw new Error('Invalid external data.');
   const raw = await res.json();
   return {
     forecast2h: parseForecast2h(raw),

@@ -1,7 +1,8 @@
 import { config, apiUrl, dataUrl } from '../../config';
-import { parseRoute } from '../../../shared/transit/parsers';
+import { parseRoute, parseRouteIndex } from '../../../shared/transit/parsers';
 import type { BusRoute } from '../../types/bus';
 import { createAssetCache, type AssetCacheSettings } from './assetCache';
+import { serviceNoSchema } from '../../../shared/input/primitives';
 
 export type BusRouteLookup =
   | { status: 'ok'; route: BusRoute }
@@ -29,9 +30,7 @@ export function createRouteRepository(settings: AssetCacheSettings, dependencies
 
     const index = await getIndex('index', async () => {
       const raw = await fetchStaticJson('/bus-routes/index.json');
-      const services = raw && typeof raw === 'object' && 'services' in raw ? raw.services : null;
-      return Array.isArray(services) && services.length > 0 && services.every(s => typeof s === 'string')
-        ? services as string[] : null;
+      return parseRouteIndex(raw);
     });
     if (index && !index.includes(serviceNo)) return { status: 'not_found' };
 
@@ -48,7 +47,9 @@ export function createRouteRepository(settings: AssetCacheSettings, dependencies
   }
 
   function fetchBusRoute(serviceNo: string, expectedVersion?: string): Promise<BusRouteLookup> {
-    const code = serviceNo.trim().toUpperCase();
+    const parsed = serviceNoSchema.safeParse(serviceNo);
+    if (!parsed.success) return Promise.resolve({ status: 'unavailable' });
+    const code = parsed.data;
     // Unversioned tracking must not reuse an incompatible planned-leg result.
     return getRoute(JSON.stringify([code, expectedVersion ?? null]), () => load(code, expectedVersion));
   }

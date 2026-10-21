@@ -9,6 +9,7 @@ import { fetchBusRoute } from './routeRepository';
 import { applyRouteShapes } from '../../services/routeShape';
 import { fetchRouteShapes } from './shapeRepository';
 import { loadLastBusSearch, saveLastBusSearch } from '../../services/lastBusSearch';
+import { serviceNoSchema } from '../../../shared/input/primitives';
 
 export function useTrackedRoute(userLocation: UserLocation, nearbyStops: NearbyStop[] | null | undefined) {
   const userLocationRef = useRef(userLocation);
@@ -35,6 +36,9 @@ export function useTrackedRoute(userLocation: UserLocation, nearbyStops: NearbyS
   // Load a service's real stop sequence from LTA DataMall, falling back to bundled data if offline
   const loadRoute = useCallback(
     async (serviceNo: string, opts: { direction?: number; stopCode?: string; stopCall?: StopCallRef; datasetVersion?: string; remember?: boolean } = {}): Promise<boolean> => {
+      const parsed = serviceNoSchema.safeParse(serviceNo);
+      if (!parsed.success) { setRouteNotice('Enter a valid bus service number.'); return false; }
+      serviceNo = parsed.data;
       busChosen.current = true;
       const requestId = ++routeRequestId.current;
       setIsRouteLoading(true);

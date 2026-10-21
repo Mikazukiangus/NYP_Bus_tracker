@@ -4,6 +4,11 @@ import type { RouteShape } from './shapes';
 import { annotateStopCalls } from './stopCalls';
 import { record, stopCode, serviceNo, finite, timestamp, coordinate, direction, validArtifact } from './validation';
 
+export function parseRouteIndex(raw: unknown): string[] | null {
+  if (!record(raw) || !validArtifact(raw) || !Array.isArray(raw.services) || !raw.services.length || !raw.services.every(serviceNo)) return null;
+  return raw.services.map(service => service.toUpperCase());
+}
+
 export function parseNetwork(raw: unknown): NetworkFile | null {
   if (!record(raw) || !validArtifact(raw) || !timestamp(raw.generatedAt) || !Array.isArray(raw.stops) || !raw.stops.length || !Array.isArray(raw.patterns)) return null;
   const codes = new Set<string>();

@@ -46,7 +46,7 @@ test('browser/shared modules cannot import server entry points, secret config or
       }
     }
     if (file.startsWith(path.join(root, 'shared') + path.sep)) {
-      for (const { specifier } of imports(file)) assert.ok(specifier.startsWith('.') || specifier.startsWith('@/shared/'), `shared module imports ${specifier}`);
+      for (const { specifier } of imports(file)) assert.ok(specifier.startsWith('.') || specifier.startsWith('@/shared/') || specifier === 'zod', `shared module imports ${specifier}`);
     }
   }
 });
@@ -129,4 +129,13 @@ test('all arrival polling owners use the shared repository rather than uncached 
     assert.ok(targets.some(target => target?.endsWith('/features/arrivals/data/arrivalRepository.ts')));
     assert.ok(!targets.some(target => target?.endsWith('/features/arrivals/client.ts')));
   }
+});
+
+test('schemas use the CSP-safe Zod entry point before constructing validators', () => {
+  for (const file of ['src', 'shared', 'server', 'api'].flatMap(dir => files(path.join(root, dir)))) {
+    for (const { specifier } of imports(file)) {
+      if (specifier === 'zod' || specifier.startsWith('zod/')) assert.equal(file, path.join(root, 'shared/input/zod.ts'));
+    }
+  }
+  assert.match(readFileSync(path.join(root, 'shared/input/zod.ts'), 'utf8'), /jitless:\s*true/);
 });

@@ -114,7 +114,7 @@ test('invalid query types and formats fail with 400 before any provider request'
   ]) {
     let status = 0;
     let output: unknown;
-    await arrivalHandler({ query }, { status(code: number) { status = code; return this; }, json(body: unknown) { output = body; } });
+    await arrivalHandler({ method: 'GET', query }, { status(code: number) { status = code; return this; }, json(body: unknown) { output = body; } });
     assert.equal(status, 400);
     assert.ok(!JSON.stringify(output).includes('PRIVATE_QUERY_SENTINEL'));
   }

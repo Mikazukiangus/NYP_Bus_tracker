@@ -15,7 +15,9 @@ export function loadRecentPlaces(storage?: Pick<Storage, 'getItem'>): PlaceResul
 
 
 export function saveRecentPlaces(places: PlaceResult[], storage?: Pick<Storage, 'setItem'>): void {
-  try { (storage ?? window.localStorage).setItem(RECENT_PLACES_KEY, JSON.stringify({ schemaVersion: 2, places })); } catch { /* persistence is optional */ }
+  if (!Array.isArray(places)) return;
+  const valid = places.filter(isPlace).slice(0, MAX_RECENT);
+  try { (storage ?? window.localStorage).setItem(RECENT_PLACES_KEY, JSON.stringify({ schemaVersion: 2, places: valid })); } catch { /* persistence is optional */ }
 }
 export interface RecentPlacesStore { load(): PlaceResult[]; save(places: PlaceResult[]): void }
 export const recentPlacesStore: RecentPlacesStore = { load: loadRecentPlaces, save: saveRecentPlaces };

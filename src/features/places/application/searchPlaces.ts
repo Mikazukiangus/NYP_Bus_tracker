@@ -8,6 +8,7 @@ export function localPlaceMatches(query: string, network: BusNetwork | null): Pl
   return network ? searchStops(network, query, isStopCode(query) ? 5 : 3).map(stopToPlace) : [];
 }
 export async function searchPlaces(query: string, network: BusNetwork | null, searchRemote: SearchRemotePlaces, signal?: AbortSignal): Promise<PlaceSearchState> {
+  if (typeof query !== 'string' || query.length > 200) return { results: [], status: 'idle', addressSearchFailed: false };
   const q = query.trim();
   if (q.length < 2) return { results: [], status: 'idle', addressSearchFailed: false };
   const stops = localPlaceMatches(q, network);

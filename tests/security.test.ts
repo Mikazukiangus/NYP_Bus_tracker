@@ -101,9 +101,9 @@ test('arrival upstream errors never print an echoed response body or raw request
     const bodies = [];
     const res = { status() { return this; }, json(body) { bodies.push(body); } };
     globalThis.fetch = async () => new Response('UPSTREAM_ECHO_SENTINEL ' + process.env.LTA_ACCOUNT_KEY, { status: 401 });
-    await handler({ query: { BusStopCode: '55329' } }, res);
+    await handler({ method: 'GET', query: { BusStopCode: '55329' } }, res);
     globalThis.fetch = async () => { throw new Error('RAW_ERROR_SENTINEL ' + process.env.LTA_ACCOUNT_KEY); };
-    await handler({ query: { BusStopCode: '55329' } }, res);
+    await handler({ method: 'GET', query: { BusStopCode: '55329' } }, res);
     process.stdout.write(JSON.stringify(bodies.map(body => body.source)));
   `], { cwd: new URL('..', import.meta.url), env: { ...process.env, LTA_ACCOUNT_KEY: secret, DATA_GOV_SG_API_KEY: '' } });
   assert.deepEqual(JSON.parse(stdout), ['FALLBACK_SIMULATED', 'FALLBACK_SIMULATED']);

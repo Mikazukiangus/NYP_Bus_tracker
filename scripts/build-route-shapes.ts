@@ -8,6 +8,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from '../config/server.ts';
 import { logger } from '../security/logger.ts';
+import { parseOverpass } from '../server/overpassSchema';
+import { parseShapes } from '../shared/transit/parsers';
 
 const OVERPASS_INSTANCES = config.shapes.instances;
 const OVERPASS_ROUNDS = config.shapes.rounds;
@@ -21,12 +23,6 @@ const SIMPLIFY_TOLERANCE_DEG = 0.00003; // ~3 m
 const OUT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public/route-shapes');
 
 type LatLng = [number, number];
-
-interface OverpassWay {
-  type: 'way';
-  id: number;
-  geometry?: { lat: number; lon: number }[];
-}
 
 interface OverpassRelation {
   type: 'relation';
@@ -134,7 +130,7 @@ function simplify(points: LatLng[], tolerance: number): LatLng[] {
   return points.filter((_, i) => keep[i]);
 }
 
-async function fetchOverpass(): Promise<{ elements: (OverpassWay | OverpassRelation)[] }> {
+async function fetchOverpass(): Promise<unknown> {
   // Public Overpass servers often return 504/500 when busy, so try every instance in up to
   // OVERPASS_ROUNDS rounds with a growing pause between them, within OVERPASS_DEADLINE_MS overall
   const deadline = Date.now() + OVERPASS_DEADLINE_MS;
@@ -152,6 +148,7 @@ async function fetchOverpass(): Promise<{ elements: (OverpassWay | OverpassRelat
           signal: AbortSignal.timeout(Math.min(config.shapes.timeoutMs, remaining)),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.headers.get('content-type')?.includes('json')) throw new Error('Invalid external data.');
         return await res.json();
       } catch (err) {
         logger.warn('build.shapes_provider_failed', { error: err });
@@ -168,9 +165,9 @@ async function fetchOverpass(): Promise<{ elements: (OverpassWay | OverpassRelat
 async function main() {
   // Optionally reuse a previously saved Overpass response instead of querying again
   const savedPath = process.argv[2];
-  const data: { elements: (OverpassWay | OverpassRelation)[] } = savedPath
+  const data = parseOverpass(savedPath
     ? JSON.parse(await readFile(savedPath, 'utf8'))
-    : await fetchOverpass();
+    : await fetchOverpass());
 
   const wayGeometry = new Map<number, LatLng[]>();
   const relations: OverpassRelation[] = [];
@@ -215,8 +212,8 @@ async function main() {
   let changed = 0;
   for (const [serviceNo, shapes] of [...byService].sort(([a], [b]) => a.localeCompare(b, 'en', { numeric: true }))) {
     const file = path.join(OUT_DIR, `${serviceNo}.json`);
-    const existing = await readFile(file, 'utf8').then((t) => JSON.parse(t), () => null);
-    if (existing && JSON.stringify(existing.shapes) === JSON.stringify(shapes)) {
+    const existing = await readFile(file, 'utf8').then((t) => { try { return JSON.parse(t); } catch { return null; } }, () => null);
+    if (existing && parseShapes(existing, serviceNo) && JSON.stringify(existing.shapes) === JSON.stringify(shapes)) {
       totalBytes += JSON.stringify(existing).length;
       continue;
     }

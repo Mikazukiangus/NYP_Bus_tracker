@@ -2,6 +2,7 @@ import { config, dataUrl } from '../../config';
 import { parseShapes } from '../../../shared/transit/parsers';
 import type { RouteShape } from '../../../shared/transit/shapes';
 import { createAssetCache, type AssetCacheSettings } from './assetCache';
+import { serviceNoSchema } from '../../../shared/input/primitives';
 
 type ShapeLookup = { status: 'ok'; shapes: RouteShape[] } | { status: 'unavailable' };
 
@@ -19,7 +20,9 @@ export function createShapeRepository(settings: AssetCacheSettings, dependencies
     } catch { return { status: 'unavailable' }; }
   }
   async function fetchRouteShapes(serviceNo: string): Promise<RouteShape[]> {
-    const code = serviceNo.trim().toUpperCase();
+    const parsed = serviceNoSchema.safeParse(serviceNo);
+    if (!parsed.success) return [];
+    const code = parsed.data;
     const result = await get(code, () => load(code));
     return result.status === 'ok' ? result.shapes : [];
   }

@@ -4,6 +4,7 @@ import { cdnCache } from '../config/schema.ts';
 import { logger } from '../security/logger.ts';
 import { createDatasetStore } from '../server/lta/datasets.ts';
 import { buildRoute } from '../server/lta/buildRoute.ts';
+import { validateReadRequest, routeQuerySchema } from '../server/http/request';
 
 // One store per warm function instance; CLI callers own a separate store.
 const { getDatasets } = createDatasetStore(config.lta);
@@ -21,15 +22,9 @@ function send(res: Response | any, status: number, body: unknown, cacheControl?:
 }
 
 export default async function handler(req: Request | any, res: Response | any) {
-  const url = new URL(req.url || '', `http://${req.headers?.host || 'localhost'}`);
-  const serviceNo = ((req.query?.ServiceNo || req.query?.serviceNo || url.searchParams.get('ServiceNo') || url.searchParams.get('serviceNo')) as string | undefined)?.trim();
-
-  if (!serviceNo || !/^[0-9A-Za-z]{1,6}$/.test(serviceNo)) {
-    return send(res, 400, {
-      error: 'Missing or invalid query parameter: ServiceNo',
-      usage: '/api/bus-route?ServiceNo=72',
-    });
-  }
+  const query = validateReadRequest(req, res, routeQuerySchema);
+  if (!query) return;
+  const serviceNo = query.ServiceNo;
 
   const accountKey = config.lta.accountKey;
   if (!accountKey) {

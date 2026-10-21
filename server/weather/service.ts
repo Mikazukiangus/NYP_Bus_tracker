@@ -21,9 +21,8 @@ export function createWeatherService(settings: AppConfig['weather'], baseUrl: st
       signal: AbortSignal.timeout(settings.timeoutMs),
     });
     if (!res.ok) throw new Error(`${path} responded ${res.status}`);
-    const body = await res.json();
-    if (body.code !== 0) throw new Error('NEA returned an upstream error');
-    return body;
+    if (!res.headers.get('content-type')?.includes('json')) throw new Error('Invalid external data.');
+    return await res.json(); // The dataset-specific schema checks the envelope before mapping.
   }
 
   async function snapshot(): Promise<WeatherSnapshot> {

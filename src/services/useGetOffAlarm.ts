@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { RideProgress, rideProgress } from './getOffAlarm';
 import { config } from '../config';
+import { parseGpsCoordinates } from '../../shared/geo/gps';
 
 export type AlarmAlert = 'next-stop' | 'get-off';
 
@@ -72,9 +73,11 @@ export function useGetOffAlarm(ride: AlarmRide | null): GetOffAlarm {
     let rung = 0;
     const id = navigator.geolocation.watchPosition(
       (pos) => {
+        const coords = parseGpsCoordinates(pos?.coords);
+        if (!coords) { setGps('weak'); return; }
         const p = rideProgress(
           stops.current,
-          { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracyM: pos.coords.accuracy },
+          { lat: coords.latitude, lng: coords.longitude, accuracyM: coords.accuracy },
           fromSegment
         );
         setGps(p ? 'ok' : 'weak');

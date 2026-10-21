@@ -19,7 +19,7 @@ function serve(fail: (skip: number, call: number) => number | null = () => null)
     const status = fail(skip, call);
     if (status) return new Response('error', { status });
     const value = Array.from({ length: Math.max(0, Math.min(500, 1200 - skip)) }, (_, i) => ({ n: skip + i }));
-    return new Response(JSON.stringify({ value }), { status: 200 });
+    return Response.json({ value });
   }) as typeof fetch;
   return calls;
 }

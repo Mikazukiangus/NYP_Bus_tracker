@@ -1,4 +1,6 @@
 import type { AppConfig } from '../../config/schema.ts';
+import { pageSchema } from './schemas';
+import { parseBoundary } from '../../shared/input/primitives';
 
 const PAGE_SIZE = 500;
 
@@ -12,8 +14,9 @@ export function createLtaClient(settings: AppConfig['lta'], request: typeof fetc
         signal: AbortSignal.timeout(settings.pageTimeoutMs),
       }).catch((err: unknown) => (err instanceof Error ? err : new Error(String(err))));
       if (!(res instanceof Error) && res.ok) {
-        const body = (await res.json()) as { value?: T[] };
-        return body.value ?? [];
+        if (!res.headers.get('content-type')?.includes('json')) throw new Error('Invalid external data.');
+        const body = parseBoundary(pageSchema, await res.json());
+        return body.value as T[];
       }
       // A server error, too many requests or no answer may pass; anything else (a bad key) won't
       const retryable = res instanceof Error || res.status >= 500 || res.status === 429;

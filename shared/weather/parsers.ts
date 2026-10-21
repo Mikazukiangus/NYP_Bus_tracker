@@ -1,8 +1,10 @@
-import type { LatLng, StationReadings, WeatherSnapshot } from './types.ts';
+import type { LatLng, StationReadings, WeatherSnapshot, WeatherDatasetKey } from './types.ts';
+import { parseBoundary } from '../input/primitives';
+import { neaSchemas, weatherDatasetSchemas } from './validation';
 
 const num = (v: unknown) => (typeof v === 'number' ? v : parseFloat(String(v)));
 
-export function parseStations(raw: any): StationReadings {
+function normalizeStations(raw: any): StationReadings {
   const d = raw.data;
   const reading = d.readings?.[0];
   const values = new Map<string, number>((reading?.data ?? []).map((r: any) => [r.stationId, num(r.value)]));
@@ -27,14 +29,14 @@ const RAIN_HISTORY_READINGS = 13;
 // Rainfall comes from the day's readings (newest first), one call giving both the latest reading and the last hour,
 // which shows where rain is moving. The newest reading is often still coming in (a handful of gauges in its first
 // minutes), so start from the newest one most gauges have reported, as the plain latest-reading endpoint does.
-export function parseRainfall(raw: any): NonNullable<WeatherSnapshot['rainfall']> {
+function normalizeRainfall(raw: any): NonNullable<WeatherSnapshot['rainfall']> {
   const d = raw.data;
   const stations: any[] = d.stations ?? [];
   const readings = (d.readings ?? []).filter((r: any) => (r.data?.length ?? 0) >= stations.length / 2);
   if (readings.length === 0) throw new Error('rainfall: no complete reading yet'); // just after midnight
   const valuesOf = (r: any) => new Map<string, number>(r.data.map((x: any) => [x.stationId, num(x.value)]));
   return {
-  ...parseStations({ data: { ...d, readings } }),
+  ...normalizeStations({ data: { ...d, readings } }),
   history: {
     stations: stations.map((s) => ({ id: s.id, name: s.name, lat: s.location.latitude, lng: s.location.longitude })),
     readings: readings
@@ -58,7 +60,7 @@ function regionLocations(raw: any): Map<string, LatLng> {
 }
 
 
-export function parseForecast2h(raw: any) {
+function normalizeForecast2h(raw: any) {
   const item = raw.data.items[0];
   const forecasts = new Map<string, string>(item.forecasts.map((f: any) => [f.area, f.forecast]));
   return {
@@ -75,7 +77,7 @@ export function parseForecast2h(raw: any) {
   };
 }
 
-export function parsePsi(raw: any) {
+function normalizePsi(raw: any) {
   const item = raw.data.items[0];
   const r = item.readings;
   return {
@@ -91,7 +93,7 @@ export function parsePsi(raw: any) {
   };
 }
 
-export function parsePm25(raw: any) {
+function normalizePm25(raw: any) {
   const item = raw.data.items[0];
   return {
     timestamp: item.timestamp,
@@ -103,7 +105,7 @@ export function parsePm25(raw: any) {
   };
 }
 
-export function parseForecast24h(raw: any) {
+function normalizeForecast24h(raw: any) {
   const rec = raw.data.records[0];
   const g = rec.general;
   return {
@@ -119,12 +121,12 @@ export function parseForecast24h(raw: any) {
   };
 }
 
-export function parseUv(raw: any) {
+function normalizeUv(raw: any) {
   const latest = raw.data.records[0]?.index?.[0];
   return { timestamp: latest?.hour, value: latest?.value };
 }
 
-export function parseLightning(raw: any) {
+function normalizeLightning(raw: any) {
   const rec = raw.data.records[0];
   return {
     timestamp: rec?.datetime,
@@ -136,7 +138,7 @@ export function parseLightning(raw: any) {
   };
 }
 
-export function parseWbgt(raw: any) {
+function normalizeWbgt(raw: any) {
   const rec = raw.data.records[0];
   return {
     timestamp: rec?.datetime,
@@ -150,7 +152,7 @@ export function parseWbgt(raw: any) {
   };
 }
 
-export function parseOutlook4d(raw: any) {
+function normalizeOutlook4d(raw: any) {
   return (raw.data.records[0]?.forecasts ?? []).map((f: any) => ({
   day: f.day,
   date: f.timestamp,
@@ -160,3 +162,18 @@ export function parseOutlook4d(raw: any) {
   high: f.temperature?.high,
 }));
 }
+
+function decode<K extends WeatherDatasetKey>(key: K, raw: unknown, normalize: (raw: any) => unknown): NonNullable<WeatherSnapshot[K]> {
+  const input = parseBoundary<unknown>(neaSchemas[key], raw);
+  return parseBoundary<unknown>(weatherDatasetSchemas[key], normalize(input)) as NonNullable<WeatherSnapshot[K]>;
+}
+export const parseStations = (raw: unknown) => decode('temperature', raw, normalizeStations);
+export const parseRainfall = (raw: unknown) => decode('rainfall', raw, normalizeRainfall);
+export const parseForecast2h = (raw: unknown) => decode('forecast2h', raw, normalizeForecast2h);
+export const parsePsi = (raw: unknown) => decode('psi', raw, normalizePsi);
+export const parsePm25 = (raw: unknown) => decode('pm25', raw, normalizePm25);
+export const parseForecast24h = (raw: unknown) => decode('forecast24h', raw, normalizeForecast24h);
+export const parseUv = (raw: unknown) => decode('uv', raw, normalizeUv);
+export const parseLightning = (raw: unknown) => decode('lightning', raw, normalizeLightning);
+export const parseWbgt = (raw: unknown) => decode('wbgt', raw, normalizeWbgt);
+export const parseOutlook4d = (raw: unknown) => decode('outlook4d', raw, normalizeOutlook4d);

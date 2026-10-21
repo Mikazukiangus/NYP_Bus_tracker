@@ -3,10 +3,10 @@ import { config } from '../config';
 
 export const LOCATION_STORAGE_KEY = 'bustrackersg_location_v1';
 
-import { isSingaporeLocation } from '../../shared/geo/singapore';
 export { isSingaporeLocation } from '../../shared/geo/singapore';
 
 import { parseLocation } from '../../shared/geo/locationValidation';
+import { parseGpsCoordinates } from '../../shared/geo/gps';
 
 // The device's own position, as map apps name it
 const GPS_NAME = 'Your location';
@@ -26,16 +26,18 @@ export function loadSavedLocation(storage?: Pick<Storage, 'getItem'>): UserLocat
 }
 
 export function saveUserLocation(loc: UserLocation, storage?: Pick<Storage, 'setItem'>): void {
-  if (!parseLocation(loc)) return;
+  const location = parseLocation(loc);
+  if (!location) return;
   try {
-    (storage ?? window.localStorage).setItem(LOCATION_STORAGE_KEY, JSON.stringify({ schemaVersion: 2, location: loc }));
+    (storage ?? window.localStorage).setItem(LOCATION_STORAGE_KEY, JSON.stringify({ schemaVersion: 2, location }));
   } catch {
     // A storage failure must not prevent changing location for this visit.
   }
 }
 
-export function locationFromGps(coords: Pick<GeolocationCoordinates, 'latitude' | 'longitude' | 'accuracy'>, capturedAtMs = Date.now()): UserLocation | null {
-  if (!isSingaporeLocation(coords.latitude, coords.longitude)) return null;
+export function locationFromGps(value: unknown, capturedAtMs = Date.now()): UserLocation | null {
+  const coords = parseGpsCoordinates(value);
+  if (!coords || !Number.isFinite(capturedAtMs) || capturedAtMs < 0) return null;
   return {
     name: GPS_NAME,
     lat: coords.latitude,
@@ -57,7 +59,7 @@ export function requestGpsLocation(timeoutMs = config.timeouts.gpsMs): Promise<G
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const location = locationFromGps(pos.coords);
+        const location = locationFromGps(pos?.coords);
         resolve(
           location
             ? { location }

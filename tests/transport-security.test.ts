@@ -145,7 +145,7 @@ test('provider requests and probes reject redirects before credentials can follo
   let health: any;
   try {
     globalThis.fetch = request;
-    await createHealthHandler(settings)({} as any, { setHeader() {}, status() { return this; }, json(value: unknown) { health = value; } } as any);
+    await createHealthHandler(settings)({ method: 'GET' } as any, { setHeader() {}, status() { return this; }, json(value: unknown) { health = value; } } as any);
   } finally { globalThis.fetch = original; }
   assert.equal(health.status, 'degraded');
   assert.ok(urls.length >= 6);

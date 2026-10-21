@@ -76,13 +76,17 @@ The endpoint preserves its existing HTTP 200 simulated fallback when credentials
 
 The browser independently validates the public JSON before mapping any service or calculating countdowns. A malformed snapshot returns the client's unavailable result (`null`), which the existing UI handles with its labelled fallback. Missing/blank bus slots become null estimates. The browser never substitutes a fabricated 99-minute ETA for malformed data.
 
-Malformed stop/service query types or formats return HTTP 400 before a provider call, using an `Invalid query parameter` message naming the field. A request without `BusStopCode` keeps the existing HTTP 400 body:
+All five public endpoints now share the [request-boundary contract](../input-validation.md). Arrivals accepts GET/HEAD, requires a five-digit string stop code and accepts an optional service of up to six letters/digits. The existing lower-camel aliases remain supported. Repeated keys, conflicting aliases, unknown query keys, arrays/nested query values and request bodies are rejected before a provider call. Service numbers normalize to uppercase; stop-code leading zeros are retained. Blank optional `ServiceNo` still means no service filter.
+
+Malformed or missing input returns HTTP 400 with bounded schema paths and no supplied values:
 
 ```json
 {
-  "error": "Missing required query parameter: BusStopCode",
-  "usage": "/api/bus-arrival?BusStopCode=83139&ServiceNo=15"
+  "error": "Invalid request.",
+  "issues": [{ "path": "query.BusStopCode", "message": "Invalid or unsupported input." }]
 }
 ```
+
+Unsupported methods return HTTP 405 with `Allow: GET, HEAD`. Request errors use `Cache-Control: no-store`. This replaces the older missing-parameter `usage` body; successful arrival responses and labelled simulated fallbacks remain unchanged.
 
 Provider reference: [LTA DataMall API User Guide, Bus Arrival section](https://datamall.lta.gov.sg/content/dam/datamall/datasets/LTA_DataMall_API_User_Guide.pdf), version 6.10, 1 October 2026. The application-specific `source`, fallback and compatibility rules above are defined by this repository.

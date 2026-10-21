@@ -25,7 +25,7 @@ export interface LTABusRouteRow {
 export interface LTABusServiceRow {
   ServiceNo: string;
   Operator: string;
-  Direction: number;
+  Direction?: number; // Metadata-only; route rows own the actual direction.
   Category: string;
 }
 

@@ -148,7 +148,7 @@ test('the server reads rainfall from the newest reading most gauges have reporte
   });
   // Newest first, as data.gov.sg returns them; the 18:25 reading has only one gauge in so far
   const readings = [reading(25, ['S1']), ...[20, 15, 10, 5, 0].map((m) => reading(m, ['S1', 'S2', 'S3', 'S4']))];
-  const rain = parseRainfall({ data: { stations, readings, readingUnit: 'mm' } });
+  const rain = parseRainfall({ code: 0, data: { stations, readings, readingUnit: 'mm' } });
   assert.equal(rain.timestamp, '2026-10-11T18:20:00+08:00');
   assert.equal(rain.stations.length, 4);
   assert.equal(rain.history!.readings.length, 5);

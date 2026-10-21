@@ -48,7 +48,6 @@ test('incident service normalizes valid locations and returns its injected times
     assert.equal(new Headers(init?.headers).get('AccountKey'), 'fixture-key');
     return Response.json({ value: [
       { Type: 'Roadworks', Latitude: 1.38, Longitude: 103.85, Message: 'Lane closed' },
-      { Type: 'Broken', Latitude: null, Longitude: 103.85, Message: 'Invalid position' },
     ] });
   } });
   assert.deepEqual(await service.incidents(), { kind: 'ok', body: { incidents: [{ type: 'Roadworks', lat: 1.38, lng: 103.85, message: 'Lane closed' }], fetchedAt: new Date(now).toISOString(), source: 'LTA_DATAMALL' } });

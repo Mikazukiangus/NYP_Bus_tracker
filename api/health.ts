@@ -1,6 +1,9 @@
 import type { Request, Response } from 'express';
 import { config as serverConfig } from '../config/server.ts';
 import type { AppConfig } from '../config/schema.ts';
+import { validateReadRequest, emptyQuerySchema } from '../server/http/request';
+import { parseArrivalResponse } from '../shared/transit/arrivals';
+import { neaSchemas } from '../shared/weather/validation';
 
 async function probe(url: string, headers: Record<string, string>, valid: (body: any) => boolean, timeoutMs: number) {
   const startedAt = Date.now();
@@ -9,6 +12,7 @@ async function probe(url: string, headers: Record<string, string>, valid: (body:
     const response = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs), redirect: 'error' });
     httpStatus = response.status;
     if (!response.ok) throw new Error('upstream_http_error');
+    if (!response.headers.get('content-type')?.includes('json')) throw new Error('invalid_response');
     if (!valid(await response.json())) throw new Error('invalid_response');
     return { status: 'ok' as const, httpStatus, latencyMs: Date.now() - startedAt, checkedAt: new Date().toISOString() };
   } catch (error) {
@@ -23,7 +27,8 @@ async function probe(url: string, headers: Record<string, string>, valid: (body:
 }
 
 export function createHealthHandler(config: AppConfig) {
-  return async function handler(_req: Request | any, res: Response | any) {
+  return async function handler(req: Request | any, res: Response | any) {
+    if (!validateReadRequest(req, res, emptyQuerySchema)) return;
     const ltaEndpoint = `${config.lta.baseUrl}/v3/BusArrival`;
     const neaEndpoint = `${config.public.urls.neaBase}/two-hr-forecast`;
     const ltaKey = config.lta.accountKey;
@@ -33,10 +38,10 @@ export function createHealthHandler(config: AppConfig) {
     const [ltaProbe, neaProbe] = await Promise.all([
       ltaKey
         ? probe(`${ltaEndpoint}?BusStopCode=${config.health.stopCode}`, { AccountKey: ltaKey, Accept: 'application/json' },
-          (body) => body?.BusStopCode === config.health.stopCode && Array.isArray(body.Services), config.health.timeoutMs)
+          (body) => parseArrivalResponse(body, { expectedStopCode: config.health.stopCode }).ok, config.health.timeoutMs)
         : Promise.resolve({ status: 'not_configured' as const, reason: 'LTA_ACCOUNT_KEY missing' }),
       probe(neaEndpoint, { Accept: 'application/json', ...(dataGovKey ? { 'x-api-key': dataGovKey } : {}) },
-        (body) => body?.code === 0 && Array.isArray(body.data?.items) && body.data.items.length > 0, config.health.timeoutMs),
+        (body) => neaSchemas.forecast2h.safeParse(body).success, config.health.timeoutMs),
     ]);
     const healthy = ltaProbe.status === 'ok' && neaProbe.status === 'ok';
     const httpStatus = healthy ? 200 : 503;
