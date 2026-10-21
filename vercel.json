@@ -33,6 +33,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/BusArrival",
+      "destination": "/api/bus-arrival"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },

@@ -150,3 +150,12 @@ test('server runtime relative imports use explicit file extensions for productio
     }
   }
 });
+
+
+test('Vercel routes the legacy arrival alias to the same validated handler', () => {
+  const { rewrites } = JSON.parse(readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+  const alias = rewrites.findIndex((rule: { source: string }) => rule.source === '/api/BusArrival');
+  assert.ok(alias >= 0);
+  assert.equal(rewrites[alias].destination, '/api/bus-arrival');
+  assert.ok(alias < rewrites.findIndex((rule: { source: string }) => rule.source === '/api/(.*)'));
+});
