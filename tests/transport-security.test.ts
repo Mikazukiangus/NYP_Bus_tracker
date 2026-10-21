@@ -112,7 +112,9 @@ test('browser HTTP/WS literals are flagged with locations; SVG namespace identif
     { line: 1, scheme: 'http' }, { line: 2, scheme: 'http' }, { line: 3, scheme: 'ws' },
   ]);
   assert.deepEqual(insecureResourceLiterals('<svg xmlns="http://www.w3.org/2000/svg"/><img src="https://example.com">'), []);
+  assert.deepEqual(insecureResourceLiterals('document.createElementNS("http://www.w3.org/2000/svg", "svg")'), []);
   assert.equal(insecureResourceLiterals('fetch("http://www.w3.org/2000/svg")').length, 1);
+  assert.equal(insecureResourceLiterals('document.createElementNS("http://example.com/image", "svg")').length, 1);
   assert.deepEqual((await checkBrowserSources(root)).findings, []);
 });
 

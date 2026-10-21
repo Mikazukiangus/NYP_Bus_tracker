@@ -2,12 +2,10 @@ import { useEffect, useRef, type RefObject } from 'react';
 import L from 'leaflet';
 import { config } from '../../config';
 import type { BusStop } from '../../types/bus';
+import { oneMapAttribution } from './attribution';
 
 // OneMap: Singapore Land Authority's free official basemap (no key; attribution required)
-const ONEMAP_ATTRIBUTION =
-  `<img src="${config.urls.oneMapBase}/web-assets/images/logo/om_logo.png" alt="" style="height:16px;width:16px;display:inline;vertical-align:-3px"/>&nbsp;` +
-  '<a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a>&nbsp;&copy;&nbsp;contributors&nbsp;&#124;&nbsp;' +
-  '<a href="https://www.sla.gov.sg/" target="_blank" rel="noopener noreferrer">Singapore Land Authority</a>';
+const ONEMAP_ATTRIBUTION = oneMapAttribution(config.urls.oneMapBase);
 const ONEMAP_STYLES = { Default: 'Standard', Grey: 'Grey', Night: 'Night' } as const;
 // OneMap only serves tiles for Singapore
 const SINGAPORE_BOUNDS = L.latLngBounds([1.144, 103.535], [1.494, 104.502]);

@@ -4,8 +4,9 @@ import { buildBusNetwork } from '../src/features/network/domain/buildNetwork';
 import { planTrips } from '../src/services/tripPlanner';
 import { rankTrips, trackedLegIndex } from '../src/features/journey/selectors';
 import { buildJourney, buildTripView, buildAlightHint, buildAlarmRide, buildAfterGetOff } from '../src/features/journey/presentation';
-import { busMarkerHtml, busPopupHtml, etaCalloutHtml } from '../src/features/map/markerHtml';
+import { busMarker, busPopup, etaCallout } from '../src/features/map/markerElements';
 import type { BusRoute, IncomingBus, StopServiceArrivals, UserLocation } from '../src/types/bus';
+import { withDocument } from './fixtures/dom';
 import type { PlaceResult } from '../src/features/places/model';
 
 const network = buildBusNetwork({
@@ -62,14 +63,15 @@ test('geometry from an older trip cannot replace the current journey fallback', 
   assert.deepEqual(walkOnly?.legs, []);
 });
 
-test('pure marker builders escape external strings and preserve GPS/ETA presentation', () => {
+test('DOM marker builders preserve literal external text and GPS/ETA presentation', () => withDocument(() => {
   const bus: IncomingBus = { id: 'fixture', serviceNo: '<bus>', ordinal: 1, lat: 1.3, lng: 103.8, etaMinutes: 5, load: 'SEA', type: 'DD', feature: 'WAB' };
-  assert.ok(busMarkerHtml(bus).includes('&lt;bus&gt;'));
-  const popup = busPopupHtml(bus, '<img src=x onerror=alert(1)>');
-  assert.ok(popup.includes('&lt;img'));
-  assert.ok(!popup.includes('<img'));
-  const eta = etaCalloutHtml({ serviceNo: '<bus>', minutes: [0, 5, 10], live: true }, true);
-  assert.ok(eta.includes('Live GPS'));
-  assert.ok(eta.includes('Arr'));
-  assert.ok(!eta.includes('<bus>'));
-});
+  assert.ok(busMarker(bus).textContent?.includes('<bus>'));
+  const popup = busPopup(bus, '<img src=x onerror=alert(1)>');
+  assert.ok(popup.textContent?.includes('<img'));
+  assert.equal(popup.querySelector('img'), null);
+  const eta = etaCallout({ serviceNo: '<bus>', minutes: [0, 5, 10], live: true }, true);
+  assert.ok(eta.querySelector('[aria-label="Live GPS"]'));
+  assert.ok(eta.textContent?.includes('Arr'));
+  assert.ok(eta.textContent?.includes('<bus>'));
+  assert.equal(eta.querySelector('bus'), null);
+}));

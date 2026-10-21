@@ -20,6 +20,8 @@ The [HTTPS and cookie policy](docs/https-security.md) covers production redirect
 
 The [input-validation guide](docs/input-validation.md) lists HTTP, provider, artifact, storage and GPS boundaries. Public APIs accept body-free GET/HEAD requests and reject malformed input before service work. Runtime schemas use the CSP-safe validator entry point; existing successful formats and saved-record migrations remain supported.
 
+The [XSS audit and hardening guide](docs/xss-audit.md) records the DOM-based map popups/markers, scoped stop buttons, declarative bus SVG, encoded attribution and payload-test results.
+
 ## Setup
 
 You need Node.js 24 (what Vercel and the GitHub workflow use) and an LTA DataMall account key, free from https://datamall.lta.gov.sg/.

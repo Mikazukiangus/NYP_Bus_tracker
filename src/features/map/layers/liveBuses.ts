@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import L from 'leaflet';
 import type { MapRef } from '../model';
 import type { BusStop, IncomingBus } from '../../../types/bus';
-import { busMarkerHtml, busPopupHtml } from '../markerHtml';
+import { busMarker, busPopup } from '../markerElements';
 
 import { useLayerGroup } from './useLayerGroup';
 
@@ -20,7 +20,7 @@ export function useBusLayer(mapInstanceRef: MapRef, incomingBuses: IncomingBus[]
 
     incomingBuses.forEach((bus) => {
       const busIcon = L.divIcon({
-        html: busMarkerHtml(bus),
+        html: busMarker(bus),
         className: 'live-bus-marker',
         iconSize: [48, 52],
         iconAnchor: [24, 20],
@@ -28,7 +28,7 @@ export function useBusLayer(mapInstanceRef: MapRef, incomingBuses: IncomingBus[]
 
       const marker = L.marker([bus.lat, bus.lng], { icon: busIcon, zIndexOffset: 1000 });
 
-      marker.bindPopup(busPopupHtml(bus, selectedStop.name));
+      marker.bindPopup(busPopup(bus, selectedStop.name));
 
       busesGroup.addLayer(marker);
     });

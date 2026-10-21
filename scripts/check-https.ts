@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url';
 // by production config validation and the browser's transport CSP.
 export function insecureResourceLiterals(source: string) {
   return [...source.matchAll(/\b(?:http|ws):\/\/[^\s"'<>`)]*/g)].flatMap(match => {
-    const before = source.slice(Math.max(0, match.index - 20), match.index);
-    if (match[0] === 'http://www.w3.org/2000/svg' && /xmlns\s*=\s*["']$/.test(before)) return [];
+    const before = source.slice(Math.max(0, match.index - 40), match.index);
+    if (match[0] === 'http://www.w3.org/2000/svg' && /(?:xmlns\s*=\s*|\bcreateElementNS\(\s*)["']$/.test(before)) return [];
     return [{ line: source.slice(0, match.index).split('\n').length, scheme: match[0].startsWith('ws:') ? 'ws' : 'http' }];
   });
 }

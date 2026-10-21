@@ -2,7 +2,9 @@ import { useEffect } from 'react';
 import L from 'leaflet';
 import type { MapRef, StopEtas } from '../model';
 import type { BusStop, JourneyOverlay } from '../../../types/bus';
-import { escapeHtml, changeSvg, FLAG_SVG } from '../markerHtml';
+import { element } from '../dom';
+import { changeIcon, flagIcon } from '../svg';
+import { textPopup, boardingPopup } from '../popupElements';
 
 import { legStyle } from '../../../components/tripLegs';
 import { bindEtaCallout } from './etaCallout';
@@ -29,8 +31,13 @@ export function useJourneyLayer(mapInstanceRef: MapRef, journey: JourneyOverlay 
         { pane: 'journey', color: 'var(--color-green-blue-ink)', weight: 4, opacity: 0.9, dashArray: '2 8', lineCap: 'round' }
       ).addTo(group);
 
-    const pill = (content: string, border: string) =>
-      `<div class="px-1.5 h-6 min-w-8 rounded-lg bg-helvetia text-white border-2 shadow-md flex items-center justify-center gap-0.5 text-[11px] font-black whitespace-nowrap" style="border-color:${border}">${content}</div>`;
+    const pill = (serviceNo: string, change: boolean, border: string) => {
+      const node = element('div', 'px-1.5 h-6 min-w-8 rounded-lg bg-helvetia text-white border-2 shadow-md flex items-center justify-center gap-0.5 text-[11px] font-black whitespace-nowrap');
+      node.style.borderColor = border;
+      if (change) node.append(changeIcon(11));
+      node.append(serviceNo);
+      return node;
+    };
 
     journey.legs.forEach((leg, i) => {
       const color = legStyle(i).line;
@@ -59,20 +66,13 @@ export function useJourneyLayer(mapInstanceRef: MapRef, journey: JourneyOverlay 
         title,
         zIndexOffset: 1150,
         icon: L.divIcon({
-          html: pill(prev ? `${changeSvg(11)}${escapeHtml(leg.serviceNo)}` : escapeHtml(leg.serviceNo), color),
+          html: pill(leg.serviceNo, !!prev, color),
           className: 'journey-board-marker',
           iconSize: [prev ? 52 : 40, 24],
           iconAnchor: [prev ? 26 : 20, 12],
         }),
       })
-        .bindPopup(
-          prev
-            ? `<div class="font-sans text-xs"><div class="font-black text-helvetia-950 text-sm">Change buses</div>
-              <div class="text-warm-700">${changeAtSameStop ? 'Get off' : `Get off at ${escapeHtml(prev.alight.name)} · ${prev.alight.code}, then walk to`} Bus ${escapeHtml(prev.serviceNo)}${changeAtSameStop ? ' and take' : ''}</div>
-              <div class="text-warm-700">${changeAtSameStop ? '' : 'board '}Bus ${escapeHtml(leg.serviceNo)} at ${escapeHtml(leg.board.name)} · ${leg.board.code}</div></div>`
-            : `<div class="font-sans text-xs"><div class="font-black text-helvetia-950 text-sm">Board Bus ${escapeHtml(leg.serviceNo)}</div>
-              <div class="text-warm-700">${escapeHtml(leg.board.name)} · ${leg.board.code}</div></div>`
-        )
+        .bindPopup(boardingPopup(leg, prev))
         .addTo(group);
       // The tracked bus's next times over the stop where you board it
       if (etas && leg.board.code === selectedStop.code && leg.serviceNo.toUpperCase() === etas.serviceNo.toUpperCase()) {
@@ -82,36 +82,37 @@ export function useJourneyLayer(mapInstanceRef: MapRef, journey: JourneyOverlay 
       // Getting off: skipped where the change pill already marks the stop
       const next = journey.legs[i + 1];
       if (next && next.board.code === leg.alight.code) return;
+      const alightIcon = element('div', 'w-4 h-4 m-[3px] rounded-full border-[3px] border-helvetia-950 shadow-md');
+      alightIcon.style.background = color;
       L.marker([leg.alight.lat, leg.alight.lng], {
         title: `Get off Bus ${leg.serviceNo} at ${leg.alight.name} (${leg.alight.code})`,
         zIndexOffset: 1100,
         icon: L.divIcon({
-          html: `<div class="w-4 h-4 m-[3px] rounded-full border-[3px] border-helvetia-950 shadow-md" style="background:${color}"></div>`,
+          html: alightIcon,
           className: 'journey-alight-marker',
           iconSize: [22, 22],
           iconAnchor: [11, 11],
         }),
       })
-        .bindPopup(
-          `<div class="font-sans text-xs"><div class="font-black text-helvetia-950 text-sm">Get off Bus ${escapeHtml(leg.serviceNo)}</div>
-          <div class="text-warm-700">${escapeHtml(leg.alight.name)} · ${leg.alight.code}${next ? ` (walk to Bus ${escapeHtml(next.serviceNo)})` : ''}</div></div>`
-        )
+        .bindPopup(textPopup(`Get off Bus ${leg.serviceNo}`, `${leg.alight.name} · ${leg.alight.code}${next ? ` (walk to Bus ${next.serviceNo})` : ''}`))
         .addTo(group);
     });
     const last = journey.legs[journey.legs.length - 1];
     walk(last ? last.alight : journey.from, journey.to);
 
+    const destinationIcon = element('div', 'w-8 h-8 rounded-full bg-lemon text-helvetia-950 border-2 border-helvetia-950 shadow-lg flex items-center justify-center');
+    destinationIcon.append(flagIcon(14));
     L.marker([journey.to.lat, journey.to.lng], {
       title: `Destination: ${journey.to.name}`,
       zIndexOffset: 1200,
       icon: L.divIcon({
-        html: `<div class="w-8 h-8 rounded-full bg-lemon text-helvetia-950 border-2 border-helvetia-950 shadow-lg flex items-center justify-center">${FLAG_SVG}</div>`,
+        html: destinationIcon,
         className: 'journey-destination-marker',
         iconSize: [32, 32],
         iconAnchor: [16, 16],
       }),
     })
-      .bindPopup(`<div class="font-sans text-xs"><div class="font-black text-helvetia-950 text-sm">Destination</div><div class="text-warm-700">${escapeHtml(journey.to.name)}</div></div>`)
+      .bindPopup(textPopup('Destination', journey.to.name))
       .addTo(group);
   }, [journey, etaKey, selectedStop.code]); // (etaKey stands for etas)
 }
