@@ -1,13 +1,14 @@
 import type { AppConfig } from '../../config/schema.ts';
 import type { WeatherDatasetKey as DatasetKey, WeatherSnapshot } from '../../shared/weather/types.ts';
 import { weatherCatalog } from './catalog.ts';
+import { safeFetch } from '../../security/ssrf.ts';
 interface WeatherDependencies {
   request?: typeof fetch;
   now?: () => number;
   logger?: { warn: (event: string, metadata: Record<string, unknown>) => void };
 }
 export function createWeatherService(settings: AppConfig['weather'], baseUrl: string, dependencies: WeatherDependencies = {}) {
-  const request = dependencies.request ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
+  const request = dependencies.request ?? safeFetch;
   const now = dependencies.now ?? Date.now;
   const logger = dependencies.logger ?? { warn: () => {} };
   const DATASETS = weatherCatalog(settings, now);

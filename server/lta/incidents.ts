@@ -2,6 +2,7 @@ import type { AppConfig } from '../../config/schema.ts';
 import type { TrafficIncident } from '../../shared/transit/incidents.ts';
 import { providerIncidentSchema } from '../../shared/transit/incidentValidation.ts';
 import { parseBoundary } from '../../shared/input/primitives.ts';
+import { safeFetch } from '../../security/ssrf.ts';
 interface LTAIncident { Type: string; Latitude: number; Longitude: number; Message: string }
 export function parseIncidents(rows: LTAIncident[]): TrafficIncident[] {
   return rows.filter(row => Number.isFinite(row.Latitude) && Number.isFinite(row.Longitude))
@@ -14,7 +15,7 @@ export function createIncidentService(settings: AppConfig['lta'], dependencies: 
   request?: typeof fetch; now?: () => number;
   logger?: { error(event: string, metadata: Record<string, unknown>): void };
 } = {}) {
-  const request = dependencies.request ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
+  const request = dependencies.request ?? safeFetch;
   const now = dependencies.now ?? Date.now;
   const logger = dependencies.logger ?? { error() {} };
   async function incidents(): Promise<IncidentResult> {

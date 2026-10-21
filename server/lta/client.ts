@@ -1,11 +1,12 @@
 import type { AppConfig } from '../../config/schema.ts';
 import { pageSchema } from './schemas.ts';
 import { parseBoundary } from '../../shared/input/primitives.ts';
+import { safeFetch } from '../../security/ssrf.ts';
 
 const PAGE_SIZE = 500;
 
 // Transport settings and fetch are injected; no config loading or HTTP adapter dependency.
-export function createLtaClient(settings: AppConfig['lta'], request: typeof fetch = (...args) => fetch(...args)) {
+export function createLtaClient(settings: AppConfig['lta'], request: typeof fetch = safeFetch) {
   async function fetchPage<T>(dataset: string, skip: number, accountKey: string, retryDelayMs = settings.retryDelayMs): Promise<T[]> {
     for (let attempt = 1; ; attempt++) {
       const res = await request(`${settings.baseUrl}/${dataset}?$skip=${skip}`, {

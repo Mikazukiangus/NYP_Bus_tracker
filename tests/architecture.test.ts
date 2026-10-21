@@ -159,3 +159,11 @@ test('Vercel routes the legacy arrival alias to the same validated handler', () 
   assert.equal(rewrites[alias].destination, '/api/bus-arrival');
   assert.ok(alias < rewrites.findIndex((rule: { source: string }) => rule.source === '/api/(.*)'));
 });
+
+test('server and provider build scripts use the shared SSRF transport rather than raw fetch', () => {
+  for (const file of ['api', 'server', 'scripts'].flatMap(dir => files(path.join(root, dir)))) {
+    const source = readFileSync(file, 'utf8');
+    assert.ok(!/\b(?:globalThis\.)?fetch\s*\(/.test(source), `${path.relative(root, file)} bypasses guarded outbound transport`);
+    assert.ok(!imports(file).some(({specifier}) => ['undici', 'http', 'https', 'node:http', 'node:https'].includes(specifier)), `${path.relative(root,file)} owns an unreviewed transport`);
+  }
+});

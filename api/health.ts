@@ -4,12 +4,13 @@ import type { AppConfig } from '../config/schema.ts';
 import { validateReadRequest, emptyQuerySchema } from '../server/http/request.ts';
 import { parseArrivalResponse } from '../shared/transit/arrivals.ts';
 import { neaSchemas } from '../shared/weather/validation.ts';
+import { safeFetch } from '../security/ssrf.ts';
 
 async function probe(url: string, headers: Record<string, string>, valid: (body: any) => boolean, timeoutMs: number) {
   const startedAt = Date.now();
   let httpStatus: number | null = null;
   try {
-    const response = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs), redirect: 'error' });
+    const response = await safeFetch(url, { headers, signal: AbortSignal.timeout(timeoutMs), redirect: 'error' });
     httpStatus = response.status;
     if (!response.ok) throw new Error('upstream_http_error');
     if (!response.headers.get('content-type')?.includes('json')) throw new Error('invalid_response');

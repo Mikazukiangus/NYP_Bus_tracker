@@ -35,8 +35,8 @@ test('healthy requires valid responses from both upstreams; credentials stay ser
   globalThis.fetch = async (url, options) => {
     calls.push(String(url));
     assert.ok(options?.signal);
-    const headers = options?.headers as Record<string, string>;
-    assert.equal(String(url).includes('BusArrival') ? headers.AccountKey : headers['x-api-key'],
+    const headers = new Headers(options?.headers);
+    assert.equal(headers.get(String(url).includes('BusArrival') ? 'AccountKey' : 'x-api-key'),
       String(url).includes('BusArrival') ? 'test-lta-secret' : 'test-nea-secret');
     return Response.json(validBody(String(url)));
   };

@@ -21,7 +21,7 @@ TRUST_PROXY_CIDRS=loopback
 
 Terminate TLS at the proxy with a valid certificate and forward the actual protocol. The Express HTTP listener does not issue certificates or serve TLS itself. On Vercel, TLS and the initial redirect remain platform responsibilities; these standalone proxy settings do not configure the Vercel edge.
 
-All configured provider and browser endpoints must use HTTPS in production or on Vercel, including loopback endpoints. Every Vite build also enforces this, even with a custom mode or development `NODE_ENV`. Development alone permits loopback HTTP fixtures. Secret validation errors report field names, not supplied values. TLS certificate verification remains enabled.
+All configured provider and browser endpoints must use HTTPS in production or on Vercel, including loopback endpoints. Every Vite build also enforces this, even with a custom mode or development `NODE_ENV`. Development configuration alone permits loopback HTTP fixtures; the later [SSRF guard](ssrf-protection.md) independently blocks private server-side destinations in every environment. Local provider fixtures must use an explicit mock transport. Secret validation errors report field names, not supplied values. TLS certificate verification remains enabled.
 
 Server LTA/NEA requests, health probes and the Overpass builder use `redirect: 'error'`. Redirected provider endpoints fail through existing retry/fallback handling rather than moving credentials to another origin or downgrading to HTTP. This also rejects HTTPS-to-HTTPS provider redirects: update a configured base URL deliberately if a provider moves.
 

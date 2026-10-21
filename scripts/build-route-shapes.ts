@@ -8,6 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from '../config/server.ts';
 import { logger } from '../security/logger.ts';
+import { safeFetch } from '../security/ssrf.ts';
 import { parseOverpass } from '../server/overpassSchema';
 import { parseShapes } from '../shared/transit/parsers';
 
@@ -140,7 +141,7 @@ async function fetchOverpass(): Promise<unknown> {
       if (remaining < 30_000) break;
       try {
         logger.info('build.shapes_query', { round, rounds: OVERPASS_ROUNDS, provider: new URL(url).hostname });
-        const res = await fetch(url, {
+        const res = await safeFetch(url, {
           redirect: 'error',
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': USER_AGENT },

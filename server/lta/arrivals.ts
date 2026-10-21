@@ -1,6 +1,7 @@
 import type { AppConfig } from '../../config/schema.ts';
 import { parseArrivalResponse, type LTABusArrivalResponse } from '../../shared/transit/arrivals.ts';
 import { generateSimulatedLtaResponse } from './simulatedArrivals.ts';
+import { safeFetch } from '../../security/ssrf.ts';
 interface Dependencies {
   request?: typeof fetch;
   now?: () => number;
@@ -8,7 +9,7 @@ interface Dependencies {
 }
 export type ArrivalResult = { kind: 'live' | 'simulated'; body: LTABusArrivalResponse };
 export function createArrivalService(settings: AppConfig['lta'], dependencies: Dependencies = {}) {
-  const request = dependencies.request ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
+  const request = dependencies.request ?? safeFetch;
   const now = dependencies.now ?? Date.now;
   const logger = dependencies.logger ?? { warn() {}, error() {} };
   async function arrivals(busStopCode: string, serviceNo?: string): Promise<ArrivalResult> {
