@@ -1,1 +1,1 @@
-export type { LTABusArrival, LTAService, LTABusArrivalResponse } from '../../shared/transit/arrivals';
+export type { LTABusArrival, LTAService, LTABusArrivalResponse } from '../../shared/transit/arrivals.ts';

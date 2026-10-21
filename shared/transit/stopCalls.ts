@@ -1,4 +1,4 @@
-import type { BusRoute, BusStop, StopCallRef, NormalizedBusRoute } from './routes';
+import type { BusRoute, BusStop, StopCallRef, NormalizedBusRoute } from './routes.ts';
 
 export function annotateStopCalls(route: BusRoute): NormalizedBusRoute {
   const annotate = (dir: BusRoute['direction1'], direction: 1 | 2) => {

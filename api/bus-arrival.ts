@@ -3,7 +3,7 @@ import { config } from '../config/server.ts';
 import { cdnCache } from '../config/schema.ts';
 import { logger } from '../security/logger.ts';
 import { createArrivalService } from '../server/lta/arrivals.ts';
-import { validateReadRequest, arrivalQuerySchema } from '../server/http/request';
+import { validateReadRequest, arrivalQuerySchema } from '../server/http/request.ts';
 export type { LTABusArrival, LTAService, LTABusArrivalResponse } from '../server/lta/arrivalTypes.ts';
 const service = createArrivalService(config.lta, { logger });
 function send(res: Response | any, status: number, body: unknown, cacheControl?: string) {

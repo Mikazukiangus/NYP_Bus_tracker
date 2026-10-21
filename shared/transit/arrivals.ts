@@ -1,4 +1,4 @@
-import type { BusOperator } from './routes';
+import type { BusOperator } from './routes.ts';
 
 export type BusLoad = 'SEA' | 'SDA' | 'LSD';
 export type BusType = 'SD' | 'DD' | 'BD';

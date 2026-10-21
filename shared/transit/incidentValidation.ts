@@ -1,5 +1,5 @@
-import { z } from '../input/zod';
-import { latitudeSchema, longitudeSchema, textSchema, nameSchema, timeSchema, parseBoundary } from '../input/primitives';
+import { z } from '../input/zod.ts';
+import { latitudeSchema, longitudeSchema, textSchema, nameSchema, timeSchema, parseBoundary } from '../input/primitives.ts';
 
 const incidentSchema = z.object({ type: nameSchema, lat: latitudeSchema, lng: longitudeSchema, message: textSchema });
 export const incidentResponseSchema = z.object({ incidents: z.array(incidentSchema), fetchedAt: timeSchema, source: z.literal('LTA_DATAMALL') });

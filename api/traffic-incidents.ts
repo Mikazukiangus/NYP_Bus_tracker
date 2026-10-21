@@ -3,7 +3,7 @@ import { config } from '../config/server.ts';
 import { cdnCache } from '../config/schema.ts';
 import { logger } from '../security/logger.ts';
 import { createIncidentService } from '../server/lta/incidents.ts';
-import { validateReadRequest, emptyQuerySchema } from '../server/http/request';
+import { validateReadRequest, emptyQuerySchema } from '../server/http/request.ts';
 export type { TrafficIncident } from '../shared/transit/incidents.ts';
 const service = createIncidentService(config.lta, { logger });
 function send(res: Response | any, status: number, body: unknown, cacheControl: string) {

@@ -1,7 +1,7 @@
 import type { AppConfig } from '../../config/schema.ts';
 import type { TrafficIncident } from '../../shared/transit/incidents.ts';
-import { providerIncidentSchema } from '../../shared/transit/incidentValidation';
-import { parseBoundary } from '../../shared/input/primitives';
+import { providerIncidentSchema } from '../../shared/transit/incidentValidation.ts';
+import { parseBoundary } from '../../shared/input/primitives.ts';
 interface LTAIncident { Type: string; Latitude: number; Longitude: number; Message: string }
 export function parseIncidents(rows: LTAIncident[]): TrafficIncident[] {
   return rows.filter(row => Number.isFinite(row.Latitude) && Number.isFinite(row.Longitude))

@@ -1,5 +1,5 @@
-import { z } from './zod';
-import { timestamp } from '../transit/validation';
+import { z } from './zod.ts';
+import { timestamp } from '../transit/validation.ts';
 
 export const stopCodeSchema = z.string().regex(/^\d{5}$/);
 export const serviceNoSchema = z.string().max(32).trim().regex(/^[0-9A-Za-z]{1,6}$/).transform(value => value.toUpperCase());

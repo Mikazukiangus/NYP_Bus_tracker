@@ -1,6 +1,6 @@
-import { z } from '../input/zod';
-import { latitudeSchema, longitudeSchema, numberSchema } from '../input/primitives';
-import { isSingaporeLocation } from './singapore';
+import { z } from '../input/zod.ts';
+import { latitudeSchema, longitudeSchema, numberSchema } from '../input/primitives.ts';
+import { isSingaporeLocation } from './singapore.ts';
 const schema = z.object({ latitude: latitudeSchema, longitude: longitudeSchema, accuracy: numberSchema.nonnegative() })
   .refine(value => isSingaporeLocation(value.latitude, value.longitude));
 export function parseGpsCoordinates(value: unknown) {

@@ -1,7 +1,7 @@
 import type { AppConfig } from '../../config/schema.ts';
 import { createLtaClient } from './client.ts';
 import type { Datasets, LTABusStop, LTABusRouteRow, LTABusServiceRow } from './types.ts';
-import { parseStopRows, parseRouteRows, parseServiceRows } from './schemas';
+import { parseStopRows, parseRouteRows, parseServiceRows } from './schemas.ts';
 
 export function createDatasetStore(settings: AppConfig['lta'], request?: typeof fetch, now = Date.now) {
   const { fetchAll } = createLtaClient(settings, request);

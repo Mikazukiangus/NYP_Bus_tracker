@@ -1,9 +1,9 @@
 import type { Request, Response } from 'express';
 import { config as serverConfig } from '../config/server.ts';
 import type { AppConfig } from '../config/schema.ts';
-import { validateReadRequest, emptyQuerySchema } from '../server/http/request';
-import { parseArrivalResponse } from '../shared/transit/arrivals';
-import { neaSchemas } from '../shared/weather/validation';
+import { validateReadRequest, emptyQuerySchema } from '../server/http/request.ts';
+import { parseArrivalResponse } from '../shared/transit/arrivals.ts';
+import { neaSchemas } from '../shared/weather/validation.ts';
 
 async function probe(url: string, headers: Record<string, string>, valid: (body: any) => boolean, timeoutMs: number) {
   const startedAt = Date.now();

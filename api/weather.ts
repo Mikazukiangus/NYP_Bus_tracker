@@ -3,7 +3,7 @@ import { config } from '../config/server.ts';
 import { cdnCache } from '../config/schema.ts';
 import { logger } from '../security/logger.ts';
 import { createWeatherService } from '../server/weather/service.ts';
-import { validateReadRequest, emptyQuerySchema } from '../server/http/request';
+import { validateReadRequest, emptyQuerySchema } from '../server/http/request.ts';
 
 // Cache/budget state survives requests in this warm function instance.
 const weatherService = createWeatherService(config.weather, config.public.urls.neaBase, { logger });

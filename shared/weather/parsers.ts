@@ -1,6 +1,6 @@
 import type { LatLng, StationReadings, WeatherSnapshot, WeatherDatasetKey } from './types.ts';
-import { parseBoundary } from '../input/primitives';
-import { neaSchemas, weatherDatasetSchemas } from './validation';
+import { parseBoundary } from '../input/primitives.ts';
+import { neaSchemas, weatherDatasetSchemas } from './validation.ts';
 
 const num = (v: unknown) => (typeof v === 'number' ? v : parseFloat(String(v)));
 

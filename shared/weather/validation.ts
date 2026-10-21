@@ -1,6 +1,6 @@
-import { z } from '../input/zod';
-import { nameSchema as name, textSchema as text, numberSchema as number, numericSchema as numeric, latitudeSchema, longitudeSchema, pointSchema, timeSchema as time, parseBoundary } from '../input/primitives';
-import type { WeatherSnapshot } from './types';
+import { z } from '../input/zod.ts';
+import { nameSchema as name, textSchema as text, numberSchema as number, numericSchema as numeric, latitudeSchema, longitudeSchema, pointSchema, timeSchema as time, parseBoundary } from '../input/primitives.ts';
+import type { WeatherSnapshot } from './types.ts';
 
 export const weatherKeys = ['forecast2h','temperature','rainfall','psi','pm25','humidity','forecast24h','uv','lightning','wbgt','windSpeed','outlook4d'] as const;
 const keySchema = z.enum(weatherKeys);

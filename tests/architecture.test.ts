@@ -139,3 +139,14 @@ test('schemas use the CSP-safe Zod entry point before constructing validators', 
   }
   assert.match(readFileSync(path.join(root, 'shared/input/zod.ts'), 'utf8'), /jitless:\s*true/);
 });
+
+
+test('server runtime relative imports use explicit file extensions for production Node ESM', () => {
+  for (const file of ['api', 'server', 'shared', 'config', 'security'].flatMap(dir => files(path.join(root, dir)))) {
+    for (const { specifier } of imports(file)) {
+      if (!specifier.startsWith('.')) continue;
+      assert.ok(/\.(?:ts|tsx|js|json)$/.test(specifier), `${path.relative(root, file)} imports extensionless ${specifier}`);
+      assert.ok(resolve(file, specifier), `${path.relative(root, file)} imports unresolved ${specifier}`);
+    }
+  }
+});

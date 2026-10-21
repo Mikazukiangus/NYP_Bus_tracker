@@ -1,5 +1,5 @@
-import type { UserLocation, PlaceReference } from './location';
-import { isSingaporeLocation } from './singapore';
+import type { UserLocation, PlaceReference } from './location.ts';
+import { isSingaporeLocation } from './singapore.ts';
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const nonnegative = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0;
 export function validPlaceRef(v: unknown): v is PlaceReference {

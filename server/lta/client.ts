@@ -1,6 +1,6 @@
 import type { AppConfig } from '../../config/schema.ts';
-import { pageSchema } from './schemas';
-import { parseBoundary } from '../../shared/input/primitives';
+import { pageSchema } from './schemas.ts';
+import { parseBoundary } from '../../shared/input/primitives.ts';
 
 const PAGE_SIZE = 500;
 

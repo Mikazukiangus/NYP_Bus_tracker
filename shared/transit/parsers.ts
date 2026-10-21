@@ -1,8 +1,8 @@
-import type { BusRoute, BusStop, RouteDirection, NormalizedBusRoute } from './routes';
-import type { NetworkFile } from './network';
-import type { RouteShape } from './shapes';
-import { annotateStopCalls } from './stopCalls';
-import { record, stopCode, serviceNo, finite, timestamp, coordinate, direction, validArtifact } from './validation';
+import type { BusRoute, BusStop, RouteDirection, NormalizedBusRoute } from './routes.ts';
+import type { NetworkFile } from './network.ts';
+import type { RouteShape } from './shapes.ts';
+import { annotateStopCalls } from './stopCalls.ts';
+import { record, stopCode, serviceNo, finite, timestamp, coordinate, direction, validArtifact } from './validation.ts';
 
 export function parseRouteIndex(raw: unknown): string[] | null {
   if (!record(raw) || !validArtifact(raw) || !Array.isArray(raw.services) || !raw.services.length || !raw.services.every(serviceNo)) return null;

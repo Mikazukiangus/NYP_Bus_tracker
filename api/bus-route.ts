@@ -4,7 +4,7 @@ import { cdnCache } from '../config/schema.ts';
 import { logger } from '../security/logger.ts';
 import { createDatasetStore } from '../server/lta/datasets.ts';
 import { buildRoute } from '../server/lta/buildRoute.ts';
-import { validateReadRequest, routeQuerySchema } from '../server/http/request';
+import { validateReadRequest, routeQuerySchema } from '../server/http/request.ts';
 
 // One store per warm function instance; CLI callers own a separate store.
 const { getDatasets } = createDatasetStore(config.lta);

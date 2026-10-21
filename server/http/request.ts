@@ -1,5 +1,5 @@
-import { z } from '../../shared/input/zod';
-import { serviceNoSchema, stopCodeSchema } from '../../shared/input/primitives';
+import { z } from '../../shared/input/zod.ts';
+import { serviceNoSchema, stopCodeSchema } from '../../shared/input/primitives.ts';
 
 const optionalService = z.union([serviceNoSchema, z.literal('')]).optional().transform(value => value || undefined);
 export const arrivalQuerySchema = z.strictObject({ BusStopCode: stopCodeSchema, ServiceNo: optionalService });

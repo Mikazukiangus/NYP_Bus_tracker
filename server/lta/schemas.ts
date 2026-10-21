@@ -1,5 +1,5 @@
-import { z } from '../../shared/input/zod';
-import { nameSchema, textSchema, stopCodeSchema, serviceNoSchema, latitudeSchema, longitudeSchema, numberSchema, parseBoundary } from '../../shared/input/primitives';
+import { z } from '../../shared/input/zod.ts';
+import { nameSchema, textSchema, stopCodeSchema, serviceNoSchema, latitudeSchema, longitudeSchema, numberSchema, parseBoundary } from '../../shared/input/primitives.ts';
 
 export const pageSchema = z.object({ value: z.array(z.unknown()) });
 const times = z.string().regex(/^(?:-|(?:[01]\d|2[0-3])[0-5]\d|2400)$/).optional();

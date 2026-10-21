@@ -1,5 +1,5 @@
-import { z } from '../shared/input/zod';
-import { latitudeSchema, longitudeSchema, parseBoundary } from '../shared/input/primitives';
+import { z } from '../shared/input/zod.ts';
+import { latitudeSchema, longitudeSchema, parseBoundary } from '../shared/input/primitives.ts';
 const id = z.number().int().positive().safe();
 const schema = z.object({ elements: z.array(z.discriminatedUnion('type', [
   z.object({ type: z.literal('way'), id, geometry: z.array(z.object({ lat: latitudeSchema, lon: longitudeSchema })).optional() }),
