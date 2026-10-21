@@ -16,7 +16,7 @@ function send(res: Response | any, status: number, body: unknown, cacheControl?:
   return body;
 }
 export default async function handler(req: Request | any, res: Response | any) {
-  const query = validateReadRequest(req, res, arrivalQuerySchema);
+  const query = validateReadRequest(req, res, arrivalQuerySchema, config.security);
   if (!query) return;
   const result = await service.arrivals(query.BusStopCode, query.ServiceNo);
   const cacheControl = result.kind === 'live' ? cdnCache(config.lta.cache.arrivalsSeconds, config.lta.cache.arrivalsStaleSeconds) : undefined;

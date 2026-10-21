@@ -28,7 +28,7 @@ async function probe(url: string, headers: Record<string, string>, valid: (body:
 
 export function createHealthHandler(config: AppConfig) {
   return async function handler(req: Request | any, res: Response | any) {
-    if (!validateReadRequest(req, res, emptyQuerySchema)) return;
+    if (!validateReadRequest(req, res, emptyQuerySchema, config.security)) return;
     const ltaEndpoint = `${config.lta.baseUrl}/v3/BusArrival`;
     const neaEndpoint = `${config.public.urls.neaBase}/two-hr-forecast`;
     const ltaKey = config.lta.accountKey;

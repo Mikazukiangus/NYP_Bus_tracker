@@ -42,6 +42,10 @@ setSecureCookie(res, 'session', '', 0);
 
 Regression checks reject direct application cookie setters and raw Set-Cookie writes outside the helper. Platform-owned authentication cookies and third-party cookies are outside the app's cookie policy. The helper does not replace authentication or CSRF design if those features are added later.
 
+## CSRF scope
+
+The current app has no cookie-authenticated routes or server user-data writes. Its public APIs accept only body-free GET/HEAD requests. The cookie helper is not a session/authentication or CSRF middleware: HttpOnly does not prevent automatic cookie sending, and SameSite=Lax alone is not the protection plan for future authenticated mutations. Before adding such routes, integrate session-bound token checks and exact-origin verification before business logic, including login/logout protection. See the [CSRF route check and future integration requirements](csrf-protection.md).
+
 ## Mixed-content checks and findings
 
 Run `npm run security:https` to flag literal `http://` and `ws://` references in browser source, shared source, index HTML and browser-readable public assets. The production build runs this check before generating routes. Output contains only file/line/scheme information; URLs, queries and credentials are not printed. The tests also run the source check and verify that insecure examples are detected.

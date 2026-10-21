@@ -2,6 +2,8 @@
 
 `GET /api/bus-arrival?BusStopCode=55329` returns the services at a stop. Optional `ServiceNo=72` requests one service. This document describes the local API contract, including the validation added on 20 October 2026; it does not indicate a new deployment.
 
+API reads also apply the [exact-origin CORS policy](../cors.md): approved frontend origins can read responses, untrusted Origin-bearing requests receive 403, and approved read preflights return an empty 204 without provider work. Cookie-authenticated cross-origin sharing is disabled.
+
 The example below is illustrative, not a captured live response:
 
 ```json

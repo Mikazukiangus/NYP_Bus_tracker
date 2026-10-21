@@ -22,7 +22,7 @@ function send(res: Response | any, status: number, body: unknown, cacheControl?:
 }
 
 export default async function handler(req: Request | any, res: Response | any) {
-  const query = validateReadRequest(req, res, routeQuerySchema);
+  const query = validateReadRequest(req, res, routeQuerySchema, config.security);
   if (!query) return;
   const serviceNo = query.ServiceNo;
 

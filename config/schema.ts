@@ -22,8 +22,17 @@ export const configSchema = {
   security: {
     appOrigin: field('APP_ORIGIN', 'https://nypbus-tracker.vercel.app', 'Public HTTPS origin for standalone-server redirects; no path, query or credentials. Vercel redirects HTTP at its edge.', (raw) => {
       const parsed = new URL(parseUrl(raw));
-      if (parsed.protocol !== 'https:' || parsed.pathname !== '/') throw new Error('must be an HTTPS origin without a path');
+      if (parsed.protocol !== 'https:' || parsed.pathname !== '/' || /[*?#@]/.test(raw)) throw new Error('must be an HTTPS origin without a path');
       return parsed.origin;
+    }),
+    corsAllowedOrigins: field('CORS_ALLOWED_ORIGINS', [] as readonly string[], 'SERVER ONLY. Additional frontend origins allowed to read APIs, comma-separated; APP_ORIGIN is always allowed. Blank allows only APP_ORIGIN. No wildcards, paths, credentials, queries or fragments; HTTP loopback only in development.', (raw) => {
+      const entries = raw.split(',').map(value => value.trim());
+      if (entries.length > 20 || entries.some(value => !value || /[\s*]/.test(value))) throw new Error('must contain 1–20 exact HTTP(S) origins');
+      return [...new Set(entries.map(value => {
+        const parsed = new URL(parseUrl(value));
+        if (parsed.pathname !== '/' || /[?#@]/.test(value)) throw new Error('must contain origins without paths, credentials, query or fragment');
+        return parsed.origin;
+      }))];
     }),
     trustedProxyCidrs: field('TRUST_PROXY_CIDRS', ['loopback'] as readonly string[], 'Standalone server: comma-separated trusted proxy IPs/CIDRs, loopback, or none. Only trust proxies that strip/overwrite forwarded headers.', (raw) => {
       if (raw === 'none') return [];
@@ -105,7 +114,7 @@ export function createConfig(env: Environment = {}, options: { requireHttps?: bo
   const result = resolve(configSchema, env);
   if (options.requireHttps || result.server.nodeEnv === 'production' || result.server.vercel) {
     assertHttpsPublicUrls(result.public);
-    requireHttpsEndpoints({ LTA_API_BASE_URL: result.lta.baseUrl, OVERPASS_URLS: result.shapes.instances });
+    requireHttpsEndpoints({ CORS_ALLOWED_ORIGINS: result.security.corsAllowedOrigins, LTA_API_BASE_URL: result.lta.baseUrl, OVERPASS_URLS: result.shapes.instances });
   }
   if (result.public.polling.weatherRetryMs <= result.weather.rateWindowMs) {
     throw new ConfigError(['VITE_WEATHER_RETRY_MS must exceed NEA_RATE_WINDOW_MS']);

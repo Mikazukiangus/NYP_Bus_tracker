@@ -18,9 +18,13 @@ Route and shape loaders now share pending requests and a bounded success cache, 
 
 The [HTTPS and cookie policy](docs/https-security.md) covers production redirects, HSTS/CSP, trusted proxies, secure cookie defaults and mixed-content findings. Run `npm run security:https` to flag insecure browser resource URLs; production builds run it automatically. HTTP loopback endpoints are permitted only for development.
 
-The [input-validation guide](docs/input-validation.md) lists HTTP, provider, artifact, storage and GPS boundaries. Public APIs accept body-free GET/HEAD requests and reject malformed input before service work. Runtime schemas use the CSP-safe validator entry point; existing successful formats and saved-record migrations remain supported.
+The [input-validation guide](docs/input-validation.md) lists HTTP, provider, artifact, storage and GPS boundaries. Public API reads accept body-free GET/HEAD requests and reject malformed input before service work; approved CORS preflights are handled separately without service calls. Runtime schemas use the CSP-safe validator entry point; existing successful formats and saved-record migrations remain supported.
 
 The [XSS audit and hardening guide](docs/xss-audit.md) records the DOM-based map popups/markers, scoped stop buttons, declarative bus SVG, encoded attribution and payload-test results.
+
+The [CSRF route check](docs/csrf-protection.md) records that the current APIs are public reads with no cookie authentication, the form/method regression checks, and protection requirements before adding session-authenticated writes.
+
+The [API CORS policy](docs/cors.md) allows the exact `APP_ORIGIN` plus validated `CORS_ALLOWED_ORIGINS`, handles read-only preflights and keeps credentialed cross-origin sharing disabled. No wildcard or automatic preview-host trust is enabled.
 
 ## Setup
 

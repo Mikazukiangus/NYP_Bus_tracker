@@ -9,7 +9,7 @@ import { validateReadRequest, emptyQuerySchema } from '../server/http/request.ts
 const weatherService = createWeatherService(config.weather, config.public.urls.neaBase, { logger });
 
 export default async function handler(req: Request | any, res: Response | any) {
-  if (!validateReadRequest(req, res, emptyQuerySchema)) return;
+  if (!validateReadRequest(req, res, emptyQuerySchema, config.security)) return;
   const body = await weatherService.snapshot();
   const complete = body.missing.length === 0 && body.stale.length === 0;
   // Incomplete snapshots expire quickly so the client's follow-up request (after the rate-limit window) fills the gaps

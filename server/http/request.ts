@@ -1,3 +1,5 @@
+import { config } from '../../config/server.ts';
+import { prepareCors, finishPreflight, type CorsPolicy } from './cors.ts';
 import { z } from '../../shared/input/zod.ts';
 import { serviceNoSchema, stopCodeSchema } from '../../shared/input/primitives.ts';
 
@@ -8,7 +10,7 @@ export const emptyQuerySchema = z.strictObject({});
 const aliases: Record<string, string> = { BusStopCode: 'BusStopCode', busStopCode: 'BusStopCode', ServiceNo: 'ServiceNo', serviceNo: 'ServiceNo' };
 
 type RequestInput = { method?: unknown; url?: unknown; query?: unknown; body?: unknown; headers?: Record<string, unknown> };
-type ResponseOutput = { setHeader?: (key: string, value: string) => unknown; status?: (code: number) => any; json?: (body: unknown) => unknown; writeHead?: (status: number, headers: Record<string, string>) => unknown; end?: (body: string) => unknown };
+type ResponseOutput = { getHeader?: (key: string) => unknown; setHeader?: (key: string, value: string) => unknown; status?: (code: number) => any; json?: (body: unknown) => unknown; writeHead?: (status: number, headers: Record<string, string>) => unknown; end?: (body: string) => unknown };
 function reject(res: ResponseOutput, status: number, paths: string | string[]) {
   const body = { error: status === 405 ? 'Method not allowed.' : 'Invalid request.', issues: [...new Set(typeof paths === 'string' ? [paths] : paths)].slice(0, 8).map(path => ({ path, message: 'Invalid or unsupported input.' })) };
   res.setHeader?.('Cache-Control', 'no-store');
@@ -30,15 +32,21 @@ function canonicalQuery(entries: [string, unknown][]): Record<string, unknown> |
 }
 
 // Every public handler calls this before cache/provider/domain work. No Host-derived URL parsing.
-export function validateReadRequest<T>(req: RequestInput, res: ResponseOutput, schema: z.ZodType<T>): T | null {
-  if (req.method !== 'GET' && req.method !== 'HEAD') { reject(res, 405, 'method'); return null; }
+export function validateReadRequest<T>(req: RequestInput, res: ResponseOutput, schema: z.ZodType<T>, corsPolicy: CorsPolicy = config.security): T | null {
   if (req.headers !== undefined && (!req.headers || typeof req.headers !== 'object' || Array.isArray(req.headers))) { reject(res, 400, 'headers'); return null; }
   const headers: Record<string, unknown> = Object.create(null);
   for (const [key, value] of Object.entries(req.headers ?? {})) {
     const normalized = key.toLowerCase();
-    if ((normalized === 'content-length' || normalized === 'transfer-encoding') && Object.hasOwn(headers, normalized)) { reject(res, 400, 'body'); return null; }
+    const unique = ['content-length', 'transfer-encoding', 'origin', 'access-control-request-method', 'access-control-request-headers', 'access-control-request-private-network'];
+    if (unique.includes(normalized) && Object.hasOwn(headers, normalized)) {
+      const path = ['content-length', 'transfer-encoding'].includes(normalized) ? 'body' : normalized === 'origin' ? 'origin' : 'cors';
+      reject(res, 400, path); return null;
+    }
     headers[normalized] = value;
   }
+  const cors = prepareCors(req.method, headers, res, corsPolicy, (status, path) => reject(res, status, path));
+  if (!cors) return null;
+  if (!cors.preflight && req.method !== 'GET' && req.method !== 'HEAD') { reject(res, 405, 'method'); return null; }
   const length = headers['content-length'];
   const bodyPresent = req.body !== undefined && req.body !== null && req.body !== '' &&
     !(typeof req.body === 'object' && !Array.isArray(req.body) && Object.keys(req.body).length === 0);
@@ -46,6 +54,7 @@ export function validateReadRequest<T>(req: RequestInput, res: ResponseOutput, s
     reject(res, 400, 'body'); return null;
   }
   if (req.url !== undefined && (typeof req.url !== 'string' || req.url.length > 2048)) { reject(res, 400, 'query'); return null; }
+  if (cors.preflight) { finishPreflight(res); return null; }
   let raw: Record<string, unknown> | null;
   try { raw = canonicalQuery([...new URL((req.url as string | undefined) ?? '/', 'https://request.invalid').searchParams.entries()]); }
   catch { reject(res, 400, 'query'); return null; }
