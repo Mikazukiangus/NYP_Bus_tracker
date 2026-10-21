@@ -1,6 +1,6 @@
 # HTTPS and cookie policy
 
-Implemented locally on 21 October 2026. These changes require a new deployment; the live audit below describes the preceding `631e51f` release.
+Implemented and deployed on 21 October 2026 as security release `cb5e131`. The initial audit below describes the preceding `631e51f` release; the production-delivery section records verification of the new policy.
 
 ## Requests and response headers
 
@@ -54,7 +54,13 @@ The new production behavior was tested through an isolated HTTPS proxy using a t
 
 A separate real HTTPS provider fixture redirected a credentialed incident request to an HTTP trap: one HTTPS request was received, **zero plaintext requests** reached the trap, and the service safely returned unavailable. No real credential was used.
 
-All **157 tests**, TypeScript with unused-local checks, the default production Vite build and generated `.env.example` checks pass. An actual client build with an HTTP loopback override was rejected even under a custom build mode/development `NODE_ENV`. No commit, push, deployment or production setting was changed for this implementation; `COMMENTS.md` Turn 81 records delivery status.
+All **157 tests**, TypeScript with unused-local checks, the default production Vite build and generated `.env.example` checks pass. An actual client build with an HTTP loopback override was rejected even under a custom build mode/development `NODE_ENV`. Turn 81 initially completed the implementation locally; Turn 83 records its subsequent release.
+
+## Production delivery — 21 October 2026
+
+Security release `cb5e131` is pushed to GitHub `main`. Vercel production deployment `dpl_6JVMnDbUZiUgatjiCtpWaJtSwGVL` reached READY and the live domain serves that exact commit. Verified 308 HTTPS redirects retaining encoded queries, the configured HSTS/CSP on pages/assets/APIs and expected errors, and immutable asset caching. All five live APIs work, health is `ok`, arrival/artifact validators accept real data, and weather filled its initially missing datasets on follow-up.
+
+Live browser flows at 375 px and 1280 px pass arrivals, trip/map/tiles, favorites, location persistence/reload and map cleanup. Chrome audits and policy listeners report zero mixed-content issues, insecure resource requests, CSP violations, app cookies or page exceptions. No production cookie was introduced; the secure helper is available for future server cookies. No credentials/environment settings or preload enrollment changed. `COMMENTS.md` Turn 83 records complete delivery evidence.
 
 ## References
 
