@@ -28,7 +28,7 @@ test('configuration parses overrides once, normalizes bases and never exposes se
   const config = createConfig({
     PORT: ' 3107 ', DISABLE_HMR: 'true', VERCEL: '1',
     LTA_ACCOUNT_KEY: ' private-lta-sentinel ', DATA_GOV_SG_API_KEY: 'private-nea-sentinel',
-    LTA_API_BASE_URL: 'http://127.0.0.1:3108/lta/',
+    LTA_API_BASE_URL: 'https://lta.example.com/lta/',
     VITE_API_BASE_URL: 'https://api.example.com/backend/', VITE_ARRIVALS_REFRESH_SECONDS: '25',
     OVERPASS_URLS: 'https://example.com/first, https://example.com/second',
     VITE_SECRET: 'unknown-private-sentinel',
@@ -37,7 +37,7 @@ test('configuration parses overrides once, normalizes bases and never exposes se
   assert.equal(config.server.disableHmr, true);
   assert.equal(config.server.vercel, true);
   assert.equal(config.lta.accountKey, 'private-lta-sentinel');
-  assert.equal(config.lta.baseUrl, 'http://127.0.0.1:3108/lta');
+  assert.equal(config.lta.baseUrl, 'https://lta.example.com/lta');
   assert.equal(config.public.urls.apiBase, 'https://api.example.com/backend');
   assert.equal(config.public.polling.arrivalsSeconds, 25);
   assert.deepEqual(config.shapes.instances, ['https://example.com/first', 'https://example.com/second']);

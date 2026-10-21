@@ -145,6 +145,7 @@ async function fetchOverpass(): Promise<{ elements: (OverpassWay | OverpassRelat
       try {
         logger.info('build.shapes_query', { round, rounds: OVERPASS_ROUNDS, provider: new URL(url).hostname });
         const res = await fetch(url, {
+          redirect: 'error',
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': USER_AGENT },
           body: new URLSearchParams({ data: QUERY }).toString(),

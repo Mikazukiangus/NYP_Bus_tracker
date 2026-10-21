@@ -16,6 +16,7 @@ export function createWeatherService(settings: AppConfig['weather'], baseUrl: st
   const RATE_WINDOW_MS = settings.rateWindowMs;
   async function fetchDataset(path: string, apiKey?: string) {
     const res = await request(`${baseUrl}/${path}`, {
+      redirect: 'error',
       headers: { Accept: 'application/json', ...(apiKey ? { 'x-api-key': apiKey } : {}) },
       signal: AbortSignal.timeout(settings.timeoutMs),
     });

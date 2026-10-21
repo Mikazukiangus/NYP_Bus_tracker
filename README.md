@@ -16,6 +16,8 @@ The [data-model guide](docs/data-model.md) explains stop visits, absolute arriva
 
 Route and shape loaders now share pending requests and a bounded success cache, and load independent geometry in parallel. See the [N+1 review and implementation](docs/n-plus-one-review.md#implementation-follow-up--21-october-2026) for behavior, expiry and validation. `VITE_ROUTE_ASSETS_CACHE_SECONDS` defaults to 300; zero keeps pending sharing while disabling settled caching.
 
+The [HTTPS and cookie policy](docs/https-security.md) covers production redirects, HSTS/CSP, trusted proxies, secure cookie defaults and mixed-content findings. Run `npm run security:https` to flag insecure browser resource URLs; production builds run it automatically. HTTP loopback endpoints are permitted only for development.
+
 ## Setup
 
 You need Node.js 24 (what Vercel and the GitHub workflow use) and an LTA DataMall account key, free from https://datamall.lta.gov.sg/.

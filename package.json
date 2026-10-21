@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "tsx server.ts",
-    "build": "tsx scripts/build-bus-routes.ts && vite build",
+    "build": "tsx scripts/check-https.ts && tsx scripts/build-bus-routes.ts && vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
@@ -16,6 +16,7 @@
     "config:example": "tsx scripts/write-env-example.ts",
     "config:check": "tsx scripts/check-config.ts",
     "secrets:scan": "tsx scripts/scan-secrets.ts",
+    "security:https": "tsx scripts/check-https.ts",
     "profile:lookups": "tsx scripts/profile-lookups.ts"
   },
   "dependencies": {

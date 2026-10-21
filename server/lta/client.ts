@@ -7,6 +7,7 @@ export function createLtaClient(settings: AppConfig['lta'], request: typeof fetc
   async function fetchPage<T>(dataset: string, skip: number, accountKey: string, retryDelayMs = settings.retryDelayMs): Promise<T[]> {
     for (let attempt = 1; ; attempt++) {
       const res = await request(`${settings.baseUrl}/${dataset}?$skip=${skip}`, {
+        redirect: 'error', // Never forward provider credentials to a redirected origin/protocol.
         headers: { AccountKey: accountKey, Accept: 'application/json' },
         signal: AbortSignal.timeout(settings.pageTimeoutMs),
       }).catch((err: unknown) => (err instanceof Error ? err : new Error(String(err))));

@@ -5,8 +5,8 @@ import {defineConfig} from 'vite';
 import { readEnvironment } from './config/env.ts';
 import { createConfig } from './config/schema.ts';
 
-export default defineConfig(({ mode }) => {
-  const config = createConfig(readEnvironment(mode));
+export default defineConfig(({ mode, command }) => {
+  const config = createConfig(readEnvironment(mode), { requireHttps: command === 'build' });
   return {
     // Do not expose arbitrary VITE_* variables. Only this validated public branch reaches browser code.
     envPrefix: [],

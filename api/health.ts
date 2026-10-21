@@ -6,7 +6,7 @@ async function probe(url: string, headers: Record<string, string>, valid: (body:
   const startedAt = Date.now();
   let httpStatus: number | null = null;
   try {
-    const response = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
+    const response = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs), redirect: 'error' });
     httpStatus = response.status;
     if (!response.ok) throw new Error('upstream_http_error');
     if (!valid(await response.json())) throw new Error('invalid_response');

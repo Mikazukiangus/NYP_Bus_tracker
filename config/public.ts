@@ -1,5 +1,5 @@
 // The explicit browser allowlist; included as config.public in the full server config.
-import { url, optionalBase, ms, seconds, integer, resolve, type Schema, type Values, type Environment } from './validation.ts';
+import { url, optionalBase, ms, seconds, integer, resolve, requireHttpsEndpoints, type Schema, type Values, type Environment } from './validation.ts';
 
 export const publicSchema = {
   urls: {
@@ -34,5 +34,11 @@ export const publicSchema = {
 export type PublicConfig = Values<typeof publicSchema>;
 
 export function createPublicConfig(env: Environment = {}): PublicConfig {
-  return resolve(publicSchema, env);
+  const config = resolve(publicSchema, env);
+  if (env.NODE_ENV === 'production' || ['1', 'true'].includes(env.VERCEL ?? '')) assertHttpsPublicUrls(config);
+  return config;
+}
+
+export function assertHttpsPublicUrls(config: PublicConfig) {
+  requireHttpsEndpoints(Object.fromEntries(Object.entries(publicSchema.urls).map(([key, field]) => [field.env, config.urls[key as keyof PublicConfig['urls']]])));
 }

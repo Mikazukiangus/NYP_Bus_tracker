@@ -9,6 +9,7 @@ import weatherHandler from './api/weather.ts';
 import trafficIncidentsHandler from './api/traffic-incidents.ts';
 import { logger } from './security/logger.ts';
 import { asyncHandler, errorHandler } from './security/http-errors.ts';
+import { createTransportSecurity } from './security/transport.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,6 +17,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = config.server.port;
 
+app.set('trust proxy', config.security.trustedProxyCidrs);
+app.use(createTransportSecurity({ production: config.server.nodeEnv === 'production' || config.server.vercel, appOrigin: config.security.appOrigin }));
 app.use(express.json());
 
 // API Routes

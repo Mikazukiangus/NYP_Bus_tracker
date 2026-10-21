@@ -56,6 +56,13 @@ export class ConfigError extends Error {
   }
 }
 
+export function requireHttpsEndpoints(endpoints: Record<string, string | readonly string[]>): void {
+  const issues = Object.entries(endpoints).filter(([, value]) =>
+    (typeof value === 'string' ? [value] : value).some(url => url && new URL(url).protocol !== 'https:')
+  ).map(([key]) => `${key} must use HTTPS in production`);
+  if (issues.length) throw new ConfigError(issues);
+}
+
 export function deepFreeze<T>(value: T): T {
   if (value && typeof value === 'object') {
     for (const child of Object.values(value)) deepFreeze(child);

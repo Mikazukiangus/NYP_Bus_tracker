@@ -19,6 +19,7 @@ export function createIncidentService(settings: AppConfig['lta'], dependencies: 
     if (!settings.accountKey) return { kind: 'not_configured' };
     try {
       const response = await request(`${settings.baseUrl}/TrafficIncidents`, {
+        redirect: 'error',
         headers: { AccountKey: settings.accountKey, Accept: 'application/json' },
         signal: AbortSignal.timeout(settings.timeoutMs),
       });

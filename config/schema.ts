@@ -1,6 +1,7 @@
 // Single validated config object for server/build; public settings are an explicit allowlist.
-import { field, integer, boolean, text, url, ms, seconds, parseUrl, resolve, isField, ConfigError, type Schema, type Values, type Environment } from './validation.ts';
-import { publicSchema } from './public.ts';
+import { isIP } from 'node:net';
+import { field, integer, boolean, text, url, ms, seconds, parseUrl, resolve, isField, ConfigError, requireHttpsEndpoints, type Schema, type Values, type Environment } from './validation.ts';
+import { publicSchema, assertHttpsPublicUrls } from './public.ts';
 export { createPublicConfig, type PublicConfig } from './public.ts';
 export { ConfigError, type Environment } from './validation.ts';
 
@@ -17,6 +18,26 @@ export const configSchema = {
     }),
     disableHmr: boolean('DISABLE_HMR', false, 'Disable Vite hot reload and file watching.'),
     vercel: boolean('VERCEL', false, 'Platform metadata, automatically set to 1 by Vercel; leave unset locally.'),
+  },
+  security: {
+    appOrigin: field('APP_ORIGIN', 'https://nypbus-tracker.vercel.app', 'Public HTTPS origin for standalone-server redirects; no path, query or credentials. Vercel redirects HTTP at its edge.', (raw) => {
+      const parsed = new URL(parseUrl(raw));
+      if (parsed.protocol !== 'https:' || parsed.pathname !== '/') throw new Error('must be an HTTPS origin without a path');
+      return parsed.origin;
+    }),
+    trustedProxyCidrs: field('TRUST_PROXY_CIDRS', ['loopback'] as readonly string[], 'Standalone server: comma-separated trusted proxy IPs/CIDRs, loopback, or none. Only trust proxies that strip/overwrite forwarded headers.', (raw) => {
+      if (raw === 'none') return [];
+      const entries = raw.split(',').map(s => s.trim());
+      for (const entry of entries) {
+        if (entry === 'loopback') continue;
+        const [ip, mask, extra] = entry.split('/');
+        const version = isIP(ip);
+        if (!version || extra !== undefined || (mask !== undefined && (!/^\d+$/.test(mask) || Number(mask) < 1 || Number(mask) > (version === 4 ? 32 : 128)))) {
+          throw new Error('must contain explicit proxy IPs/CIDRs, loopback, or none');
+        }
+      }
+      return [...new Set(entries)];
+    }),
   },
   lta: {
     accountKey: text('LTA_ACCOUNT_KEY', '', 'SERVER SECRET. Required for live LTA data. Blank keeps the existing degraded/offline behaviour. Get a key at https://datamall.lta.gov.sg/.'),
@@ -80,8 +101,12 @@ export const configSchema = {
 
 export type AppConfig = Values<typeof configSchema>;
 
-export function createConfig(env: Environment = {}): AppConfig {
+export function createConfig(env: Environment = {}, options: { requireHttps?: boolean } = {}): AppConfig {
   const result = resolve(configSchema, env);
+  if (options.requireHttps || result.server.nodeEnv === 'production' || result.server.vercel) {
+    assertHttpsPublicUrls(result.public);
+    requireHttpsEndpoints({ LTA_API_BASE_URL: result.lta.baseUrl, OVERPASS_URLS: result.shapes.instances });
+  }
   if (result.public.polling.weatherRetryMs <= result.weather.rateWindowMs) {
     throw new ConfigError(['VITE_WEATHER_RETRY_MS must exceed NEA_RATE_WINDOW_MS']);
   }

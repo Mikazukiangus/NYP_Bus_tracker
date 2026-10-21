@@ -18,6 +18,7 @@ export function createArrivalService(settings: AppConfig['lta'], dependencies: D
         const query = new URLSearchParams({ BusStopCode: busStopCode });
         if (serviceNo) query.set('ServiceNo', serviceNo);
         const response = await request(`${settings.baseUrl}/v3/BusArrival?${query}`, {
+          redirect: 'error',
           signal: AbortSignal.timeout(settings.timeoutMs),
           headers: { AccountKey: settings.accountKey, Accept: 'application/json' },
         });
