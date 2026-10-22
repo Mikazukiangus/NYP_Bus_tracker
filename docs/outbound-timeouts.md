@@ -1,6 +1,6 @@
 # Outbound request timeouts
 
-Implemented locally on 22 October 2026; `COMMENTS.md` Turn 98 records checks and delivery status. Login lockout remains on hold.
+Released to production on 22 October 2026 at application commit `e785c65`; `COMMENTS.md` Turns 98–99 record implementation, validation and delivery status. Login lockout remains on hold.
 
 ## What changed
 
@@ -31,5 +31,7 @@ These are defaults; existing validated environment overrides continue to apply. 
 Regressions cover Request/plain-signal deadlines, explicit long budgets, invalid timeout values, cancellation, a real native response whose headers arrive but body stalls, image completion/error/timeout/unload cleanup, generated config defaults and the bounded CI hook. A source check scans direct fetch/request boundaries for signals and recognizes the shared guarded transport and adapter argument forwarding. It covers the current call syntax rather than arbitrary JavaScript aliases.
 
 The browser fixture uses the actual map hook and tile layer at 375 px and 1280 px, with a controlled local image server. It checks stalled tile/logo cancellation, successful recovery, local CSS, repeated mount/removal and absence of page errors or overflow. No production/provider request or deployment is needed for these controlled timeout cases.
+
+Production verification passed all APIs/health, 58 CORS checks and normal browser flows at 375 px and 1280 px, including OneMap tiles/logo, the locally served lazy stylesheet, saved/location state and repeated map cleanup. No unpkg request, page error, overflow, mixed content or CSP issue was observed. Weather initially returned a validated partial response and had no missing datasets on follow-up. The runtime log check returned existing Node DEP0169 deprecation warnings only; no external log drains are configured. These release checks complement the controlled local timeout fixtures rather than inducing provider stalls in production.
 
 References: [MDN timeout signals](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static), [MDN combining cancellation signals](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static), [Leaflet tile creation and lifecycle](https://leafletjs.com/reference.html#tilelayer-createtile).
