@@ -48,6 +48,10 @@ export const configSchema = {
       return [...new Set(entries)];
     }),
   },
+  outbound: {
+    timeoutMs: ms('OUTBOUND_TIMEOUT_MS', 30000, 'Server guarded fetch default total timeout, including response body; combines with caller cancellation.', 1000, 1500000),
+    connectTimeoutMs: ms('OUTBOUND_CONNECT_TIMEOUT_MS', 10000, 'Server guarded fetch connection timeout.', 1000, 120000),
+  },
   lta: {
     accountKey: text('LTA_ACCOUNT_KEY', '', 'SERVER SECRET. Required for live LTA data. Blank keeps the existing degraded/offline behaviour. Get a key at https://datamall.lta.gov.sg/.'),
     baseUrl: url('LTA_API_BASE_URL', 'https://datamall2.mytransport.sg/ltaodataservice', 'LTA API base; paths such as /v3/BusArrival are added by the app.'),

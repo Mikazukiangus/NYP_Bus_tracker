@@ -21,7 +21,7 @@ const response = await safeFetch(userUrl, {
 });
 ```
 
-`assertPublicUrl` checks syntax and literal addresses only. Calling it and then using ordinary `fetch` would lose the DNS protection. Use `safeFetch` for the actual connection. String, URL and native Request inputs are supported. URL-string requests without a signal get a 30-second timeout; existing provider signals remain in effect. New connections have a 10-second connection timeout.
+`assertPublicUrl` checks syntax and literal addresses only. Calling it and then using ordinary `fetch` would lose the DNS protection. Use `safeFetch` for the actual connection. String, URL and native Request inputs are supported. The later [timeout follow-up](outbound-timeouts.md) combines a configurable 30-second default deadline with caller/Request signals; an explicit finite `timeoutMs` supports longer operations such as Overpass. New connections have a configurable 10-second timeout. See Turn 98 for this follow-up's local delivery status.
 
 Do not copy incoming visitor headers, cookies, authorization or server provider keys into a fetch to an arbitrary user-selected public host. The current provider adapters construct their upstream headers explicitly. A guard against private addresses does not make arbitrary public destinations trustworthy or validate their response content. Keep the existing provider response schemas and apply size/content limits appropriate to any future download feature.
 

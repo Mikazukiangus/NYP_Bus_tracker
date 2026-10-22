@@ -25,6 +25,7 @@ export const publicSchema = {
     routeMs: ms('VITE_ROUTE_TIMEOUT_MS', 30000, 'PUBLIC. Cold /api/bus-route timeout.'),
     networkMs: ms('VITE_NETWORK_TIMEOUT_MS', 20000, 'PUBLIC. Bus network download timeout.'),
     externalMs: ms('VITE_EXTERNAL_TIMEOUT_MS', 8000, 'PUBLIC. OneMap and direct NEA fallback timeout.'),
+    mapImageMs: ms('VITE_MAP_IMAGE_TIMEOUT_MS', 15000, 'PUBLIC. OneMap tile and attribution logo image timeout.'),
     gpsMs: ms('VITE_GPS_TIMEOUT_MS', 8000, 'PUBLIC. Explicit GPS fix timeout.'),
     startupGpsMs: ms('VITE_STARTUP_GPS_TIMEOUT_MS', 5000, 'PUBLIC. Startup GPS fix timeout.'),
     alarmGpsMs: ms('VITE_ALARM_GPS_TIMEOUT_MS', 20000, 'PUBLIC. Get-off alarm GPS watch timeout.'),

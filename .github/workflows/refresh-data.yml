@@ -72,5 +72,5 @@ jobs:
             echo "::warning::VERCEL_DEPLOY_HOOK_URL secret not set; LTA route data was not refreshed"
             exit 0
           fi
-          curl -fsS -X POST "$DEPLOY_HOOK" > /dev/null
+          curl --connect-timeout 10 --max-time 30 -fsS -X POST "$DEPLOY_HOOK" > /dev/null
           echo "Vercel redeploy triggered"

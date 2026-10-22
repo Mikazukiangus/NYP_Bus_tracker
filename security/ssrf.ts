@@ -3,6 +3,8 @@ import type { LookupAddress } from 'node:dns';
 import { isIP, type LookupFunction } from 'node:net';
 import ipaddr from 'ipaddr.js';
 import { Agent } from 'undici';
+import { config } from '../config/server.ts';
+import type { AppConfig } from '../config/schema.ts';
 
 export class SsrfBlockedError extends Error {
   readonly code = 'SSRF_BLOCKED';
@@ -62,9 +64,10 @@ export function createGuardedLookup(resolve: AddressResolver = systemResolver): 
 
 // Resolver injection is for trusted in-process tests, never request/environment data.
 // No proxy/global dispatcher is used: an external proxy would resolve elsewhere.
-export function createSafeFetcher(resolve: AddressResolver = systemResolver) {
-  const dispatcher = new Agent({ connect: { lookup: createGuardedLookup(resolve), timeout: 10_000 }, allowH2: false });
-  const request: typeof fetch = async (input, init) => {
+export type SafeRequestInit = RequestInit & { timeoutMs?: number };
+export function createSafeFetcher(resolve: AddressResolver = systemResolver, settings: AppConfig['outbound'] = config.outbound) {
+  const dispatcher = new Agent({ connect: { lookup: createGuardedLookup(resolve), timeout: settings.connectTimeoutMs }, allowH2: false });
+  const request = async (input: Parameters<typeof fetch>[0], init?: SafeRequestInit): Promise<Response> => {
     let target: string | Request, headers: Headers;
     try {
       target = input instanceof Request ? new Request(input) : assertPublicUrl(input).href;
@@ -72,10 +75,16 @@ export function createSafeFetcher(resolve: AddressResolver = systemResolver) {
       headers = new Headers(init?.headers ?? (target instanceof Request ? target.headers : undefined));
       if (['host', 'proxy-authorization', 'connection', 'upgrade'].some(name => headers.has(name))) throw new SsrfBlockedError();
     } catch { throw new SsrfBlockedError(); }
-    const signal = init?.signal ?? (target instanceof Request ? target.signal : undefined);
+    const timeoutMs = init?.timeoutMs ?? settings.timeoutMs;
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 1500000) throw new Error('Invalid outbound timeout.');
+    const callerSignal = init?.signal ?? (target instanceof Request ? target.signal : undefined);
+    // Request.signal is always present, even when its caller supplied no deadline.
+    const deadline = AbortSignal.timeout(timeoutMs);
+    const signal = callerSignal ? AbortSignal.any([callerSignal, deadline]) : deadline;
     try {
       // Last-write-wins prevents even untyped callers replacing the dispatcher or redirect policy.
-      const options = { ...init, headers, signal: signal ?? AbortSignal.timeout(30_000), redirect: 'error' as const, dispatcher };
+      const { timeoutMs: _timeoutMs, ...requestInit } = init ?? {};
+      const options = { ...requestInit, headers, signal, redirect: 'error' as const, dispatcher };
       const response = await fetch(target, options);
       if (response.status >= 300 && response.status < 400) {
         await response.body?.cancel();
@@ -85,7 +94,7 @@ export function createSafeFetcher(resolve: AddressResolver = systemResolver) {
     } catch (error) {
       if (error instanceof SsrfBlockedError || error instanceof Error && error.cause instanceof SsrfBlockedError) throw new SsrfBlockedError();
       if (signal?.aborted || error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name)) {
-        throw new DOMException('Outbound request timed out or was cancelled.', error instanceof Error && error.name === 'TimeoutError' ? 'TimeoutError' : 'AbortError');
+        throw new DOMException('Outbound request timed out or was cancelled.', signal.reason?.name === 'TimeoutError' || error instanceof Error && error.name === 'TimeoutError' ? 'TimeoutError' : 'AbortError');
       }
       // Do not propagate native errors containing supplied URLs, DNS names, IPs or credentials.
       throw new Error('Outbound request failed.');

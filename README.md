@@ -28,6 +28,8 @@ The [API CORS policy](docs/cors.md) allows the exact `APP_ORIGIN` plus validated
 
 The [SSRF guard](docs/ssrf-protection.md) checks URL schemes and public IP ranges inside the socket DNS lookup, refuses redirects, and protects server provider requests and download scripts. Use its `safeFetch` for future server-side URL inputs.
 
+The [outbound timeout guide](docs/outbound-timeouts.md) lists request budgets and their settings, including guarded-fetch deadlines, map images, long Overpass requests and the bounded CI deploy hook.
+
 ## Setup
 
 You need Node.js 24 (what Vercel and the GitHub workflow use) and an LTA DataMall account key, free from https://datamall.lta.gov.sg/.

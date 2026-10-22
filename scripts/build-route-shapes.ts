@@ -147,6 +147,7 @@ async function fetchOverpass(): Promise<unknown> {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': USER_AGENT },
           body: new URLSearchParams({ data: QUERY }).toString(),
           signal: AbortSignal.timeout(Math.min(config.shapes.timeoutMs, remaining)),
+          timeoutMs: Math.min(config.shapes.timeoutMs, remaining),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         if (!res.headers.get('content-type')?.includes('json')) throw new Error('Invalid external data.');
