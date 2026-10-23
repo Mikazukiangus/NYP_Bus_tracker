@@ -14,6 +14,8 @@ Transient HTTP statuses are 408, 429, 500, 502, 503 and 504. Other statuses, inc
 
 Every helper call receives one existing cancellation/deadline signal covering all attempts, waits and subsequent body consumption. The deadline is not restarted on retry. Cancellation before/during backoff stops further attempts; an exhausted total timeout cannot retry. Failed response bodies are cancelled before a retry. A successful response is returned for the existing schema/parser checks: malformed JSON, HTML pretending to be an artifact, invalid schemas and partial success bodies are not replayed automatically. Body read failures after successful headers also do not enter this helper's retry loop.
 
+The subsequent local [circuit breaker implementation](circuit-breakers.md) wraps selected provider operations around retries and validation. Open calls make no network request; recovery probes disable retries (and serialize collection pagination). See COMMENTS.md Turn 103 for delivery status.
+
 ## Call-site decisions
 
 | Boundary | Behavior |

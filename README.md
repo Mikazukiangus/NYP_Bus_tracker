@@ -32,6 +32,8 @@ The [outbound timeout guide](docs/outbound-timeouts.md) lists request budgets an
 
 The [safe retry guide](docs/outbound-retries.md) explains bounded exponential backoff with jitter, Retry-After, cancellation and which provider/data reads can retry without multiplying API calls or replaying mutations.
 
+The [circuit breaker guide](docs/circuit-breakers.md) covers repeated LTA, NEA and OneMap failures: three failed operations in a minute pause calls for 30 seconds, then one recovery operation tests the dependency. State is local to each warm server/browser owner; existing fallbacks remain available.
+
 ## Setup
 
 You need Node.js 24 (what Vercel and the GitHub workflow use) and an LTA DataMall account key, free from https://datamall.lta.gov.sg/.

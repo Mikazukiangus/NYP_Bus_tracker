@@ -2,6 +2,7 @@ import type { AppConfig } from '../../config/schema.ts';
 import type { WeatherDatasetKey as DatasetKey, WeatherSnapshot } from '../../shared/weather/types.ts';
 import { weatherCatalog } from './catalog.ts';
 import { safeFetch } from '../../security/ssrf.ts';
+import { createCircuitBreaker, DependencyHttpError, readDependencyJson } from '../../shared/http/circuitBreaker.ts';
 interface WeatherDependencies {
   request?: typeof fetch;
   now?: () => number;
@@ -12,18 +13,18 @@ export function createWeatherService(settings: AppConfig['weather'], baseUrl: st
   const now = dependencies.now ?? Date.now;
   const logger = dependencies.logger ?? { warn: () => {} };
   const DATASETS = weatherCatalog(settings, now);
+  const circuits = new Map(DATASETS.map(d => [d.key, createCircuitBreaker(settings.circuit, now)]));
   const cache = new Map<DatasetKey, { at: number; value: unknown }>();
   const recentCalls: number[] = [];
   const RATE_WINDOW_MS = settings.rateWindowMs;
-  async function fetchDataset(path: string, apiKey?: string) {
+  async function fetchDataset(path: string, parse: (raw: unknown) => unknown, signal: AbortSignal, apiKey?: string) {
     const res = await request(`${baseUrl}/${path}`, {
       redirect: 'error',
       headers: { Accept: 'application/json', ...(apiKey ? { 'x-api-key': apiKey } : {}) },
-      signal: AbortSignal.timeout(settings.timeoutMs),
+      signal: signal,
     });
-    if (!res.ok) throw new Error(`${path} responded ${res.status}`);
-    if (!res.headers.get('content-type')?.includes('json')) throw new Error('Invalid external data.');
-    return await res.json(); // The dataset-specific schema checks the envelope before mapping.
+    if (!res.ok) { await res.body?.cancel().catch(() => {}); throw new DependencyHttpError(res.status); }
+    return readDependencyJson(res, parse);
   }
 
   async function snapshot(): Promise<WeatherSnapshot> {
@@ -35,7 +36,7 @@ export function createWeatherService(settings: AppConfig['weather'], baseUrl: st
 
     const due = DATASETS.filter((d) => {
       const hit = cache.get(d.key);
-      return !hit || startedAt - hit.at > d.ttlMs;
+      return (!hit || startedAt - hit.at > d.ttlMs) && circuits.get(d.key)!.canRequest();
     }).slice(0, Math.max(0, budget - recentCalls.length));
     recentCalls.push(...due.map(() => startedAt));
 
@@ -43,7 +44,9 @@ export function createWeatherService(settings: AppConfig['weather'], baseUrl: st
       due.map(async (d) => {
         try {
           const path = typeof d.path === 'function' ? d.path() : d.path;
-          cache.set(d.key, { at: now(), value: d.parse(await fetchDataset(path, apiKey)) });
+          const signal = AbortSignal.timeout(settings.timeoutMs);
+          const value = await circuits.get(d.key)!.run(() => fetchDataset(path, d.parse, signal, apiKey), signal);
+          cache.set(d.key, { at: now(), value });
         } catch (err) {
           logger.warn('nea.dataset_refresh_failed', { dataset: d.key, error: err });
         }

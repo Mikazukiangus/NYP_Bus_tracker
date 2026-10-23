@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { CircuitOpenError, InvalidDependencyResponseError } from '../shared/http/circuitBreaker.ts';
 
 export const REDACTED = '[REDACTED]';
 const sensitiveKey = (key: string) =>
@@ -7,6 +8,8 @@ const sensitiveKey = (key: string) =>
 // Errors deliberately expose no arbitrary message, stack, cause, request headers or response body.
 export function safeError(error: unknown): { kind: string } {
   if (error instanceof Error) {
+    if (error instanceof CircuitOpenError) return { kind: 'circuit_open' };
+    if (error instanceof InvalidDependencyResponseError) return { kind: 'invalid_response' };
     if (['TimeoutError', 'AbortError'].includes(error.name)) return { kind: 'timeout' };
     if (error instanceof SyntaxError) return { kind: 'invalid_response' };
     if (error instanceof TypeError) return { kind: 'network_or_type_error' };

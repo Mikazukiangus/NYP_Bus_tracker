@@ -3,6 +3,7 @@ import { isIP } from 'node:net';
 import { field, integer, boolean, text, url, ms, seconds, parseUrl, resolve, isField, ConfigError, requireHttpsEndpoints, type Schema, type Values, type Environment } from './validation.ts';
 import { publicSchema, assertHttpsPublicUrls } from './public.ts';
 import { DEFAULT_READ_RETRY_POLICY } from '../shared/http/readRetry.ts';
+import { circuitSchema } from './circuit.ts';
 export { createPublicConfig, type PublicConfig } from './public.ts';
 export { ConfigError, type Environment } from './validation.ts';
 
@@ -59,6 +60,7 @@ export const configSchema = {
     },
   },
   lta: {
+    circuit: circuitSchema('LTA_CIRCUIT', 'SERVER ONLY. Separate breakers for live arrivals, incidents and each dataset collection.'),
     accountKey: text('LTA_ACCOUNT_KEY', '', 'SERVER SECRET. Required for live LTA data. Blank keeps the existing degraded/offline behaviour. Get a key at https://datamall.lta.gov.sg/.'),
     baseUrl: url('LTA_API_BASE_URL', 'https://datamall2.mytransport.sg/ltaodataservice', 'LTA API base; paths such as /v3/BusArrival are added by the app.'),
     timeoutMs: ms('LTA_REQUEST_TIMEOUT_MS', 8000, 'BusArrival and TrafficIncidents request timeout.'),
@@ -86,6 +88,7 @@ export const configSchema = {
     timeoutMs: ms('HEALTH_TIMEOUT_MS', 5000, 'Timeout for each upstream health probe.'),
   },
   weather: {
+    circuit: circuitSchema('NEA_CIRCUIT', 'SERVER ONLY. Separate breaker per weather dataset; cached readings remain available.'),
     apiKey: text('DATA_GOV_SG_API_KEY', '', 'SERVER SECRET. Optional data.gov.sg API key. Blank uses keyless access.'),
     timeoutMs: ms('NEA_REQUEST_TIMEOUT_MS', 6000, 'Timeout for each NEA dataset request.'),
     rateWindowMs: ms('NEA_RATE_WINDOW_MS', 10500, 'Per-instance rate-limit window.', 10000, 60000),

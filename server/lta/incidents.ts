@@ -3,7 +3,8 @@ import type { TrafficIncident } from '../../shared/transit/incidents.ts';
 import { providerIncidentSchema } from '../../shared/transit/incidentValidation.ts';
 import { parseBoundary } from '../../shared/input/primitives.ts';
 import { safeFetch } from '../../security/ssrf.ts';
-import { fetchReadWithBackoff, type ReadRetryPolicy } from '../../shared/http/readRetry.ts';
+import { DEFAULT_READ_RETRY_POLICY, fetchReadWithBackoff, type ReadRetryPolicy } from '../../shared/http/readRetry.ts';
+import { createCircuitBreaker, CircuitOpenError, DependencyHttpError, readDependencyJson } from '../../shared/http/circuitBreaker.ts';
 interface LTAIncident { Type: string; Latitude: number; Longitude: number; Message: string }
 export function parseIncidents(rows: LTAIncident[]): TrafficIncident[] {
   return rows.filter(row => Number.isFinite(row.Latitude) && Number.isFinite(row.Longitude))
@@ -19,20 +20,23 @@ export function createIncidentService(settings: AppConfig['lta'], dependencies: 
   const request = dependencies.request ?? safeFetch;
   const now = dependencies.now ?? Date.now;
   const logger = dependencies.logger ?? { error() {} };
+  const circuit = createCircuitBreaker(settings.circuit, now);
   async function incidents(): Promise<IncidentResult> {
     if (!settings.accountKey) return { kind: 'not_configured' };
     try {
-      const response = await fetchReadWithBackoff(request, `${settings.baseUrl}/TrafficIncidents`, {
-        redirect: 'error',
-        headers: { AccountKey: settings.accountKey, Accept: 'application/json' },
-        signal: AbortSignal.timeout(settings.timeoutMs),
-      }, dependencies.retry);
-      if (!response.ok) throw new Error(`LTA TrafficIncidents responded ${response.status}`);
-      if (!response.headers.get('content-type')?.includes('json')) throw new Error('Invalid external data.');
-      const body = parseBoundary(providerIncidentSchema, await response.json());
+      const signal = AbortSignal.timeout(settings.timeoutMs);
+      const body = await circuit.run(async probe => {
+        const response = await fetchReadWithBackoff(request, `${settings.baseUrl}/TrafficIncidents`, {
+          redirect: 'error',
+          headers: { AccountKey: settings.accountKey, Accept: 'application/json' },
+          signal,
+        }, probe ? { ...(dependencies.retry ?? DEFAULT_READ_RETRY_POLICY), attempts: 1 } : dependencies.retry);
+        if (!response.ok) { await response.body?.cancel().catch(() => {}); throw new DependencyHttpError(response.status); }
+        return readDependencyJson(response, raw => parseBoundary(providerIncidentSchema, raw));
+      }, signal);
       return { kind: 'ok', body: { incidents: parseIncidents(body.value), fetchedAt: new Date(now()).toISOString(), source: 'LTA_DATAMALL' } };
     } catch (error) {
-      logger.error('lta.incidents_request_failed', { error });
+      if (!(error instanceof CircuitOpenError)) logger.error('lta.incidents_request_failed', { error });
       return { kind: 'unavailable' };
     }
   }

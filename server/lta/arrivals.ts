@@ -2,7 +2,8 @@ import type { AppConfig } from '../../config/schema.ts';
 import { parseArrivalResponse, type LTABusArrivalResponse } from '../../shared/transit/arrivals.ts';
 import { generateSimulatedLtaResponse } from './simulatedArrivals.ts';
 import { safeFetch } from '../../security/ssrf.ts';
-import { fetchReadWithBackoff, type ReadRetryPolicy } from '../../shared/http/readRetry.ts';
+import { DEFAULT_READ_RETRY_POLICY, fetchReadWithBackoff, type ReadRetryPolicy } from '../../shared/http/readRetry.ts';
+import { createCircuitBreaker, CircuitOpenError, DependencyHttpError, InvalidDependencyResponseError, readDependencyJson } from '../../shared/http/circuitBreaker.ts';
 interface Dependencies {
   request?: typeof fetch;
   now?: () => number;
@@ -14,29 +15,39 @@ export function createArrivalService(settings: AppConfig['lta'], dependencies: D
   const request = dependencies.request ?? safeFetch;
   const now = dependencies.now ?? Date.now;
   const logger = dependencies.logger ?? { warn() {}, error() {} };
+  const circuit = createCircuitBreaker(settings.circuit, now);
   async function arrivals(busStopCode: string, serviceNo?: string): Promise<ArrivalResult> {
     let invalidResponse = false;
     if (settings.accountKey) {
       try {
         const query = new URLSearchParams({ BusStopCode: busStopCode });
         if (serviceNo) query.set('ServiceNo', serviceNo);
-        const response = await fetchReadWithBackoff(request, `${settings.baseUrl}/v3/BusArrival?${query}`, {
-          redirect: 'error',
-          signal: AbortSignal.timeout(settings.timeoutMs),
-          headers: { AccountKey: settings.accountKey, Accept: 'application/json' },
-        }, dependencies.retry);
-        if (response.ok) {
-          const raw: unknown = response.headers.get('content-type')?.includes('json')
-            ? await response.json().catch(() => undefined) : undefined;
-          const parsed = parseArrivalResponse(raw, { expectedStopCode: busStopCode });
-          if (parsed.ok) return { kind: 'live', body: { ...parsed.value, source: 'LTA_DATAMALL_V3' } };
-          invalidResponse = true;
-          logger.warn('lta.arrivals_invalid_response', { issues: parsed.issues });
-        }
-        // Providers can echo credentials. Do not read/log their error bodies.
-        if (!response.ok) logger.warn('lta.arrivals_http_error', { status: response.status });
+        const signal = AbortSignal.timeout(settings.timeoutMs);
+        const body = await circuit.run(async probe => {
+          const response = await fetchReadWithBackoff(request, `${settings.baseUrl}/v3/BusArrival?${query}`, {
+            redirect: 'error',
+            signal,
+            headers: { AccountKey: settings.accountKey, Accept: 'application/json' },
+          }, probe ? { ...(dependencies.retry ?? DEFAULT_READ_RETRY_POLICY), attempts: 1 } : dependencies.retry);
+          if (!response.ok) {
+            logger.warn('lta.arrivals_http_error', { status: response.status });
+            await response.body?.cancel().catch(() => {});
+            throw new DependencyHttpError(response.status);
+          }
+          return readDependencyJson(response, raw => {
+            const parsed = parseArrivalResponse(raw, { expectedStopCode: busStopCode });
+            if (parsed.ok) return parsed.value;
+            invalidResponse = true;
+            logger.warn('lta.arrivals_invalid_response', { issues: parsed.issues });
+            throw new InvalidDependencyResponseError();
+          });
+        }, signal);
+        return { kind: 'live', body: { ...body, source: 'LTA_DATAMALL_V3' } };
       } catch (error) {
-        logger.error('lta.arrivals_request_failed', { error });
+        if (error instanceof InvalidDependencyResponseError) {
+          if (!invalidResponse) logger.warn('lta.arrivals_invalid_response', { issues: [] });
+          invalidResponse = true;
+        } else if (!(error instanceof CircuitOpenError) && !(error instanceof DependencyHttpError)) logger.error('lta.arrivals_request_failed', { error });
       }
     }
     const body = generateSimulatedLtaResponse(busStopCode, serviceNo, now(), settings.baseUrl);

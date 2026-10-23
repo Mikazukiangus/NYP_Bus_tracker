@@ -1,8 +1,10 @@
 // The explicit browser allowlist; included as config.public in the full server config.
 import { url, optionalBase, ms, seconds, integer, resolve, requireHttpsEndpoints, ConfigError, type Schema, type Values, type Environment } from './validation.ts';
 import { DEFAULT_READ_RETRY_POLICY } from '../shared/http/readRetry.ts';
+import { circuitSchema } from './circuit.ts';
 
 export const publicSchema = {
+  oneMapCircuit: circuitSchema('VITE_ONEMAP_CIRCUIT', 'PUBLIC. OneMap search circuit per browser client, shared across search text.'),
   retry: {
     attempts: integer('VITE_READ_ATTEMPTS', DEFAULT_READ_RETRY_POLICY.attempts, 1, 3, 'PUBLIC. Static data and OneMap search attempts including the first; API polling/direct NEA/images do not add nested retries.'),
     baseDelayMs: ms('VITE_RETRY_BASE_MS', DEFAULT_READ_RETRY_POLICY.baseDelayMs, 'PUBLIC. Initial exponential retry ceiling with equal jitter.', 0, 10000),

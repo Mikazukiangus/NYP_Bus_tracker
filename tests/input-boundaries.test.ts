@@ -11,6 +11,7 @@ import { validateReadRequest, arrivalQuerySchema, routeQuerySchema, emptyQuerySc
 import { createConfig } from '../config/schema';
 import { createDatasetStore } from '../server/lta/datasets';
 import { createLtaClient } from '../server/lta/client';
+import { InvalidDependencyResponseError } from '../shared/http/circuitBreaker';
 import { parseRouteRows, parseStopRows } from '../server/lta/schemas';
 import { createIncidentService } from '../server/lta/incidents';
 import { fetchTrafficIncidents } from '../src/features/incidents/client';
@@ -109,7 +110,12 @@ test('every public HTTP adapter owns the validation gate before domain/provider 
 test('invalid LTA page envelopes fail rather than looking like an empty final page', async () => {
   for (const raw of [null, {}, { value: null }, { value: {} }]) {
     const client = createLtaClient({ ...createConfig().lta, pageConcurrency: 1 }, async () => Response.json(raw));
-    await assert.rejects(client.fetchAll('BusStops', 'fixture'), /^Error: Invalid external data\.$/);
+    await assert.rejects(client.fetchAll('BusStops', 'fixture'), error => {
+      assert.ok(error instanceof InvalidDependencyResponseError);
+      assert.equal(error.message, 'Invalid external data.');
+      assert.equal(error.cause, undefined);
+      return true;
+    });
   }
   const client = createLtaClient(createConfig().lta, async () => new Response('{}'));
   await assert.rejects(client.fetchAll('BusStops', 'fixture'));

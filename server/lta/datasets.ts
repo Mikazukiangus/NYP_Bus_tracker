@@ -4,19 +4,16 @@ import type { Datasets, LTABusStop, LTABusRouteRow, LTABusServiceRow } from './t
 import { parseStopRows, parseRouteRows, parseServiceRows } from './schemas.ts';
 
 export function createDatasetStore(settings: AppConfig['lta'], request?: typeof fetch, now = Date.now) {
-  const { fetchAll } = createLtaClient(settings, request);
+  const { fetchAll } = createLtaClient(settings, request, now);
   let datasetsPromise: Promise<Datasets> | null = null;
   let datasetsLoadedAt = 0;
   async function loadDatasets(accountKey: string): Promise<Datasets> {
-    const [rawStops, rawRoutes, rawServices] = await Promise.all([
-      fetchAll<LTABusStop>('BusStops', accountKey),
-      fetchAll<LTABusRouteRow>('BusRoutes', accountKey),
-      fetchAll<LTABusServiceRow>('BusServices', accountKey),
+    const [stopRows, routeRows, serviceRows] = await Promise.all([
+      fetchAll<LTABusStop>('BusStops', accountKey, undefined, parseStopRows),
+      fetchAll<LTABusRouteRow>('BusRoutes', accountKey, undefined, parseRouteRows),
+      fetchAll<LTABusServiceRow>('BusServices', accountKey, undefined, parseServiceRows),
     ]);
-    // Validate all rows before creating indexes or joining provider datasets.
-    const stopRows = parseStopRows(rawStops);
-    const routeRows = parseRouteRows(rawRoutes);
-    const serviceRows = parseServiceRows(rawServices);
+    // Row validation is inside each collection's circuit, before recovery/indexing.
 
     const stops = new Map(stopRows.map((s) => [s.BusStopCode, s]));
 
