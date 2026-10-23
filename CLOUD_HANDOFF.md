@@ -17,9 +17,9 @@ Continue my project at https://github.com/Mikazukiangus/NYP_Bus_tracker. Set up 
 - Repository: https://github.com/Mikazukiangus/NYP_Bus_tracker
 - Production: https://nypbus-tracker.vercel.app/
 - Branch at handoff: `main`.
-- Latest verified application release: `63c82b3497b3e8feadbfe089149d7dc76e633afd` — provider circuit breakers and this cloud handoff; subsequent commits record release notes.
-- Application commit: `63c82b3497b3e8feadbfe089149d7dc76e633afd`; it includes the previously released retries and outbound request/map image deadlines.
-- Verified application deployment: `dpl_3ZNTssFxH2jUQUhBWC9MWpVfm95S`, READY with the exact application SHA and live domain assigned.
+- Latest verified application release: `929a145877c0c140da196f2048ad757680ca1185` — all six error-handling fixes, including the minimal public-health contract; subsequent commits record release notes.
+- Application commit: `929a145877c0c140da196f2048ad757680ca1185`; it includes the previously released circuit breakers, retries and outbound request/map image deadlines.
+- Verified application deployment: `dpl_212d1KWcewdR6699aFMjd4pPQ45b`, READY with the exact application SHA and live domain assigned.
 - Existing Vercel project: `nypbus-tracker`, team slug `carbon-bc04`; project ID `prj_hRkofLg97cZMW7uyG1cvDrDx4R7L`, team ID `team_ZEUyUqyAE43B7bGMi6Rdux14`. These IDs are identifiers, not credentials. New chat access must be established separately.
 - GitHub integration deploys pushes to `main`. Do not trigger a second manual deployment for the same push.
 - This handoff is committed and pushed; Turn 104 updates its circuit-breaker release baseline. A fresh clone of current main contains it. Read the latest COMMENTS.md delivery entries and recheck remote state rather than resetting to an earlier SHA.
@@ -68,7 +68,7 @@ Use `HOST`/`PORT` if the preview platform requires them. Keep development mode f
 
 ## Validation and known limitations
 
-Last release passed 249 tests, TypeScript including unused-local checks, HTTPS scan across 136 files, client build, working-tree/history Gitleaks scans, 58 live CORS checks and production browser flows at 375 px/1280 px. Real arrivals, trips, map tiles/logo/local CSS, saved buses, location persistence and map cleanup passed. The docs-only deployment then passed final API/asset/CORS smoke checks. These are historical results; rerun checks in the new runtime before claiming new verification.
+Last application release passed 262 tests, TypeScript including unused-local checks, HTTPS scan across 141 files, client build, working-tree/history Gitleaks scans, 58 live CORS checks and production browser flows at 375 px/1280 px. Real arrivals, trips, map tiles/logo/local CSS, saved buses, location persistence and map cleanup passed. Consult COMMENTS.md for the latest documentation-only deployment and its smoke results. These are historical results; rerun checks in the new runtime before claiming new verification.
 
 The production build generated 601 services, 5,209 stops and 797 directions. Dataset counts can change. NEA weather can return validated partial data: it had seven missing datasets initially and no missing datasets on follow-up; later cold instances can still return partial data. Runtime error-level records checked were existing Node DEP0169 `url.parse()` deprecation warnings; no other failures were returned in that window. No external log drains are configured, and continuous monitoring has not been established.
 
@@ -76,7 +76,7 @@ Temporary browser harnesses, screenshots and controlled timeout fixtures under t
 
 Read README, SECURITY.md, MODULARITY_REVIEW.md and the guides in `docs/`, especially `circuit-breakers.md`, `outbound-retries.md`, `outbound-timeouts.md`, `ssrf-protection.md`, `cors.md`, `input-validation.md`, `xss-audit.md`, `https-security.md`, `data-model.md` and `api/bus-arrival.md`.
 
-First action: verify checkout/runtime/secrets availability, install locked dependencies, run the checks above, start the app through the cloud preview and report actual readiness or concrete blockers. There is no unfinished application fix from the circuit-breaker release. Do not deploy, migrate production, add login or invent a database as part of environment setup.
+First action: verify checkout/runtime/secrets availability, install locked dependencies, run the checks above, start the app through the cloud preview and report actual readiness or concrete blockers. The six Turn 105 error-handling findings were fixed in Turn 107 and delivered in Turn 108; consult the latest history for subsequent work. Do not deploy, migrate production, add login or invent a database as part of environment setup.
 
 ## Retry follow-up after the release baseline — 23 October 2026
 
@@ -88,4 +88,4 @@ Turn 103 implemented circuit breakers; Turn 104 committed, pushed and verified a
 
 ## Error handling follow-up — 23 October 2026
 
-Turn 105 reviewed six error-handling gaps; Turn 106 published the review notes only. Turn 107 implemented the fixes; Turn 108 is releasing them: visible weather/incident freshness and failure state, explicit session-only persistence, alarm capability outcomes, safe numeric provider status in logs, and a minimal public health response. Read docs/error-handling.md for the changed contracts and COMMENTS.md for actual verification/commit/deployment status. The hook regressions are portable Node/DOM tests; temporary Chrome fixtures remain local to this Mac. No login, database, monitoring integration or new environment setting was added. Consult Turn 108 for exact application commit/deployment verification; older baseline details above remain historical until that delivery is recorded.
+Turn 105 reviewed six error-handling gaps; Turn 106 published the review notes only. Turn 107 implemented the fixes; Turn 108 committed, pushed and verified application 929a145 in production: visible weather/incident freshness and failure state, explicit session-only persistence, alarm capability outcomes, safe numeric provider status in logs, and a minimal public health response. Read docs/error-handling.md for the changed contracts and COMMENTS.md for actual verification/commit/deployment status. The hook regressions are portable Node/DOM tests; temporary Chrome fixtures remain local to this Mac. No login, database, monitoring integration or new environment setting was added. Consult Turn 108 for exact application/deployment verification and later documentation commits. Public health now exposes only status/service/timestamp; authorized server logs carry safe failed-probe details.

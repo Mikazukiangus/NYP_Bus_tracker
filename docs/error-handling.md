@@ -28,3 +28,7 @@ A degraded probe records a restricted server log such as:
 Use existing authorized Vercel runtime-log access or local server output to diagnose the provider/status. Never add a query flag to reveal environment settings, print raw provider errors or paste credentials into logs. This work does not provision log drains, authentication or monitoring.
 
 Regression coverage lives in `tests/error-handling.test.ts`, `tests/error-hooks.test.ts` and `tests/api-health.test.ts`, alongside existing security/transport tests. The hook tests use an isolated DOM and controlled providers/storage/device capabilities; they do not depend on a live provider or prove physical vibration/audio output. Production deployment and device verification are separate delivery steps.
+
+## Verified production delivery
+
+Application commit `929a145877c0c140da196f2048ad757680ca1185` is pushed to GitHub main. Vercel deployment `dpl_212d1KWcewdR6699aFMjd4pPQ45b` reached READY at that exact SHA with the production domain assigned. All 262 tests and release checks passed. Live checks accepted the minimal health JSON, real arrival/incident/weather responses and generated route/network data; 58 CORS checks and normal phone/desktop trip/map/save/location flows passed without page errors, overflow, CSP/mixed-content issues or app cookies. Failure/capability tests remain controlled local fixtures and committed regressions; no provider outage or real device-permission failure was induced in production. See COMMENTS.md Turn 108 for scope, partial-weather behavior and observed log warnings.
