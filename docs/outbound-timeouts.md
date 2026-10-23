@@ -14,7 +14,7 @@ Leaflet CSS is bundled from the installed package with the lazy map code. The ex
 
 The monthly refresh workflow's deploy-hook POST now has a 10-second connection limit and 30-second total limit. No automatic POST retry was added, avoiding duplicate deploy triggers. Its existing 30-minute job limit remains.
 
-The subsequent local [safe retry follow-up](outbound-retries.md) keeps deadlines across retries and backoff; LTA pages now share one total page budget instead of restarting it per attempt. See Turn 101 for local delivery status.
+The subsequent released [safe retry follow-up](outbound-retries.md) keeps deadlines across retries and backoff; LTA pages now share one total page budget instead of restarting it per attempt. See Turns 101–102 for implementation and verified release status.
 
 ## Existing budgets retained
 

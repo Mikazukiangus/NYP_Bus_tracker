@@ -1,6 +1,6 @@
 # Safe outbound retries
 
-Implemented locally on 23 October 2026. `COMMENTS.md` Turn 101 records checks and delivery status. This work is not yet committed or deployed.
+Released to production on 23 October 2026 at application commit `b050a89`. `COMMENTS.md` Turns 101–102 record implementation, checks and verified delivery.
 
 ## Policy
 
@@ -48,5 +48,7 @@ Timeout overrides and other provider budgets remain documented in [outbound-time
 Regressions exercise jitter/caps, selected status codes, socket classification and safe errors, seconds/date Retry-After, excessive hints, mutation/body refusal, attempt exhaustion, cancellation, total deadlines during attempts/waits, response-body cleanup, invalid response handling, LTA recovery and Overpass POST semantics/cooldowns/deadlines/permanent failures. Existing NEA budget and cache/coalescing regressions remain in the full suite.
 
 A controlled Chrome fixture bundles the actual browser adapters at 375 px and 1280 px against local HTTP endpoints. A single 503 recovers for OneMap/network/routes/shapes with exactly two wire requests; overlapping network consumers share that retry sequence. Cancelled searches and a 120-second Retry-After make one request, and arrival API failures do not gain a browser retry. This verifies adapter behavior, not a new live deployment or a complete end-to-end production UI run.
+
+Production release checks passed all APIs/health, 58 CORS checks and normal browser flows at 375 px and 1280 px, with the exact application assets and generated route/network data. Weather initially returned partial data and had no missing datasets on follow-up. The runtime error/fatal log query returned thirteen existing Node DEP0169 deprecation warnings only. No deliberate upstream failure or side-effect replay was induced in production.
 
 References: [HTTP idempotency and automatic retries](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2), [Retry-After](https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3), [Fetch cancellation and body reading](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch), [Overpass interpreter read behavior](https://dev.overpass-api.de/overpass-doc/en/more_info/components.html).
