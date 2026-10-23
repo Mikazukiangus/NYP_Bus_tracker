@@ -115,20 +115,20 @@ test('failed route indexes retry and successful indexes share and expire', async
 });
 
 test('malformed, HTML, HTTP and network shape failures never poison success cache', async () => {
-  for (const fail of [
-    () => Response.json({ ...shapes(), serviceNo: '45' }),
-    () => Response.json({ shapes: [null] }),
-    () => new Response('<html>', { headers: { 'Content-Type': 'text/html' } }),
-    () => new Response('{', { headers: { 'Content-Type': 'application/json' } }),
-    () => new Response('', { status: 503 }),
-    () => { throw new Error('fixture connection failure'); },
-  ]) {
+  for (const [fail, attempts] of [
+    [() => Response.json({ ...shapes(), serviceNo: '45' }), 1],
+    [() => Response.json({ shapes: [null] }), 1],
+    [() => new Response('<html>', { headers: { 'Content-Type': 'text/html' } }), 1],
+    [() => new Response('{', { headers: { 'Content-Type': 'application/json' } }), 1],
+    [() => new Response('', { status: 503 }), 2],
+    [() => { throw new Error('fixture connection failure'); }, 1],
+  ] as const) {
     let calls = 0;
-    const repo = createShapeRepository({ freshnessMs: 1000 }, { request: async () => ++calls === 1 ? fail() : Response.json(shapes()) });
+    const repo = createShapeRepository({ freshnessMs: 1000 }, { request: async () => ++calls <= attempts ? fail() : Response.json(shapes()) });
     assert.deepEqual(await repo.fetchRouteShapes('72'), []);
     assert.equal((await repo.fetchRouteShapes('72')).length, 1);
     assert.equal((await repo.fetchRouteShapes('72')).length, 1);
-    assert.equal(calls, 2);
+    assert.equal(calls, attempts + 1);
   }
 });
 
@@ -146,7 +146,7 @@ test('validated empty shapes cache while expired failures allow immediate recove
   await repo.fetchRouteShapes('72');
   available = true;
   await repo.fetchRouteShapes('72');
-  assert.equal(calls, 3);
+  assert.equal(calls, 4);
 });
 
 test('asset expiry is fixed at completion and clock rollback invalidates settled values', async () => {

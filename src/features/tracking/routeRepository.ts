@@ -3,6 +3,7 @@ import { parseRoute, parseRouteIndex } from '../../../shared/transit/parsers';
 import type { BusRoute } from '../../types/bus';
 import { createAssetCache, type AssetCacheSettings } from './assetCache';
 import { serviceNoSchema } from '../../../shared/input/primitives';
+import { fetchReadWithBackoff } from '../../../shared/http/readRetry';
 
 export type BusRouteLookup =
   | { status: 'ok'; route: BusRoute }
@@ -17,7 +18,7 @@ export function createRouteRepository(settings: AssetCacheSettings, dependencies
   // SPA fallback serves HTML for missing JSON; never treat that as an artifact.
   async function fetchStaticJson(url: string): Promise<unknown> {
     try {
-      const res = await request(dataUrl(url), { signal: AbortSignal.timeout(config.timeouts.requestMs) });
+      const res = await fetchReadWithBackoff(request, dataUrl(url), { signal: AbortSignal.timeout(config.timeouts.requestMs) }, config.retry);
       if (!res.ok || !res.headers.get('content-type')?.includes('json')) return null;
       return await res.json();
     } catch { return null; }

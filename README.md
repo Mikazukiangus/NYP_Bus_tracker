@@ -30,6 +30,8 @@ The [SSRF guard](docs/ssrf-protection.md) checks URL schemes and public IP range
 
 The [outbound timeout guide](docs/outbound-timeouts.md) lists request budgets and their settings, including guarded-fetch deadlines, map images, long Overpass requests and the bounded CI deploy hook.
 
+The [safe retry guide](docs/outbound-retries.md) explains bounded exponential backoff with jitter, Retry-After, cancellation and which provider/data reads can retry without multiplying API calls or replaying mutations.
+
 ## Setup
 
 You need Node.js 24 (what Vercel and the GitHub workflow use) and an LTA DataMall account key, free from https://datamall.lta.gov.sg/.

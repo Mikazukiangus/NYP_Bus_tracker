@@ -81,7 +81,8 @@ test('map image timeout stops waiting once and cleans up success, error and remo
 
 test('outbound settings, map images and CI webhook retain bounded defaults', () => {
   const config=createConfig();
-  assert.deepEqual(config.outbound,{timeoutMs:30000,connectTimeoutMs:10000});
+  assert.equal(config.outbound.timeoutMs,30000);
+  assert.equal(config.outbound.connectTimeoutMs,10000);
   assert.equal(config.public.timeouts.mapImageMs,15000);
   assert.ok(config.shapes.timeoutMs>config.outbound.timeoutMs);
   for(const key of ['OUTBOUND_TIMEOUT_MS','OUTBOUND_CONNECT_TIMEOUT_MS','VITE_MAP_IMAGE_TIMEOUT_MS']) assert.throws(()=>createConfig({[key]:'0'}),new RegExp(key));
@@ -90,7 +91,7 @@ test('outbound settings, map images and CI webhook retain bounded defaults', () 
   assert.match(workflow,/curl --connect-timeout 10 --max-time 30 -fsS -X POST/);
   assert.ok(!readFileSync(path.join(root,'index.html'),'utf8').includes('unpkg.com'));
   assert.match(readFileSync(path.join(root,'src/features/map/useLeafletMap.ts'),'utf8'),/import 'leaflet\/dist\/leaflet.css'/);
-  assert.match(readFileSync(path.join(root,'scripts/build-route-shapes.ts'),'utf8'),/timeoutMs: Math.min\(config.shapes.timeoutMs, remaining\)/);
+  assert.match(readFileSync(path.join(root,'server/overpassClient.ts'),'utf8'),/timeoutMs: Math.min\(settings.timeoutMs, remaining\)/);
 });
 
 test('every direct HTTP fetch boundary supplies a signal or uses guarded fetch', () => {

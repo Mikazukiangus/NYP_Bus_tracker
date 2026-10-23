@@ -14,6 +14,8 @@ Leaflet CSS is bundled from the installed package with the lazy map code. The ex
 
 The monthly refresh workflow's deploy-hook POST now has a 10-second connection limit and 30-second total limit. No automatic POST retry was added, avoiding duplicate deploy triggers. Its existing 30-minute job limit remains.
 
+The subsequent local [safe retry follow-up](outbound-retries.md) keeps deadlines across retries and backoff; LTA pages now share one total page budget instead of restarting it per attempt. See Turn 101 for local delivery status.
+
 ## Existing budgets retained
 
 - Browser arrivals: 5 seconds (`src/features/arrivals/client.ts`).
@@ -21,7 +23,7 @@ The monthly refresh workflow's deploy-hook POST now has a 10-second connection l
 - Bus-network download: 20 seconds (`src/features/network/data/networkRepository.ts`).
 - Cold route API fallback: 30 seconds (`src/features/tracking/routeRepository.ts`).
 - OneMap search and direct NEA browser fallback: 8 seconds; search combines user cancellation with its timeout (`src/features/places/data/oneMapClient.ts`, `src/features/weather/client.ts`).
-- Server LTA arrivals/incidents: 8 seconds; dataset pages: 15 seconds per attempt; NEA datasets: 6 seconds; health probes: 5 seconds (`server/lta/`, `server/weather/service.ts`, `api/health.ts`).
+- Server LTA arrivals/incidents: 8 seconds; dataset pages: 15 seconds total per page including retries/backoff; NEA datasets: 6 seconds; health probes: 5 seconds (`server/lta/`, `server/weather/service.ts`, `api/health.ts`).
 - Overpass: 330 seconds per request within the existing total deadline (`scripts/build-route-shapes.ts`).
 
 These are defaults; existing validated environment overrides continue to apply. Retry/fallback pipelines may take longer than a single request. Browser navigation and loading the app's own scripts/styles use browser-managed loading, rather than an application fetch signal. GPS operations already have separate finite browser options; a location watch is intentionally ongoing until cleared. Wake-lock requests are browser capabilities rather than outbound HTTP calls.

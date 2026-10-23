@@ -8,15 +8,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from '../config/server.ts';
 import { logger } from '../security/logger.ts';
-import { safeFetch } from '../security/ssrf.ts';
+import { fetchOverpassQuery } from '../server/overpassClient.ts';
 import { parseOverpass } from '../server/overpassSchema';
 import { parseShapes } from '../shared/transit/parsers';
 
-const OVERPASS_INSTANCES = config.shapes.instances;
-const OVERPASS_ROUNDS = config.shapes.rounds;
-const OVERPASS_RETRY_PAUSE_MS = config.shapes.retryPauseMs;
-const OVERPASS_DEADLINE_MS = config.shapes.deadlineMs;
-const USER_AGENT = config.shapes.userAgent;
 // Singapore mainland bounding box (south, west, north, east); stops short of Johor Bahru
 const SG_BBOX = '1.15,103.6,1.475,104.1';
 const QUERY = `[out:json][timeout:${config.shapes.queryTimeoutSeconds}];relation["type"="route"]["route"="bus"](${SG_BBOX})->.routes;.routes out body;way(r.routes);out geom;`;
@@ -132,36 +127,7 @@ function simplify(points: LatLng[], tolerance: number): LatLng[] {
 }
 
 async function fetchOverpass(): Promise<unknown> {
-  // Public Overpass servers often return 504/500 when busy, so try every instance in up to
-  // OVERPASS_ROUNDS rounds with a growing pause between them, within OVERPASS_DEADLINE_MS overall
-  const deadline = Date.now() + OVERPASS_DEADLINE_MS;
-  for (let round = 1; round <= OVERPASS_ROUNDS; round++) {
-    for (const url of OVERPASS_INSTANCES) {
-      const remaining = deadline - Date.now();
-      if (remaining < 30_000) break;
-      try {
-        logger.info('build.shapes_query', { round, rounds: OVERPASS_ROUNDS, provider: new URL(url).hostname });
-        const res = await safeFetch(url, {
-          redirect: 'error',
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': USER_AGENT },
-          body: new URLSearchParams({ data: QUERY }).toString(),
-          signal: AbortSignal.timeout(Math.min(config.shapes.timeoutMs, remaining)),
-          timeoutMs: Math.min(config.shapes.timeoutMs, remaining),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        if (!res.headers.get('content-type')?.includes('json')) throw new Error('Invalid external data.');
-        return await res.json();
-      } catch (err) {
-        logger.warn('build.shapes_provider_failed', { error: err });
-      }
-    }
-    const pauseMs = OVERPASS_RETRY_PAUSE_MS * round;
-    if (round === OVERPASS_ROUNDS || Date.now() + pauseMs + 30_000 > deadline) break;
-    console.log(`All instances failed; retrying in ${pauseMs / 1000} s...`);
-    await new Promise((resolve) => setTimeout(resolve, pauseMs));
-  }
-  throw new Error('All Overpass instances failed after retries; try again later.');
+  return fetchOverpassQuery(config.shapes, QUERY, { logger });
 }
 
 async function main() {

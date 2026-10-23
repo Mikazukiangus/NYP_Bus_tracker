@@ -5,10 +5,18 @@ import ipaddr from 'ipaddr.js';
 import { Agent } from 'undici';
 import { config } from '../config/server.ts';
 import type { AppConfig } from '../config/schema.ts';
+import { RetryableNetworkError } from '../shared/http/readRetry.ts';
 
 export class SsrfBlockedError extends Error {
   readonly code = 'SSRF_BLOCKED';
   constructor() { super('Outbound destination is not permitted.'); this.name = 'SsrfBlockedError'; }
+}
+
+function transientSocketFailure(error: unknown, depth = 0): boolean {
+  if (!(error instanceof Error) || depth > 4) return false;
+  const code = (error as Error & { code?: string }).code;
+  return ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EPIPE', 'UND_ERR_SOCKET',
+    'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT'].includes(code ?? '') || transientSocketFailure(error.cause, depth + 1);
 }
 
 // Allow ordinary global unicast only; reject special-use, transition and mapped ranges.
@@ -65,7 +73,7 @@ export function createGuardedLookup(resolve: AddressResolver = systemResolver): 
 // Resolver injection is for trusted in-process tests, never request/environment data.
 // No proxy/global dispatcher is used: an external proxy would resolve elsewhere.
 export type SafeRequestInit = RequestInit & { timeoutMs?: number };
-export function createSafeFetcher(resolve: AddressResolver = systemResolver, settings: AppConfig['outbound'] = config.outbound) {
+export function createSafeFetcher(resolve: AddressResolver = systemResolver, settings: Pick<AppConfig['outbound'], 'timeoutMs' | 'connectTimeoutMs'> = config.outbound) {
   const dispatcher = new Agent({ connect: { lookup: createGuardedLookup(resolve), timeout: settings.connectTimeoutMs }, allowH2: false });
   const request = async (input: Parameters<typeof fetch>[0], init?: SafeRequestInit): Promise<Response> => {
     let target: string | Request, headers: Headers;
@@ -97,6 +105,7 @@ export function createSafeFetcher(resolve: AddressResolver = systemResolver, set
         throw new DOMException('Outbound request timed out or was cancelled.', signal.reason?.name === 'TimeoutError' || error instanceof Error && error.name === 'TimeoutError' ? 'TimeoutError' : 'AbortError');
       }
       // Do not propagate native errors containing supplied URLs, DNS names, IPs or credentials.
+      if (transientSocketFailure(error)) throw new RetryableNetworkError();
       throw new Error('Outbound request failed.');
     }
   };

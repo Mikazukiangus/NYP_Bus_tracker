@@ -3,6 +3,7 @@ import { parseShapes } from '../../../shared/transit/parsers';
 import type { RouteShape } from '../../../shared/transit/shapes';
 import { createAssetCache, type AssetCacheSettings } from './assetCache';
 import { serviceNoSchema } from '../../../shared/input/primitives';
+import { fetchReadWithBackoff } from '../../../shared/http/readRetry';
 
 type ShapeLookup = { status: 'ok'; shapes: RouteShape[] } | { status: 'unavailable' };
 
@@ -11,9 +12,9 @@ export function createShapeRepository(settings: AssetCacheSettings, dependencies
   const get = createAssetCache<ShapeLookup>(settings, result => result.status === 'ok', dependencies.now);
   async function load(serviceNo: string): Promise<ShapeLookup> {
     try {
-      const res = await request(dataUrl(`/route-shapes/${encodeURIComponent(serviceNo)}.json`), {
+      const res = await fetchReadWithBackoff(request, dataUrl(`/route-shapes/${encodeURIComponent(serviceNo)}.json`), {
         signal: AbortSignal.timeout(config.timeouts.requestMs),
-      });
+      }, config.retry);
       if (!res.ok || !res.headers.get('content-type')?.includes('json')) return { status: 'unavailable' };
       const shapes = parseShapes(await res.json(), serviceNo);
       return shapes ? { status: 'ok', shapes } : { status: 'unavailable' };

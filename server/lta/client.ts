@@ -2,30 +2,24 @@ import type { AppConfig } from '../../config/schema.ts';
 import { pageSchema } from './schemas.ts';
 import { parseBoundary } from '../../shared/input/primitives.ts';
 import { safeFetch } from '../../security/ssrf.ts';
+import { fetchReadWithBackoff } from '../../shared/http/readRetry.ts';
 
 const PAGE_SIZE = 500;
 
 // Transport settings and fetch are injected; no config loading or HTTP adapter dependency.
 export function createLtaClient(settings: AppConfig['lta'], request: typeof fetch = safeFetch) {
   async function fetchPage<T>(dataset: string, skip: number, accountKey: string, retryDelayMs = settings.retryDelayMs): Promise<T[]> {
-    for (let attempt = 1; ; attempt++) {
-      const res = await request(`${settings.baseUrl}/${dataset}?$skip=${skip}`, {
-        redirect: 'error', // Never forward provider credentials to a redirected origin/protocol.
-        headers: { AccountKey: accountKey, Accept: 'application/json' },
-        signal: AbortSignal.timeout(settings.pageTimeoutMs),
-      }).catch((err: unknown) => (err instanceof Error ? err : new Error(String(err))));
-      if (!(res instanceof Error) && res.ok) {
-        if (!res.headers.get('content-type')?.includes('json')) throw new Error('Invalid external data.');
-        const body = parseBoundary(pageSchema, await res.json());
-        return body.value as T[];
-      }
-      // A server error, too many requests or no answer may pass; anything else (a bad key) won't
-      const retryable = res instanceof Error || res.status >= 500 || res.status === 429;
-      if (!retryable || attempt >= settings.pageAttempts) {
-        throw new Error(`LTA ${dataset} skip=${skip} failed (${res instanceof Error ? 'connection_or_timeout' : res.status})`);
-      }
-      await new Promise((resolve) => setTimeout(resolve, retryDelayMs * 3 ** (attempt - 1)));
+    const res = await fetchReadWithBackoff(request, `${settings.baseUrl}/${dataset}?$skip=${skip}`, {
+      redirect: 'error', // Never forward provider credentials to a redirected origin/protocol.
+      headers: { AccountKey: accountKey, Accept: 'application/json' },
+      signal: AbortSignal.timeout(settings.pageTimeoutMs),
+    }, { attempts: settings.pageAttempts, baseDelayMs: retryDelayMs, maxDelayMs: settings.retryMaxMs });
+    if (res.ok) {
+      if (!res.headers.get('content-type')?.includes('json')) throw new Error('Invalid external data.');
+      const body = parseBoundary(pageSchema, await res.json());
+      return body.value as T[];
     }
+    throw new Error(`LTA ${dataset} skip=${skip} failed (${res.status})`);
   }
 
   // Fetch every page of a dataset, a batch of pages at a time, until a short page signals the end. Pages after the

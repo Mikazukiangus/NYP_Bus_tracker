@@ -5,7 +5,7 @@ import { logger } from '../security/logger.ts';
 import { createArrivalService } from '../server/lta/arrivals.ts';
 import { validateReadRequest, arrivalQuerySchema } from '../server/http/request.ts';
 export type { LTABusArrival, LTAService, LTABusArrivalResponse } from '../server/lta/arrivalTypes.ts';
-const service = createArrivalService(config.lta, { logger });
+const service = createArrivalService(config.lta, { logger, retry: config.outbound.retry });
 function send(res: Response | any, status: number, body: unknown, cacheControl?: string) {
   if (cacheControl && res.setHeader) res.setHeader('Cache-Control', cacheControl);
   if (res.status && typeof res.status === 'function') return res.status(status).json(body);

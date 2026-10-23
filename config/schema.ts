@@ -2,6 +2,7 @@
 import { isIP } from 'node:net';
 import { field, integer, boolean, text, url, ms, seconds, parseUrl, resolve, isField, ConfigError, requireHttpsEndpoints, type Schema, type Values, type Environment } from './validation.ts';
 import { publicSchema, assertHttpsPublicUrls } from './public.ts';
+import { DEFAULT_READ_RETRY_POLICY } from '../shared/http/readRetry.ts';
 export { createPublicConfig, type PublicConfig } from './public.ts';
 export { ConfigError, type Environment } from './validation.ts';
 
@@ -51,15 +52,21 @@ export const configSchema = {
   outbound: {
     timeoutMs: ms('OUTBOUND_TIMEOUT_MS', 30000, 'Server guarded fetch default total timeout, including response body; combines with caller cancellation.', 1000, 1500000),
     connectTimeoutMs: ms('OUTBOUND_CONNECT_TIMEOUT_MS', 10000, 'Server guarded fetch connection timeout.', 1000, 120000),
+    retry: {
+      attempts: integer('OUTBOUND_READ_ATTEMPTS', DEFAULT_READ_RETRY_POLICY.attempts, 1, 3, 'Server live LTA read attempts including the first; health and NEA budgeted refreshes stay single-attempt.'),
+      baseDelayMs: ms('OUTBOUND_RETRY_BASE_MS', DEFAULT_READ_RETRY_POLICY.baseDelayMs, 'Initial exponential retry ceiling, with equal jitter.', 0, 10000),
+      maxDelayMs: ms('OUTBOUND_RETRY_MAX_MS', DEFAULT_READ_RETRY_POLICY.maxDelayMs, 'Maximum backoff/Retry-After wait. Longer provider delays skip immediate retry.', 0, 30000),
+    },
   },
   lta: {
     accountKey: text('LTA_ACCOUNT_KEY', '', 'SERVER SECRET. Required for live LTA data. Blank keeps the existing degraded/offline behaviour. Get a key at https://datamall.lta.gov.sg/.'),
     baseUrl: url('LTA_API_BASE_URL', 'https://datamall2.mytransport.sg/ltaodataservice', 'LTA API base; paths such as /v3/BusArrival are added by the app.'),
     timeoutMs: ms('LTA_REQUEST_TIMEOUT_MS', 8000, 'BusArrival and TrafficIncidents request timeout.'),
-    pageTimeoutMs: ms('LTA_PAGE_TIMEOUT_MS', 15000, 'Timeout for each LTA route/stop dataset page.'),
+    pageTimeoutMs: ms('LTA_PAGE_TIMEOUT_MS', 15000, 'Total timeout for one LTA route/stop dataset page, including retries, backoff and body reading.'),
     pageConcurrency: integer('LTA_PAGE_CONCURRENCY', 8, 1, 8, 'Concurrent pages per dataset (three datasets load together).'),
     pageAttempts: integer('LTA_PAGE_ATTEMPTS', 3, 1, 5, 'Attempts for transient page errors.'),
-    retryDelayMs: ms('LTA_PAGE_RETRY_DELAY_MS', 500, 'Initial retry delay, multiplied by 3 after each retry.', 0, 10000),
+    retryDelayMs: ms('LTA_PAGE_RETRY_DELAY_MS', 500, 'Initial page retry ceiling, doubled after each retry with equal jitter.', 0, 10000),
+    retryMaxMs: ms('LTA_PAGE_RETRY_MAX_MS', 10000, 'Maximum page backoff/Retry-After wait within the total page timeout.', 0, 30000),
     datasetTtlMs: ms('LTA_DATASET_TTL_MS', 43200000, 'Warm-instance route dataset lifetime.', 60000, 604800000),
     cache: {
       arrivalsSeconds: seconds('LTA_ARRIVALS_CACHE_SECONDS', 15, 'CDN arrival freshness.', 0, 60),
@@ -103,7 +110,7 @@ export const configSchema = {
       return [...new Set(urls)];
     }),
     rounds: integer('OVERPASS_ROUNDS', 3, 1, 5, 'Rounds through the Overpass endpoint list.'),
-    retryPauseMs: ms('OVERPASS_RETRY_PAUSE_MS', 60000, 'Base pause between rounds, multiplied by round number.', 0, 300000),
+    retryPauseMs: ms('OVERPASS_RETRY_PAUSE_MS', 60000, 'Initial inter-round retry ceiling, doubled with equal jitter; capped at 300 seconds.', 0, 300000),
     deadlineMs: ms('OVERPASS_DEADLINE_MS', 1500000, 'Overall rebuild request/retry deadline; stays inside the 30-minute workflow.', 30000, 1500000),
     timeoutMs: ms('OVERPASS_REQUEST_TIMEOUT_MS', 330000, 'Timeout for one Overpass HTTP request.', 1000, 1500000),
     queryTimeoutSeconds: seconds('OVERPASS_QUERY_TIMEOUT_SECONDS', 300, 'Overpass query execution limit.', 1, 1200),
@@ -116,6 +123,10 @@ export type AppConfig = Values<typeof configSchema>;
 
 export function createConfig(env: Environment = {}, options: { requireHttps?: boolean } = {}): AppConfig {
   const result = resolve(configSchema, env);
+  if (result.outbound.retry.baseDelayMs > result.outbound.retry.maxDelayMs || result.lta.retryDelayMs > result.lta.retryMaxMs) {
+    throw new ConfigError(['OUTBOUND_RETRY_BASE_MS <= OUTBOUND_RETRY_MAX_MS and LTA_PAGE_RETRY_DELAY_MS <= LTA_PAGE_RETRY_MAX_MS are required']);
+  }
+  if (result.public.retry.baseDelayMs > result.public.retry.maxDelayMs) throw new ConfigError(['VITE_RETRY_BASE_MS must not exceed VITE_RETRY_MAX_MS']);
   if (options.requireHttps || result.server.nodeEnv === 'production' || result.server.vercel) {
     assertHttpsPublicUrls(result.public);
     requireHttpsEndpoints({ CORS_ALLOWED_ORIGINS: result.security.corsAllowedOrigins, LTA_API_BASE_URL: result.lta.baseUrl, OVERPASS_URLS: result.shapes.instances });

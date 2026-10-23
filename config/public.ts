@@ -1,7 +1,13 @@
 // The explicit browser allowlist; included as config.public in the full server config.
-import { url, optionalBase, ms, seconds, integer, resolve, requireHttpsEndpoints, type Schema, type Values, type Environment } from './validation.ts';
+import { url, optionalBase, ms, seconds, integer, resolve, requireHttpsEndpoints, ConfigError, type Schema, type Values, type Environment } from './validation.ts';
+import { DEFAULT_READ_RETRY_POLICY } from '../shared/http/readRetry.ts';
 
 export const publicSchema = {
+  retry: {
+    attempts: integer('VITE_READ_ATTEMPTS', DEFAULT_READ_RETRY_POLICY.attempts, 1, 3, 'PUBLIC. Static data and OneMap search attempts including the first; API polling/direct NEA/images do not add nested retries.'),
+    baseDelayMs: ms('VITE_RETRY_BASE_MS', DEFAULT_READ_RETRY_POLICY.baseDelayMs, 'PUBLIC. Initial exponential retry ceiling with equal jitter.', 0, 10000),
+    maxDelayMs: ms('VITE_RETRY_MAX_MS', DEFAULT_READ_RETRY_POLICY.maxDelayMs, 'PUBLIC. Maximum backoff/Retry-After wait within the existing request deadline.', 0, 30000),
+  },
   urls: {
     apiBase: optionalBase('VITE_API_BASE_URL', 'PUBLIC. Optional API origin/path prefix, e.g. https://api.example.com. Blank uses same-origin /api/*.'),
     dataBase: optionalBase('VITE_DATA_BASE_URL', 'PUBLIC. Optional CDN prefix for /bus-routes/* and /route-shapes/*. Blank uses the site origin.'),
@@ -36,6 +42,7 @@ export type PublicConfig = Values<typeof publicSchema>;
 
 export function createPublicConfig(env: Environment = {}): PublicConfig {
   const config = resolve(publicSchema, env);
+  if (config.retry.baseDelayMs > config.retry.maxDelayMs) throw new ConfigError(['VITE_RETRY_BASE_MS must not exceed VITE_RETRY_MAX_MS']);
   if (env.NODE_ENV === 'production' || ['1', 'true'].includes(env.VERCEL ?? '')) assertHttpsPublicUrls(config);
   return config;
 }

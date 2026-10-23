@@ -2,9 +2,11 @@ import type { AppConfig } from '../../config/schema.ts';
 import { parseArrivalResponse, type LTABusArrivalResponse } from '../../shared/transit/arrivals.ts';
 import { generateSimulatedLtaResponse } from './simulatedArrivals.ts';
 import { safeFetch } from '../../security/ssrf.ts';
+import { fetchReadWithBackoff, type ReadRetryPolicy } from '../../shared/http/readRetry.ts';
 interface Dependencies {
   request?: typeof fetch;
   now?: () => number;
+  retry?: ReadRetryPolicy;
   logger?: { warn(event: string, metadata: Record<string, unknown>): void; error(event: string, metadata: Record<string, unknown>): void };
 }
 export type ArrivalResult = { kind: 'live' | 'simulated'; body: LTABusArrivalResponse };
@@ -18,11 +20,11 @@ export function createArrivalService(settings: AppConfig['lta'], dependencies: D
       try {
         const query = new URLSearchParams({ BusStopCode: busStopCode });
         if (serviceNo) query.set('ServiceNo', serviceNo);
-        const response = await request(`${settings.baseUrl}/v3/BusArrival?${query}`, {
+        const response = await fetchReadWithBackoff(request, `${settings.baseUrl}/v3/BusArrival?${query}`, {
           redirect: 'error',
           signal: AbortSignal.timeout(settings.timeoutMs),
           headers: { AccountKey: settings.accountKey, Accept: 'application/json' },
-        });
+        }, dependencies.retry);
         if (response.ok) {
           const raw: unknown = response.headers.get('content-type')?.includes('json')
             ? await response.json().catch(() => undefined) : undefined;
