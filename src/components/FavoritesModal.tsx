@@ -3,6 +3,7 @@ import { FavoriteItem } from '../types/bus';
 import { X, Trash, Heart, ExternalLink, Clock } from 'lucide-react';
 import type { FavoriteArrival } from '../services/favoriteArrivals';
 import { formatEta, TrackingBadge } from './ArrivalBits';
+import { PersistenceNotice } from './PersistenceNotice';
 
 // Compact "next bus" label for a favourite (used in the modal and the Arrivals tab mini card)
 export const NextBusLabel: React.FC<{ arrival?: FavoriteArrival }> = ({ arrival }) => {
@@ -23,12 +24,14 @@ interface FavoritesModalProps {
   isOpen: boolean;
   onClose: () => void;
   favorites: FavoriteItem[];
+  persistence?: string | null;
   arrivals: Record<string, FavoriteArrival>;
   onRemoveFavorite: (id: string) => void;
   onSelectFavorite: (fav: FavoriteItem) => void;
 }
 
 export const FavoritesModal: React.FC<FavoritesModalProps> = ({
+  persistence,
   isOpen,
   onClose,
   favorites,
@@ -78,6 +81,7 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
 
         {/* Favorites list body */}
         <div className="p-4 overflow-y-auto space-y-2.5 flex-1 divide-y divide-warm-100">
+          <PersistenceNotice items={persistence === 'session-only' ? ['saved buses'] : []} />
           {favorites.length === 0 ? (
             <div className="py-12 text-center text-warm-500 flex flex-col items-center">
               <Heart className="w-10 h-10 text-warm-300 stroke-1 mb-2" />

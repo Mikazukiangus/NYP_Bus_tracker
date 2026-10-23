@@ -1,13 +1,16 @@
 import { Buffer } from 'node:buffer';
-import { CircuitOpenError, InvalidDependencyResponseError } from '../shared/http/circuitBreaker.ts';
+import { CircuitOpenError, DependencyHttpError, InvalidDependencyResponseError } from '../shared/http/circuitBreaker.ts';
 
 export const REDACTED = '[REDACTED]';
 const sensitiveKey = (key: string) =>
   /(?:secret|token|password|passwd|authorization|cookie|accountkey|apikey|credential|deployhook|privatekey)|^(?:key|signature|sig)$/i.test(key.replace(/[^a-z0-9]/gi, ''));
 
 // Errors deliberately expose no arbitrary message, stack, cause, request headers or response body.
-export function safeError(error: unknown): { kind: string } {
+export function safeError(error: unknown): { kind: string; httpStatus?: number } {
   if (error instanceof Error) {
+    if (error instanceof DependencyHttpError && Number.isInteger(error.status) && error.status >= 100 && error.status <= 599) {
+      return { kind: 'upstream_http_error', httpStatus: error.status };
+    }
     if (error instanceof CircuitOpenError) return { kind: 'circuit_open' };
     if (error instanceof InvalidDependencyResponseError) return { kind: 'invalid_response' };
     if (['TimeoutError', 'AbortError'].includes(error.name)) return { kind: 'timeout' };

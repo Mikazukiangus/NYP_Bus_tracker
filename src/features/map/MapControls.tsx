@@ -1,7 +1,8 @@
 import { Check, Navigation, Locate, Maximize2, TriangleAlert, Route } from 'lucide-react';
 import type { LiveBusMapProps } from './model';
-import type { RouteDirection } from '../../types/bus';
-type Props = Pick<LiveBusMapProps, 'incomingBuses' | 'journey' | 'route' | 'incidents'> & {
+import type { RouteDirection, TrafficIncident } from '../../types/bus';
+type Props = Pick<LiveBusMapProps, 'incomingBuses' | 'journey' | 'route'> & {
+  incidents: TrafficIncident[];
   showBuses: boolean; showStops: boolean; setShowBuses: (value: boolean) => void; setShowStops: (value: boolean) => void;
   routeDir: RouteDirection; handleCenterNearest: () => void; handleCenterUser: () => void; handleFitTrip: () => void; handleFitRoute: () => void;
 };

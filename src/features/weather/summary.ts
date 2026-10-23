@@ -222,7 +222,7 @@ function buildAlerts(s: WeatherSummary): WeatherAlert[] {
     });
   }
 
-  if (alerts.length === 0 && s.forecast2h) {
+  if (alerts.length === 0 && s.forecast2h && s.stale.length === 0 && s.missing.length === 0) {
     alerts.push({
       kind: 'ok',
       tone: 'good',

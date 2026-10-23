@@ -1,7 +1,8 @@
 import type { LiveBusMapProps } from './model';
-import type { AlightHint, TripView } from '../../types/bus';
+import type { AlightHint, TripView, TrafficIncident } from '../../types/bus';
 import { legStyle } from '../../components/tripLegs';
-type Props = Pick<LiveBusMapProps, 'nearestStop' | 'journey' | 'incidents'> & {
+type Props = Pick<LiveBusMapProps, 'nearestStop' | 'journey'> & {
+ incidents: TrafficIncident[];
  alightStop: Extract<AlightHint, { status: 'alight' }> | null; nextBus: TripView['legs'][number] | null; followsRoads: boolean;
 };
 export function MapLegend({ nearestStop, alightStop, nextBus, journey, incidents, followsRoads }: Props) {

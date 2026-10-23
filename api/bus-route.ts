@@ -28,14 +28,14 @@ export default async function handler(req: Request | any, res: Response | any) {
 
   const accountKey = config.lta.accountKey;
   if (!accountKey) {
-    return send(res, 503, { error: 'LTA_ACCOUNT_KEY not configured; route data unavailable.' });
+    return send(res, 503, { error: 'Route data is temporarily unavailable.' });
   }
 
   try {
     const data = await getDatasets(accountKey);
     const route = buildRoute(serviceNo, data);
     if (!route) {
-      return send(res, 404, { error: `Bus service ${serviceNo} not found in LTA DataMall BusRoutes.` }, cdnCache(config.lta.cache.notFoundSeconds));
+      return send(res, 404, { error: `Bus service ${serviceNo} not found.` }, cdnCache(config.lta.cache.notFoundSeconds));
     }
     // Route data is near-static: cache at the edge for a day, serve stale for a week while revalidating
     return send(res, 200, route, cdnCache(config.lta.cache.routesSeconds, config.lta.cache.routesStaleSeconds));

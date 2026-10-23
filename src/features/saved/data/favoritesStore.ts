@@ -1,8 +1,9 @@
 import type { FavoriteItem } from '../../../types/bus';
 import { isFavoriteItem, favoriteKey } from '../domain/favorites';
+import { persistValue, type PersistenceResult } from '../../../services/persistence';
 export const FAVORITES_STORAGE_KEY = 'sbs_transit_favorites_v1'; // stable key; the envelope owns versioning
-export type FavoritesRead = { status: 'saved'; items: FavoriteItem[] } | { status: 'missing' | 'invalid' };
-export interface FavoritesStore { read(): FavoritesRead; save(items: FavoriteItem[]): void }
+export type FavoritesRead = { status: 'saved'; items: FavoriteItem[] } | { status: 'missing' | 'invalid' | 'unavailable' };
+export interface FavoritesStore { read(): FavoritesRead; save(items: FavoriteItem[]): PersistenceResult }
 export function normalizeFavorites(rows: unknown[]): FavoriteItem[] {
   const keys = new Set<string>(), ids = new Set<string>();
   return rows.filter(isFavoriteItem).flatMap(item => {
@@ -22,8 +23,10 @@ export function normalizeFavorites(rows: unknown[]): FavoriteItem[] {
 export function createFavoritesStore(storage?: Pick<Storage, 'getItem' | 'setItem'>): FavoritesStore {
   return {
     read() {
+      let raw: string | null;
+      try { raw = (storage ?? window.localStorage).getItem(FAVORITES_STORAGE_KEY); }
+      catch { return { status: 'unavailable' }; }
       try {
-        const raw = (storage ?? window.localStorage).getItem(FAVORITES_STORAGE_KEY);
         if (raw === null) return { status: 'missing' };
         const parsed: unknown = JSON.parse(raw);
         // Read legacy arrays without writing during React initialization. Save emits only the new envelope.
@@ -36,7 +39,7 @@ export function createFavoritesStore(storage?: Pick<Storage, 'getItem' | 'setIte
     },
     save(items) {
       const records = normalizeFavorites(items).map(({ stopName, roadName, destination, ...record }) => record);
-      try { (storage ?? window.localStorage).setItem(FAVORITES_STORAGE_KEY, JSON.stringify({ schemaVersion: 2, items: records })); } catch { /* state remains usable for this visit */ }
+      return persistValue(FAVORITES_STORAGE_KEY, { schemaVersion: 2, items: records }, storage);
     },
   };
 }

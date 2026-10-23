@@ -1,5 +1,6 @@
 import type { UserLocation } from '../types/bus';
 import { config } from '../config';
+import { persistValue, type PersistenceResult } from './persistence';
 
 export const LOCATION_STORAGE_KEY = 'bustrackersg_location_v1';
 
@@ -25,14 +26,10 @@ export function loadSavedLocation(storage?: Pick<Storage, 'getItem'>): UserLocat
   }
 }
 
-export function saveUserLocation(loc: UserLocation, storage?: Pick<Storage, 'setItem'>): void {
+export function saveUserLocation(loc: UserLocation, storage?: Pick<Storage, 'setItem'>): PersistenceResult {
   const location = parseLocation(loc);
-  if (!location) return;
-  try {
-    (storage ?? window.localStorage).setItem(LOCATION_STORAGE_KEY, JSON.stringify({ schemaVersion: 2, location }));
-  } catch {
-    // A storage failure must not prevent changing location for this visit.
-  }
+  if (!location) return { status: 'invalid' };
+  return persistValue(LOCATION_STORAGE_KEY, { schemaVersion: 2, location }, storage);
 }
 
 export function locationFromGps(value: unknown, capturedAtMs = Date.now()): UserLocation | null {

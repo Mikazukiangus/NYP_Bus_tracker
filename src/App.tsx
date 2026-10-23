@@ -7,6 +7,7 @@ import { buildCommuteAdvice, WALKABLE_STOP_M } from './features/weather/commuteA
 import { useWeatherSnapshot } from './features/weather/useWeatherSnapshot';
 import { useRouteIncidents } from './features/incidents/useRouteIncidents';
 import { useSavedBuses } from './features/saved/application/useSavedBuses';
+import { PersistenceNotice } from './components/PersistenceNotice';
 import { useBusNetwork } from './features/network/application/useBusNetwork';
 import { useTrackedRoute } from './features/tracking/useTrackedRoute';
 import { useUserLocation } from './features/location/useUserLocation';
@@ -61,7 +62,7 @@ const MapPlaceholder: React.FC = () => (
 );
 
 export default function App() {
-  const { userLocation, isDefaultLocation, selectLocation, requestStartupGps } = useUserLocation();
+  const { userLocation, isDefaultLocation, persistence: locationPersistence, selectLocation, requestStartupGps } = useUserLocation();
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 
   // Fetch the map's code once the first screen is drawn, so it's ready before anyone opens the Map tab
@@ -92,7 +93,7 @@ export default function App() {
   }, [selectLocation, retarget]);
 
   // Places chosen recently as a start or destination
-  const { recentPlaces, rememberPlace } = useRecentPlaces();
+  const { recentPlaces, persistence: recentPersistence, rememberPlace } = useRecentPlaces();
 
   const { destination, tripPlan, selectedTrip, trackedLeg, selectTrip, trackTripLeg,
     trackTripLegAt, chooseTripService, chooseTripServiceAt, trackService, handleSetDestination,
@@ -175,7 +176,7 @@ export default function App() {
     );
   }, [arrivals, dataSource, currentRoute.serviceNo]);
 
-  const incidentsOnRoute = useRouteIncidents(routeDir.path);
+  const incidentFeed = useRouteIncidents(routeDir.path);
 
   const { weatherSnapshot, isWeatherLoading, weatherError, loadWeather } = useWeatherSnapshot();
 
@@ -184,7 +185,7 @@ export default function App() {
     [weatherSnapshot, userLocation]
   );
 
-  const { favorites, isCurrentFavorite, handleToggleFavorite, handleRemoveFavorite } =
+  const { favorites, persistence: favoritesPersistence, isCurrentFavorite, handleToggleFavorite, handleRemoveFavorite } =
     useSavedBuses(currentRoute.serviceNo, selectedStop, direction, routeDir.destination, undefined, undefined, network);
   const [isFavoritesModalOpen, setIsFavoritesModalOpen] = useState(false);
   const favoriteArrivals = useFavoriteArrivals(favorites, isFavoritesModalOpen || activeTab === 'arrivals');
@@ -341,6 +342,11 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        <PersistenceNotice items={[
+          ...(favoritesPersistence === 'session-only' ? ['saved buses'] : []),
+          ...(locationPersistence === 'session-only' ? ['your location'] : []),
+          ...(recentPersistence === 'session-only' ? ['recent places'] : []),
+        ]} />
         {/* Where the user is starting from and where they're going */}
         {showTripInputs && (
           <LocationBar
@@ -438,7 +444,7 @@ export default function App() {
                       onSelectStop={handleSelectStop}
                       userLocation={userLocation}
                       incomingBuses={incomingBuses}
-                      incidents={incidentsOnRoute}
+                      incidentFeed={incidentFeed}
                       journey={journey}
                       alight={alightHint}
                       etas={stopEtas}
@@ -509,7 +515,7 @@ export default function App() {
                 onSelectStop={handleSelectStop}
                 userLocation={userLocation}
                 incomingBuses={incomingBuses}
-                incidents={incidentsOnRoute}
+                incidentFeed={incidentFeed}
                 journey={journey}
                 alight={alightHint}
                 etas={stopEtas}
@@ -623,6 +629,7 @@ export default function App() {
         isOpen={isFavoritesModalOpen}
         onClose={() => setIsFavoritesModalOpen(false)}
         favorites={favorites}
+        persistence={favoritesPersistence}
         arrivals={favoriteArrivals}
         onRemoveFavorite={handleRemoveFavorite}
         onSelectFavorite={handleSelectFavorite}

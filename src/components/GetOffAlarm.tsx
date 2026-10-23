@@ -10,17 +10,25 @@ export function alarmStatus(alarm: GetOffAlarm, serviceNo: string, stopName: str
   const p = alarm.progress;
   if (!alarm.on) {
     if (alarm.gps === 'denied') return 'Location is blocked for this site: allow it to use the alarm';
+    if (alarm.gps === 'unavailable') return 'Location is unavailable. Try turning the alarm on again.';
     if (p?.phase === 'get-off') return `You're at ${stopName}`;
-    return 'Buzzes and beeps a stop before yours, then as you get there. Keep this page open (the screen stays on).';
+    return 'Alerts you near your stop. Sound and vibration depend on your browser. Keep this page open.';
   }
-  if (!p) return alarm.gps === 'weak' ? 'Alarm on · waiting for a GPS fix' : 'Alarm on · finding you';
+  const capabilities = [
+    alarm.sound === 'unavailable' ? 'Sound unavailable' : alarm.sound === 'starting' ? 'Starting sound' : null,
+    !short && alarm.vibration === 'unavailable' ? 'Vibration unavailable' : null,
+    alarm.screen === 'unavailable' ? 'Screen may turn off' : !short && alarm.screen === 'active' ? 'Screen kept on'
+      : !short && alarm.screen === 'requesting' ? 'Requesting screen lock' : null,
+  ].filter(Boolean);
+  const status = (text: string) => [text, ...capabilities].join(' · ');
+  if (!p) return status(alarm.gps === 'weak' ? 'Alarm on · waiting for a GPS fix' : 'Alarm on · finding you');
   switch (p.phase) {
     case 'off-route':
-      return short ? `Alarm set for ${stopName}` : `Alarm on · starts once you're on Bus ${serviceNo}`;
+      return status(short ? `Alarm set for ${stopName}` : `Alarm on · starts once you're on Bus ${serviceNo}`);
     case 'riding':
-      return short ? `${stopsToGo(p.stopsToGo)} to ${stopName}` : `Alarm on · ${stopsToGo(p.stopsToGo)} to go`;
+      return status(short ? `${stopsToGo(p.stopsToGo)} to ${stopName}` : `Alarm on · ${stopsToGo(p.stopsToGo)} to go`);
     default:
-      return short ? `${stopName} is next: ring the bell` : 'Alarm on · your stop is next: ring the bell';
+      return status(short ? `${stopName} is next: ring the bell` : 'Alarm on · your stop is next: ring the bell');
   }
 }
 

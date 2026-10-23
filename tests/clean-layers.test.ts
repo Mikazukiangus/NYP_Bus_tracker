@@ -33,7 +33,7 @@ test('favorite storage keeps valid legacy items and filters invalid rows; denied
   assert.equal(store.read().status, 'saved');
   assert.deepEqual((store.read() as { items: unknown[] }).items.map(item => { const { labelSnapshot, ...legacy } = item as typeof items[number]; return legacy; }), items);
   const blocked = createFavoritesStore({ getItem() { throw Error('blocked'); }, setItem() { throw Error('quota'); } });
-  assert.equal(blocked.read().status, 'invalid');
+  assert.equal(blocked.read().status, 'unavailable');
   assert.doesNotThrow(() => blocked.save(items));
 });
 

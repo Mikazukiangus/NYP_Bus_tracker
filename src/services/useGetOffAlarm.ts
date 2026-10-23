@@ -1,29 +1,27 @@
 import type { AlarmRide } from '../features/alarm/model';
 export type { AlarmRide } from '../features/alarm/model';
 import { useCallback, useEffect, useRef, useState } from 'react';
-
-import { RideProgress, rideProgress } from './getOffAlarm';
+import { type RideProgress, rideProgress } from './getOffAlarm';
 import { config } from '../config';
 import { parseGpsCoordinates } from '../../shared/geo/gps';
 
 export type AlarmAlert = 'next-stop' | 'get-off';
-
 export interface GetOffAlarm {
   supported: boolean;
   on: boolean;
-  gps: 'waiting' | 'ok' | 'weak' | 'denied';
+  gps: 'waiting' | 'ok' | 'weak' | 'denied' | 'unavailable';
+  sound: 'idle' | 'starting' | 'ready' | 'unavailable';
+  screen: 'idle' | 'requesting' | 'active' | 'unavailable';
+  vibration: 'available' | 'unavailable';
   progress: RideProgress | null;
-  alert: AlarmAlert | null; // the last alarm, shown until dismissed
+  alert: AlarmAlert | null;
   toggle: () => void;
   dismiss: () => void;
 }
-
 const VIBRATE: Record<AlarmAlert, number[]> = {
   'next-stop': [250, 150, 250],
   'get-off': [600, 200, 600, 200, 600],
 };
-
-// Short, rising beeps (Web Audio, so there's no sound file to load)
 function beep(ctx: AudioContext, times: number) {
   for (let i = 0; i < times; i++) {
     const t = ctx.currentTime + i * 0.32;
@@ -40,46 +38,56 @@ function beep(ctx: AudioContext, times: number) {
   }
 }
 
-// Citymapper's "Get off now" alarm, opt in. While it's on: follows the phone's GPS along the ride, buzzes and beeps
-// as the bus leaves the stop before yours and again as it nears yours, and keeps the screen on. A web page can't
-// run in the background, so it works while this page is open.
+// GPS owns the visual alarm; sound, vibration and screen lock are separate, fallible capabilities.
 export function useGetOffAlarm(ride: AlarmRide | null): GetOffAlarm {
-  const supported = typeof navigator !== 'undefined' && 'geolocation' in navigator;
+  const supported = typeof navigator !== 'undefined' && !!navigator.geolocation;
   const [on, setOn] = useState(false);
   const [gps, setGps] = useState<GetOffAlarm['gps']>('waiting');
+  const [sound, setSound] = useState<GetOffAlarm['sound']>('idle');
+  const [screen, setScreen] = useState<GetOffAlarm['screen']>('idle');
+  const [vibration, setVibration] = useState<GetOffAlarm['vibration']>(
+    () => typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function' ? 'available' : 'unavailable');
   const [progress, setProgress] = useState<RideProgress | null>(null);
   const [alert, setAlert] = useState<AlarmAlert | null>(null);
   const audio = useRef<AudioContext | null>(null);
+  const enabled = useRef(false);
+  const generation = useRef(0);
   const stops = useRef(ride?.stops ?? []);
   stops.current = ride?.stops ?? [];
-
-  // Another ride turns the alarm off
   const key = ride?.key ?? '';
+
   useEffect(() => {
+    enabled.current = false;
+    generation.current++;
     setOn(false);
+    setSound('idle');
     setProgress(null);
     setAlert(null);
   }, [key]);
 
   const ring = useCallback((kind: AlarmAlert) => {
-    navigator.vibrate?.(VIBRATE[kind]);
-    if (audio.current) beep(audio.current, kind === 'get-off' ? 3 : 2);
+    try {
+      if (!navigator.vibrate?.(VIBRATE[kind])) setVibration('unavailable');
+    } catch { setVibration('unavailable'); }
+    try {
+      if (audio.current?.state === 'running') beep(audio.current, kind === 'get-off' ? 3 : 2);
+      else setSound('unavailable');
+    } catch { setSound('unavailable'); }
   }, []);
 
-  // Follow the GPS along the ride; each alarm goes off once
   useEffect(() => {
     if (!on || !key) return;
+    let active = true;
     let fromSegment = 0;
     let rung = 0;
-    const id = navigator.geolocation.watchPosition(
-      (pos) => {
+    let id: number;
+    try {
+      id = navigator.geolocation.watchPosition((pos) => {
+        if (!active) return;
         const coords = parseGpsCoordinates(pos?.coords);
         if (!coords) { setGps('weak'); return; }
-        const p = rideProgress(
-          stops.current,
-          { lat: coords.latitude, lng: coords.longitude, accuracyM: coords.accuracy },
-          fromSegment
-        );
+        const p = rideProgress(stops.current,
+          { lat: coords.latitude, lng: coords.longitude, accuracyM: coords.accuracy }, fromSegment);
         setGps(p ? 'ok' : 'weak');
         if (!p) return;
         if (p.phase !== 'off-route') fromSegment = p.segment;
@@ -88,65 +96,108 @@ export function useGetOffAlarm(ride: AlarmRide | null): GetOffAlarm {
           rung = 2;
           ring('get-off');
           setAlert('get-off');
-          setOn(false); // its job is done
+          enabled.current = false;
+          generation.current++;
+          setOn(false);
         } else if (p.phase === 'next-stop' && rung < 1) {
           rung = 1;
           ring('next-stop');
           setAlert('next-stop');
         }
-      },
-      (err) => {
-        if (err.code === err.PERMISSION_DENIED) {
+      }, (err) => {
+        if (!active) return;
+        if (err.code === 1) {
           setGps('denied');
+          enabled.current = false;
+          generation.current++;
           setOn(false);
         } else setGps('weak');
-      },
-      { enableHighAccuracy: true, maximumAge: 5_000, timeout: config.timeouts.alarmGpsMs }
-    );
-    return () => navigator.geolocation.clearWatch(id);
+      }, { enableHighAccuracy: true, maximumAge: 5_000, timeout: config.timeouts.alarmGpsMs });
+    } catch {
+      setGps('unavailable');
+      enabled.current = false;
+      generation.current++;
+      setOn(false);
+    }
+    return () => { active = false; if (id !== undefined) navigator.geolocation.clearWatch(id); };
   }, [on, key, ring]);
 
-  // Keep the screen on while the alarm is set (the lock lapses when the page is hidden, so take it again on return)
   useEffect(() => {
-    if (!on || !('wakeLock' in navigator)) return;
+    if (!on) { setScreen('idle'); return; }
+    if (!('wakeLock' in navigator)) { setScreen('unavailable'); return; }
     let lock: WakeLockSentinel | null = null;
     let active = true;
-    const acquire = () => {
-      if (document.visibilityState !== 'visible') return;
-      navigator.wakeLock
-        .request('screen')
-        .then((l) => {
-          if (active) lock = l;
-          else l.release().catch(() => {});
-        })
-        .catch(() => {});
+    let pending = false;
+    const released = () => { if (active) setScreen('unavailable'); };
+    const acquire = async () => {
+      if (document.visibilityState !== 'visible') { setScreen('unavailable'); return; }
+      if (pending || lock && !lock.released) return;
+      pending = true;
+      setScreen('requesting');
+      try {
+        const next = await navigator.wakeLock.request('screen');
+        if (!active || document.visibilityState !== 'visible') {
+          void next.release().catch(() => {});
+          if (active) setScreen('unavailable');
+          return;
+        }
+        lock?.removeEventListener('release', released);
+        lock = next;
+        lock.addEventListener('release', released);
+        setScreen(lock.released ? 'unavailable' : 'active');
+      } catch { if (active) setScreen('unavailable'); }
+      finally { pending = false; }
     };
-    acquire();
+    void acquire();
     document.addEventListener('visibilitychange', acquire);
     return () => {
       active = false;
       document.removeEventListener('visibilitychange', acquire);
-      lock?.release().catch(() => {});
+      lock?.removeEventListener('release', released);
+      void lock?.release().catch(() => {});
     };
   }, [on]);
 
-  useEffect(() => () => void audio.current?.close().catch(() => {}), []);
+  useEffect(() => () => {
+    enabled.current = false;
+    generation.current++;
+    if (audio.current) {
+      audio.current.onstatechange = null;
+      void audio.current.close().catch(() => {});
+      audio.current = null;
+    }
+  }, []);
 
   const toggle = useCallback(() => {
     setAlert(null);
-    if (on) {
+    const attempt = ++generation.current;
+    if (enabled.current) {
+      enabled.current = false;
       setOn(false);
+      setSound('idle');
       return;
     }
-    // Sound can only start from a tap, so get it ready now
-    if (!audio.current && typeof AudioContext !== 'undefined') audio.current = new AudioContext();
-    audio.current?.resume().catch(() => {});
+    if (!supported || !key) { setGps('unavailable'); return; }
+    enabled.current = true;
     setGps('waiting');
     setProgress(null);
     setOn(true);
-  }, [on]);
-
+    // Initialize from the tap, while reporting constructor/resume failures without disabling visual alerts.
+    setSound('starting');
+    try {
+      if (typeof AudioContext === 'undefined') throw new Error('Audio unavailable');
+      if (!audio.current || audio.current.state === 'closed') audio.current = new AudioContext();
+      const ctx = audio.current;
+      ctx.onstatechange = () => {
+        if (enabled.current) setSound(ctx.state === 'running' ? 'ready' : 'unavailable');
+      };
+      void ctx.resume().then(() => {
+        if (generation.current === attempt && enabled.current) setSound(ctx.state === 'running' ? 'ready' : 'unavailable');
+      }).catch(() => {
+        if (generation.current === attempt && enabled.current) setSound('unavailable');
+      });
+    } catch { setSound('unavailable'); }
+  }, [supported, key]);
   const dismiss = useCallback(() => setAlert(null), []);
-
-  return { supported, on, gps, progress, alert, toggle, dismiss };
+  return { supported, on, gps, sound, screen, vibration, progress, alert, toggle, dismiss };
 }

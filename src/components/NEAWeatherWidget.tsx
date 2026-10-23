@@ -136,7 +136,11 @@ export const WeatherStrip: React.FC<{ weather: WeatherSummary | null; error?: bo
           {weather ? (weather.forecast2h?.text ?? 'Weather') : error ? 'Weather unavailable' : 'Loading weather…'}
           {weather?.temperature && <span className="font-black"> · {weather.temperature.value}°C</span>}
         </span>
-        {alert ? (
+        {weather && (error || weather.stale.length > 0) ? (
+          <span role="status" className="block text-[11px] font-semibold text-amber-800">
+            {error ? 'Refresh failed · showing earlier readings' : 'Showing earlier readings · may be out of date'}
+          </span>
+        ) : alert ? (
           <span className={`block text-[11px] font-semibold truncate ${alert.tone === 'good' ? 'text-warm-500' : toneClasses[alert.tone].text}`}>
             {alert.title}
           </span>
@@ -258,6 +262,9 @@ export const NEAWeatherWidget: React.FC<NEAWeatherWidgetProps> = ({
 
   return (
     <div className="@container bg-white rounded-2xl border border-warm-200 shadow-sm p-4 sm:p-5 overflow-hidden">
+      {error && <p role="status" className="mb-3 rounded-lg bg-amber-50 p-2 text-xs font-semibold text-amber-900">
+        Refresh failed. Showing earlier readings; conditions may have changed. Try refreshing again.
+      </p>}
       {/* Header */}
       <div className="flex items-center justify-between gap-2 pb-3 border-b border-warm-100">
         <div className="flex items-center gap-2 min-w-0">

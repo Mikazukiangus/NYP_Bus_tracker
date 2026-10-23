@@ -1,6 +1,6 @@
 # Cloud development handoff — BusTrackerSG
 
-Prepared 22 October 2026; updated for the 23 October retry release. Paste this note into the new cloud chat.
+Prepared 22 October 2026; updated for the 23 October error-handling release. Paste this note into the new cloud chat.
 
 Continue my project at https://github.com/Mikazukiangus/NYP_Bus_tracker. Set up cloud development from the repository; keep the existing Vercel production hosting unless I explicitly request a hosting migration.
 
@@ -85,3 +85,7 @@ Turn 101 implemented safe read retries; Turn 102 committed, pushed and verified 
 ## Circuit breaker follow-up — 23 October 2026
 
 Turn 103 implemented circuit breakers; Turn 104 committed, pushed and verified application 63c82b3 in production. A fresh clone of current main contains them; consult the latest COMMENTS.md delivery entries for subsequent documentation commits. Read docs/circuit-breakers.md and the latest COMMENTS.md entry. Defaults are three counted operation failures within 60 seconds, 30 seconds open, then one recovery operation. Owners are separate for LTA arrivals/incidents/collections, each NEA dataset and browser OneMap search. Existing fallbacks, quota reservations and security boundaries remain. State is per warm instance/client, not a fleet-wide shared limiter; no database, new secret or monitoring service was provisioned.
+
+## Error handling follow-up — 23 October 2026
+
+Turn 105 reviewed six error-handling gaps; Turn 106 published the review notes only. Turn 107 implemented the fixes; Turn 108 is releasing them: visible weather/incident freshness and failure state, explicit session-only persistence, alarm capability outcomes, safe numeric provider status in logs, and a minimal public health response. Read docs/error-handling.md for the changed contracts and COMMENTS.md for actual verification/commit/deployment status. The hook regressions are portable Node/DOM tests; temporary Chrome fixtures remain local to this Mac. No login, database, monitoring integration or new environment setting was added. Consult Turn 108 for exact application commit/deployment verification; older baseline details above remain historical until that delivery is recorded.

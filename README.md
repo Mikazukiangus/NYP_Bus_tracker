@@ -99,7 +99,7 @@ npm ci
 npm run dev
 ```
 
-Then open http://localhost:3000. `server.ts` serves the app with Vite (it reloads as you edit) and the same `/api/*` functions Vercel runs. To check your key, open http://localhost:3000/api/health: `ltaAccountKeyConfigured` should be `true`, and `status` is `"ok"` once LTA DataMall and NEA both answer (`"degraded"` means one didn't, for example because the key was refused).
+Then open http://localhost:3000. `server.ts` serves the app with Vite (it reloads as you edit) and the same `/api/*` functions Vercel runs. Open http://localhost:3000/api/health: `status` is `"ok"` once LTA DataMall and NEA both answer, or `"degraded"` otherwise. The public response contains only status, service and timestamp. Restricted server logs record a provider name and safe failure code/status when a probe fails; credentials and configuration details stay out of the response.
 
 Other commands:
 
@@ -174,3 +174,5 @@ To keep it that way:
   Configuration descriptions and test fixtures are excluded too, so editing settings or tests does not change the CSS.
 
 To check a change, run `npx vite build` before and after it: the file names that stay the same are the ones browsers will keep.
+
+Error states, temporary saves, alarm capability notices and the minimal public health contract are documented in [docs/error-handling.md](docs/error-handling.md).

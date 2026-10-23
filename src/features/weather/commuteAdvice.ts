@@ -23,7 +23,8 @@ interface CommuteInput {
 }
 
 export function buildCommuteAdvice({ weatherSnapshot, weather, walkToStopM, nearbyStops, arrivals, destination, alightHint, selectedTrip, tripView, userLocation }: CommuteInput) {
-  if (!weatherSnapshot || !weather) return null;
+  if (!weatherSnapshot || !weather ||
+    weatherSnapshot.stale.some(key => ['rainfall', 'forecast2h', 'lightning'].includes(key))) return null;
   // The walk to the tracked bus's stop; if that stop is too far from where the trip starts to walk to (a bus
   // tracked elsewhere), the walk to the nearest stop there, without bus times
   const walkable = walkToStopM <= WALKABLE_STOP_M;

@@ -8,6 +8,7 @@ import { parseLocation } from '../../../shared/geo/locationValidation';
 export function useUserLocation() {
   const [userLocation, setUserLocation] = useState<UserLocation>(() => loadSavedLocation() ?? SINGAPORE_LOCATIONS[0]);
   const [isDefaultLocation, setIsDefaultLocation] = useState(() => !loadSavedLocation());
+  const [persistence, setPersistence] = useState<string | null>(null);
   const revision = useRef(0);
   const selectLocation = useCallback((candidate: UserLocation) => {
     const valid = parseLocation(candidate);
@@ -17,7 +18,7 @@ export function useUserLocation() {
     revision.current += 1;
     setUserLocation(location);
     setIsDefaultLocation(false);
-    saveUserLocation(location);
+    setPersistence(saveUserLocation(location).status);
   }, []);
   // The caller composes the location change with tracking; GPS owns its revision/cancellation guard.
   const requestStartupGps = useCallback((onFix: (location: UserLocation) => void) => {
@@ -29,5 +30,5 @@ export function useUserLocation() {
     }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: config.timeouts.startupGpsMs });
     return () => { active = false; };
   }, []);
-  return { userLocation, isDefaultLocation, selectLocation, requestStartupGps };
+  return { userLocation, isDefaultLocation, persistence, selectLocation, requestStartupGps };
 }
