@@ -1,6 +1,6 @@
 # Outbound circuit breakers
 
-Implemented locally on 23 October 2026. `COMMENTS.md` Turn 103 records validation and delivery status. These changes are not committed or deployed.
+Released to production on 23 October 2026 at application commit `63c82b3`. `COMMENTS.md` Turns 103–104 record implementation, validation and verified delivery.
 
 ## Boundaries selected
 
@@ -53,3 +53,5 @@ The regression suite covers failure windows/resets, fail-fast admission, one con
 A controlled Chrome fixture bundles the actual OneMap adapter, search application and local network at 375 px/1280 px. It verifies retry exhaustion, zero wire calls while open, one held recovery probe, recovery/local-stop preservation, malformed JSON reopening and actual browser fetch timeouts tripping a separate breaker. It uses an injected clock/short fixture timeout; production defaults are unchanged. This is focused adapter/application verification, not a new production deployment or full live UI run.
 
 The state-machine approach follows [Microsoft's circuit breaker guidance](https://learn.microsoft.com/en-us/azure/architecture/patterns/circuit-breaker). Existing [retry](outbound-retries.md), [timeout](outbound-timeouts.md), [SSRF](ssrf-protection.md) and [redaction](../SECURITY.md) policies continue to apply.
+
+Production release checks passed all APIs/health, 58 CORS checks and normal phone/desktop flows at 375 px/1280 px with the exact application assets. The guarded production build generated 601 services / 5,209 stops / 797 directions. Weather initially returned partial data and had no missing datasets on follow-up. The runtime warning/error/fatal query returned eleven existing Node DEP0169 warnings only. These normal-flow checks complement local breaker fault fixtures; no provider outage was induced in production.

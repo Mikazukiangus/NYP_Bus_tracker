@@ -17,12 +17,12 @@ Continue my project at https://github.com/Mikazukiangus/NYP_Bus_tracker. Set up 
 - Repository: https://github.com/Mikazukiangus/NYP_Bus_tracker
 - Production: https://nypbus-tracker.vercel.app/
 - Branch at handoff: `main`.
-- Latest verified application release: `b050a890ca05df235db34be8a50873cc0d4e020b` — safe read retries and this cloud handoff; subsequent commits record release notes.
-- Application commit: `b050a890ca05df235db34be8a50873cc0d4e020b`; it includes the previously released outbound request/map image deadlines.
-- Final verified production deployment: `dpl_FVWY1QwaCxPP89mtFDGPk9SNCWnb`, READY with the exact application SHA and live domain assigned.
+- Latest verified application release: `63c82b3497b3e8feadbfe089149d7dc76e633afd` — provider circuit breakers and this cloud handoff; subsequent commits record release notes.
+- Application commit: `63c82b3497b3e8feadbfe089149d7dc76e633afd`; it includes the previously released retries and outbound request/map image deadlines.
+- Verified application deployment: `dpl_3ZNTssFxH2jUQUhBWC9MWpVfm95S`, READY with the exact application SHA and live domain assigned.
 - Existing Vercel project: `nypbus-tracker`, team slug `carbon-bc04`; project ID `prj_hRkofLg97cZMW7uyG1cvDrDx4R7L`, team ID `team_ZEUyUqyAE43B7bGMi6Rdux14`. These IDs are identifiers, not credentials. New chat access must be established separately.
 - GitHub integration deploys pushes to `main`. Do not trigger a second manual deployment for the same push.
-- This handoff is committed and pushed with the Turn 102 retry release. A fresh clone of current main contains it. Read the latest COMMENTS.md delivery entries and recheck remote state rather than resetting to an earlier SHA.
+- This handoff is committed and pushed; Turn 104 updates its circuit-breaker release baseline. A fresh clone of current main contains it. Read the latest COMMENTS.md delivery entries and recheck remote state rather than resetting to an earlier SHA.
 
 ## Cloud setup
 
@@ -68,20 +68,20 @@ Use `HOST`/`PORT` if the preview platform requires them. Keep development mode f
 
 ## Validation and known limitations
 
-Last release passed 231 tests, TypeScript including unused-local checks, HTTPS scan across 135 files, client build, working-tree/history Gitleaks scans, 58 live CORS checks and production browser flows at 375 px/1280 px. Real arrivals, trips, map tiles/logo/local CSS, saved buses, location persistence and map cleanup passed. The docs-only deployment then passed final API/asset/CORS smoke checks. These are historical results; rerun checks in the new runtime before claiming new verification.
+Last release passed 249 tests, TypeScript including unused-local checks, HTTPS scan across 136 files, client build, working-tree/history Gitleaks scans, 58 live CORS checks and production browser flows at 375 px/1280 px. Real arrivals, trips, map tiles/logo/local CSS, saved buses, location persistence and map cleanup passed. The docs-only deployment then passed final API/asset/CORS smoke checks. These are historical results; rerun checks in the new runtime before claiming new verification.
 
 The production build generated 601 services, 5,209 stops and 797 directions. Dataset counts can change. NEA weather can return validated partial data: it had seven missing datasets initially and no missing datasets on follow-up; later cold instances can still return partial data. Runtime error-level records checked were existing Node DEP0169 `url.parse()` deprecation warnings; no other failures were returned in that window. No external log drains are configured, and continuous monitoring has not been established.
 
 Temporary browser harnesses, screenshots and controlled timeout fixtures under this Mac's `/private/tmp` are not in Git and will not transfer. Committed tests remain available; recreate any additional browser harness with tools installed in the cloud runtime. Install Gitleaks separately if running `npm run secrets:scan`; fetch remote refs first for fresh history coverage, and retain redacted output.
 
-Read README, SECURITY.md, MODULARITY_REVIEW.md and the guides in `docs/`, especially `outbound-timeouts.md`, `ssrf-protection.md`, `cors.md`, `input-validation.md`, `xss-audit.md`, `https-security.md`, `data-model.md` and `api/bus-arrival.md`.
+Read README, SECURITY.md, MODULARITY_REVIEW.md and the guides in `docs/`, especially `circuit-breakers.md`, `outbound-retries.md`, `outbound-timeouts.md`, `ssrf-protection.md`, `cors.md`, `input-validation.md`, `xss-audit.md`, `https-security.md`, `data-model.md` and `api/bus-arrival.md`.
 
-First action: verify checkout/runtime/secrets availability, install locked dependencies, run the checks above, start the app through the cloud preview and report actual readiness or concrete blockers. There is no unfinished application fix from the safe-retry release. Do not deploy, migrate production, add login or invent a database as part of environment setup.
+First action: verify checkout/runtime/secrets availability, install locked dependencies, run the checks above, start the app through the cloud preview and report actual readiness or concrete blockers. There is no unfinished application fix from the circuit-breaker release. Do not deploy, migrate production, add login or invent a database as part of environment setup.
 
 ## Retry follow-up after the release baseline — 23 October 2026
 
-Turn 101 implemented safe read retries; Turn 102 committed, pushed and verified application b050a89 in production together with this handoff. Consult the latest delivery entry for subsequent documentation deployments. Read docs/outbound-retries.md and the latest COMMENTS.md before continuing. New work includes a shared GET/HEAD retry policy, LTA live/page integration, browser static/OneMap adapters, an extracted read-only Overpass POST retry owner and generated retry settings. NEA remains budgeted, health/deploy hooks single-attempt, and browser API polling has no nested retry layer. The released suite has 231 tests; Turns 101–102 record controlled retry fixtures and actual production checks. Earlier 216-test release evidence remains historical in COMMENTS.md.
+Turn 101 implemented safe read retries; Turn 102 committed, pushed and verified application b050a89 in production together with this handoff. Consult the latest delivery entry for subsequent documentation deployments. Read docs/outbound-retries.md and the latest COMMENTS.md before continuing. New work includes a shared GET/HEAD retry policy, LTA live/page integration, browser static/OneMap adapters, an extracted read-only Overpass POST retry owner and generated retry settings. NEA remains budgeted, health/deploy hooks single-attempt, and browser API polling has no nested retry layer. The earlier retry release had 231 tests; Turns 101–102 record controlled retry fixtures and actual production checks. Earlier 216-test release evidence remains historical in COMMENTS.md.
 
 ## Circuit breaker follow-up — 23 October 2026
 
-Turn 103 implemented circuit breakers after the verified retry release; Turn 104 is preparing their commit/deployment. Consult its latest delivery entry for exact status. Read docs/circuit-breakers.md and the latest COMMENTS.md entry. Defaults are three counted operation failures within 60 seconds, 30 seconds open, then one recovery operation. Owners are separate for LTA arrivals/incidents/collections, each NEA dataset and browser OneMap search. Existing fallbacks, quota reservations and security boundaries remain. State is per warm instance/client, not a fleet-wide shared limiter; no database, new secret or monitoring service was provisioned.
+Turn 103 implemented circuit breakers; Turn 104 committed, pushed and verified application 63c82b3 in production. A fresh clone of current main contains them; consult the latest COMMENTS.md delivery entries for subsequent documentation commits. Read docs/circuit-breakers.md and the latest COMMENTS.md entry. Defaults are three counted operation failures within 60 seconds, 30 seconds open, then one recovery operation. Owners are separate for LTA arrivals/incidents/collections, each NEA dataset and browser OneMap search. Existing fallbacks, quota reservations and security boundaries remain. State is per warm instance/client, not a fleet-wide shared limiter; no database, new secret or monitoring service was provisioned.
