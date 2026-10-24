@@ -2,6 +2,8 @@
 
 Prepared 22 October 2026; updated for the 24 October pagination/firewall-policy release. Paste this note into the new cloud chat.
 
+Local follow-up: centralized error tracking was requested with **Vercel logs, no additional account**. See `docs/error-tracking.md` and the latest COMMENTS entry for implementation/checks and delivery status. Browser reports use a separate strict anonymous POST collector; business APIs remain GET/HEAD. The firewall extension adding exactly POST /api/client-errors to the shared IP budget is already published and verified as active version 6, with no pending draft. The application collector is still local pending commit/deployment. No Sentry secret, background queue or GitHub reporting job is needed.
+
 Continue my project at https://github.com/Mikazukiangus/NYP_Bus_tracker. Set up cloud development from the repository; keep the existing Vercel production hosting unless I explicitly request a hosting migration.
 
 ## Start here
@@ -108,7 +110,7 @@ Turn 118 releases the concurrency and caching work as e01960a / dpl_FiLq9bsNTxFs
 
 ## IP rate-limit rollout — 24 October 2026
 
-The user chose IP limiting now and account limits only when login exists. Read docs/rate-limiting.md and the latest COMMENTS.md before changing the firewall. The 600 GET/HEAD-per-60-second per-IP/per-region API rule is live in blocking mode (rule_public_api_per_ip_limit_q1VNjS, active config waf_YhhlPTGZjZU1 version 5), returning HTTP 429 for excess reads. Turn 122 records user-authorized API publication, native isolated 3/10 enforcement/recovery verification, full 600/60 readback and passing production smoke checks. The protected-preview probe was inconclusive; do not claim it passed. No draft changes or temporary test restrictions remain. config/firewall.ts and the offline firewall:rule generator preserve the reviewed policy. Application deployments do not publish firewall drafts. Use the documented traffic review and log-mode rollback if tuning becomes necessary. No new secret, SDK, Redis, anonymous cookie or application authentication was added. Standalone Express needs separate gateway protection before public exposure.
+The user chose IP limiting now and account limits only when login exists. Read docs/rate-limiting.md and the latest COMMENTS.md before changing the firewall. The shared 600-per-60-second per-IP/per-region API rule is live in blocking mode (rule_public_api_per_ip_limit_q1VNjS, active config waf_YhhlPTGZjZU1 version 6), covering GET/HEAD API reads and exactly POST /api/client-errors, with HTTP 429 above the budget. Turn 127 records the POST extension publication, exact readback and production smoke checks; its application collector remains undeployed until a separate release. Turn 122 records user-authorized API publication, native isolated 3/10 enforcement/recovery verification, full 600/60 readback and passing production smoke checks. The protected-preview probe was inconclusive; do not claim it passed. No draft changes or temporary test restrictions remain. config/firewall.ts and the offline firewall:rule generator preserve the reviewed policy. Application deployments do not publish firewall drafts. Use the documented traffic review and log-mode rollback if tuning becomes necessary. No new secret, SDK, Redis, anonymous cookie or application authentication was added. Standalone Express needs separate gateway protection before public exposure.
 
 ## Incident pagination — 24 October 2026
 

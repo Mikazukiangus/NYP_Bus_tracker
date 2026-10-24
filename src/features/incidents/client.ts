@@ -2,6 +2,7 @@ import { config, apiUrl } from '../../config';
 import type { TrafficIncident } from '../../types/bus';
 import { parseIncidentResponse } from '../../../shared/transit/incidentValidation';
 import { incidentPagination } from '../../../shared/transit/incidentPagination';
+import { browserErrors } from '../errors/reporting';
 
 // Live LTA traffic incidents across Singapore; null if unavailable
 export async function fetchTrafficIncidents(): Promise<{ incidents: TrafficIncident[]; fetchedAt: string } | null> {
@@ -37,7 +38,8 @@ export async function fetchTrafficIncidents(): Promise<{ incidents: TrafficIncid
       }
     }
     return null;
-  } catch {
+  } catch (error) {
+    browserErrors.capture(error, { operation: 'incidents.fetch', route: '/api/traffic-incidents', method: 'GET' });
     return null;
   }
 }

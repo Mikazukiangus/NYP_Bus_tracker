@@ -34,6 +34,10 @@ test('preflights, unsupported writes and static map/data/UI requests remain outs
     assert.equal(matches(rule, path, 'GET', 'production'), false);
   }
   for (const method of ['OPTIONS', 'POST', 'PUT', 'DELETE']) assert.equal(matches(rule, '/api/weather', method, 'production'), false);
+  assert.equal(matches(rule, '/api/client-errors', 'POST', 'production'), true);
+  for (const path of ['/api/client-errors/', '/api/client-errors/extra', '/api/client-errors-other']) assert.equal(matches(rule, path, 'POST', 'production'), false);
+  assert.equal(matches(createApiRateLimitRule('preview'), '/api/client-errors', 'POST', 'production'), false);
+  assert.equal(matches(createApiRateLimitRule('preview'), '/api/client-errors', 'POST', 'preview'), true);
 });
 
 test('rollout logs first, restricts enforcement to previews, then enforces production without widening paths', () => {

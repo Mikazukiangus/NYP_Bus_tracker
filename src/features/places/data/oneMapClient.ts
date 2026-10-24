@@ -5,6 +5,7 @@ import { parseOneMapResponse } from './oneMapSchema';
 import { fetchReadWithBackoff } from '../../../../shared/http/readRetry';
 import { createCircuitBreaker, DependencyHttpError, readDependencyJson, type CircuitSettings } from '../../../../shared/http/circuitBreaker';
 import { createAsyncCache } from '../../../../shared/cache/asyncCache';
+import { browserErrors } from '../../errors/reporting';
 export function createOneMapClient(settings: { url: string; timeoutMs: number; circuit?: CircuitSettings; freshnessMs?: number; maxEntries?: number }, request: typeof fetch = (...args) => fetch(...args), now = Date.now) {
   const circuit = createCircuitBreaker(settings.circuit ?? config.oneMapCircuit, now);
   const cache = createAsyncCache<PlaceResult[]>({ freshnessMs: settings.freshnessMs ?? config.cache.placeSearchSeconds * 1000,
@@ -24,7 +25,8 @@ export function createOneMapClient(settings: { url: string; timeoutMs: number; c
           return readDependencyJson(res, raw => parseOneMapResults(parseOneMapResponse(raw), key));
         }, combined);
       }, signal);
-    } catch {
+    } catch (error) {
+      if (!signal?.aborted) browserErrors.capture(error, { operation: 'search.fetch', method: 'GET' });
       return null;
     }
   }

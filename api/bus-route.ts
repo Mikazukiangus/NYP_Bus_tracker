@@ -1,3 +1,4 @@
+import { withErrorTracking } from '../server/errors/reporting.ts';
 import type { Request, Response } from 'express';
 import { config } from '../config/server.ts';
 import { cdnCache } from '../config/schema.ts';
@@ -21,7 +22,7 @@ function send(res: Response | any, status: number, body: unknown, cacheControl?:
   return body;
 }
 
-export default async function handler(req: Request | any, res: Response | any) {
+async function handler(req: Request | any, res: Response | any) {
   const query = validateReadRequest(req, res, routeQuerySchema, config.security);
   if (!query) return;
   const serviceNo = query.ServiceNo;
@@ -44,3 +45,5 @@ export default async function handler(req: Request | any, res: Response | any) {
     return send(res, 502, { error: 'Failed to load route data from LTA DataMall.' });
   }
 }
+
+export default withErrorTracking(handler, '/api/bus-route');

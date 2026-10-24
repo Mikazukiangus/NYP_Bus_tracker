@@ -1,3 +1,4 @@
+import { withErrorTracking } from '../server/errors/reporting.ts';
 import type { Request, Response } from 'express';
 import { config as serverConfig } from '../config/server.ts';
 import type { AppConfig } from '../config/schema.ts';
@@ -70,4 +71,4 @@ export function createHealthHandler(config: AppConfig, diagnostics: Pick<typeof 
   };
 }
 
-export default createHealthHandler(serverConfig);
+export default withErrorTracking(createHealthHandler(serverConfig), '/api/health');

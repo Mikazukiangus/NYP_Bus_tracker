@@ -1,3 +1,4 @@
+import { withErrorTracking } from '../server/errors/reporting.ts';
 import type { Request, Response } from 'express';
 import { config } from '../config/server.ts';
 import { incidentCacheControl } from '../server/http/cache.ts';
@@ -37,4 +38,4 @@ export function createIncidentHandler(incidents = service.incidents) {
     }
   };
 }
-export default createIncidentHandler();
+export default withErrorTracking(createIncidentHandler(), '/api/traffic-incidents');

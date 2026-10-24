@@ -2,7 +2,8 @@ import { z } from '../input/zod.ts';
 import { nameSchema as name, textSchema as text, numberSchema as number, numericSchema as numeric, latitudeSchema, longitudeSchema, pointSchema, timeSchema as time, parseBoundary } from '../input/primitives.ts';
 import type { WeatherSnapshot } from './types.ts';
 
-export const weatherKeys = ['forecast2h','temperature','rainfall','psi','pm25','humidity','forecast24h','uv','lightning','wbgt','windSpeed','outlook4d'] as const;
+import { weatherKeys } from './types.ts';
+export { weatherKeys } from './types.ts';
 const keySchema = z.enum(weatherKeys);
 const region = z.enum(['north','south','east','west','central']);
 const providerPoint = z.object({ latitude: numeric.pipe(latitudeSchema), longitude: numeric.pipe(longitudeSchema) });

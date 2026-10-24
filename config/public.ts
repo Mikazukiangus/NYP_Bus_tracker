@@ -2,8 +2,10 @@
 import { url, optionalBase, ms, seconds, integer, resolve, requireHttpsEndpoints, ConfigError, type Schema, type Values, type Environment } from './validation.ts';
 import { DEFAULT_READ_RETRY_POLICY } from '../shared/http/readRetry.ts';
 import { circuitSchema } from './circuit.ts';
+import { observabilitySchema, errorEnvironment } from './observability.ts';
 
 export const publicSchema = {
+  errors: observabilitySchema,
   oneMapCircuit: circuitSchema('VITE_ONEMAP_CIRCUIT', 'PUBLIC. OneMap search circuit per browser client, shared across search text.'),
   retry: {
     attempts: integer('VITE_READ_ATTEMPTS', DEFAULT_READ_RETRY_POLICY.attempts, 1, 3, 'PUBLIC. Static data and OneMap search attempts including the first; API polling/direct NEA/images do not add nested retries.'),
@@ -46,7 +48,7 @@ export const publicSchema = {
 export type PublicConfig = Values<typeof publicSchema>;
 
 export function createPublicConfig(env: Environment = {}): PublicConfig {
-  const config = resolve(publicSchema, env);
+  const config = resolve(publicSchema, errorEnvironment(env));
   if (config.retry.baseDelayMs > config.retry.maxDelayMs) throw new ConfigError(['VITE_RETRY_BASE_MS must not exceed VITE_RETRY_MAX_MS']);
   if (env.NODE_ENV === 'production' || ['1', 'true'].includes(env.VERCEL ?? '')) assertHttpsPublicUrls(config);
   return config;

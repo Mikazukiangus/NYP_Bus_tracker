@@ -4,6 +4,7 @@ import { field, integer, boolean, text, url, ms, seconds, parseUrl, resolve, isF
 import { publicSchema, assertHttpsPublicUrls } from './public.ts';
 import { DEFAULT_READ_RETRY_POLICY } from '../shared/http/readRetry.ts';
 import { circuitSchema } from './circuit.ts';
+import { errorEnvironment } from './observability.ts';
 export { createPublicConfig, type PublicConfig } from './public.ts';
 export { ConfigError, type Environment } from './validation.ts';
 
@@ -125,7 +126,7 @@ export const configSchema = {
 export type AppConfig = Values<typeof configSchema>;
 
 export function createConfig(env: Environment = {}, options: { requireHttps?: boolean } = {}): AppConfig {
-  const result = resolve(configSchema, env);
+  const result = resolve(configSchema, errorEnvironment(env));
   if (result.outbound.retry.baseDelayMs > result.outbound.retry.maxDelayMs || result.lta.retryDelayMs > result.lta.retryMaxMs) {
     throw new ConfigError(['OUTBOUND_RETRY_BASE_MS <= OUTBOUND_RETRY_MAX_MS and LTA_PAGE_RETRY_DELAY_MS <= LTA_PAGE_RETRY_MAX_MS are required']);
   }

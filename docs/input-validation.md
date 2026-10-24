@@ -24,7 +24,7 @@ Errors expose at most eight known schema paths, never supplied values, unknown f
 }
 ```
 
-Strict unknown-query rejection and the common error body are intentional contract changes. Existing valid GET requests, lower-camel aliases, optional blank filters and successful response formats remain compatible. No write endpoint or speculative request-body schema was added.
+Strict unknown-query rejection and the common error body are intentional contract changes. Existing valid GET requests, lower-camel aliases, optional blank filters and successful response formats remain compatible. Business APIs remain read-only. The separate anonymous `POST /api/client-errors` telemetry collector requires a strict browser-only envelope, exact Origin, JSON, no cookies/Authorization/query, an 8 KiB bound and a three-second stream deadline. Its preflight allows only POST and Content-Type; no credentialed CORS or business mutation is introduced. See [error tracking](error-tracking.md) for admission limits and trust boundaries.
 
 ## External data and UI boundaries
 

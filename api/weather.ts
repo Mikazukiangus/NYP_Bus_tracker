@@ -1,3 +1,4 @@
+import { withErrorTracking } from '../server/errors/reporting.ts';
 import type { Request, Response } from 'express';
 import { config } from '../config/server.ts';
 import { cdnCache } from '../config/schema.ts';
@@ -8,7 +9,7 @@ import { validateReadRequest, emptyQuerySchema } from '../server/http/request.ts
 // Cache/budget state survives requests in this warm function instance.
 const weatherService = createWeatherService(config.weather, config.public.urls.neaBase, { logger });
 
-export default async function handler(req: Request | any, res: Response | any) {
+async function handler(req: Request | any, res: Response | any) {
   if (!validateReadRequest(req, res, emptyQuerySchema, config.security)) return;
   const body = await weatherService.snapshot();
   const complete = body.missing.length === 0 && body.stale.length === 0;
@@ -28,3 +29,5 @@ export default async function handler(req: Request | any, res: Response | any) {
   }
   return body;
 }
+
+export default withErrorTracking(handler, '/api/weather');

@@ -3,6 +3,7 @@ import type { StopServiceArrivals } from '../../types/bus';
 import { parseBus } from './decodeArrival';
 import { parseArrivalResponse } from '../../../shared/transit/arrivals';
 import type { ArrivalSnapshot } from './domain/snapshot';
+import { browserErrors } from '../errors/reporting';
 
 export interface ArrivalRequestOptions { forceRefresh?: boolean }
 
@@ -24,7 +25,8 @@ export async function fetchArrivalSnapshot(stopCode: string, options: ArrivalReq
       nextBus: parseBus(svc.NextBus, receivedAtMs), nextBus2: parseBus(svc.NextBus2, receivedAtMs), nextBus3: parseBus(svc.NextBus3, receivedAtMs),
     }));
     return { status: 'available', stopCode, receivedAtMs, source: 'LTA_DATAMALL_V3', services };
-  } catch {
+  } catch (error) {
+    browserErrors.capture(error, { operation: 'arrivals.fetch', route: '/api/bus-arrival', method: 'GET' });
     return { status: 'unavailable', stopCode, receivedAtMs: Date.now(), source: null, reason: 'network' };
   }
 }

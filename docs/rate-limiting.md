@@ -4,7 +4,7 @@ The user chose IP limits now and verified-account limits when login exists. No a
 
 ## Policy and enforcement location
 
-`config/firewall.ts` contains one validated, versioned policy object and generates a native Vercel rule. The initial budget is **600 GET/HEAD requests per 60-second fixed window per source IP per Vercel region**, shared across `/api/` paths, query values, hosts and deployments covered by the project rule. The legacy `/api/BusArrival` alias participates. Future `/api/` read endpoints inherit the policy. This generous initial limit leaves room for multiple open views/tabs and shared networks; tune using observed traffic, not a claimed production per-user profile.
+`config/firewall.ts` contains one validated, versioned policy object and generates a native Vercel rule. The budget is **600 requests per 60-second fixed window per source IP per Vercel region**, shared across `/api/` GET/HEAD reads and exactly POST `/api/client-errors`, query values, hosts and deployments covered by the project rule. The legacy `/api/BusArrival` alias participates. Future `/api/` read endpoints inherit the policy. This generous initial limit leaves room for multiple open views/tabs and shared networks; tune using observed traffic, not a claimed production per-user profile.
 
 Vercel WAF evaluates the rule at the platform boundary, including cache hits; it does not depend on warm function memory, provider success or application cache keys. IP grouping uses the platform's source-IP key, not a client-controlled `x-user-id`, cookie, Authorization value or a manually parsed forwarded-header chain. No IPs are copied into application logs or stored by this code. Existing Vercel traffic logs/retention still apply.
 
@@ -18,10 +18,10 @@ Important limits: shared NAT/VPN addresses share a budget; IPv6 address rotation
 
 - Project: `prj_hRkofLg97cZMW7uyG1cvDrDx4R7L`, team `carbon-bc04`.
 - Rule: `rule_public_api_per_ip_limit_q1VNjS` / `Public API per-IP limit`.
-- Active configuration: `waf_YhhlPTGZjZU1`, version `5`, `firewallEnabled: true`; zero pending draft changes.
-- Conditions: path starts with `/api/`, method is GET or HEAD. No preview/host/test-header restriction remains.
+- Active configuration: `waf_YhhlPTGZjZU1`, version `6`, `firewallEnabled: true`; zero pending draft changes.
+- Conditions: (path starts with `/api/` AND method is GET or HEAD) OR (path equals `/api/client-errors` AND method equals POST). No preview/host/test-header restriction remains.
 - Rate limit: fixed window, `keys: ["ip"]`, `limit: 600`, `window: 60`, exceeded action **`rate_limit` (HTTP 429)**. Setting this nested action to `log` only observes traffic; `deny` would return 403 instead.
-- The active rule matches `createApiRateLimitRule('production')` exactly. Application deployment is separate from firewall publication.
+- The active rule now exactly matches `createApiRateLimitRule('production')`. Turn 127 publishes its POST extension after explicit user authorization: MCP read/update returned 404, so the documented authenticated CLI fallback staged one valid rule update, reviewed the complete diff and published it. Active version 6 matches the reviewed rule; other settings are unchanged and no draft remains. Other POST paths and OPTIONS remain excluded. The application collector is still local pending commit/deployment; application deployment and firewall publication are separate.
 
 ## Actual verification and limits
 
@@ -37,6 +37,8 @@ To verify native blocking without applying a low threshold to real visitors, a t
 - The next window recovered to the expected 400 response.
 
 The full 600/60 rule then replaced the temporary conditions and was read back as active with no pending changes. Post-enforcement production smoke passed all six API URLs, existing client assets, service index and denied-origin/approved-preflight behavior. The native threshold/recovery test used 3/10 in isolation; no 601-request burst, separate genuine source-IP test, broad outage/load test or continuous monitoring is claimed. No Retry-After header was returned on the observed native 429s.
+
+The version 6 POST extension was verified by exact active-config readback and six low-volume production checks: page 200 with CSP/HSTS, malformed arrival GET/legacy HEAD 400, unrelated weather POST 405, approved preflight 204 and unapproved Origin 403. The existing 600/60 action and IP key are unchanged. No 601-request burst, new native threshold canary or live collector test was performed; the application endpoint is not deployed yet.
 
 ## Change or roll back the rule
 

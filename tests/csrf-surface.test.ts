@@ -31,8 +31,8 @@ function response() {
       status(value: number) { status = value; return this; }, json(value: unknown) { body = value; } } };
 }
 
-test('the public read-only API inventory must be reviewed when endpoints change', () => {
-  assert.deepEqual(readdirSync(new URL('../api/', import.meta.url)).filter(file => file.endsWith('.ts')).sort(), endpoints.map(endpoint => endpoint.name + '.ts').sort());
+test('the API inventory distinguishes business reads from the strict anonymous telemetry collector', () => {
+  assert.deepEqual(readdirSync(new URL('../api/', import.meta.url)).filter(file => file.endsWith('.ts')).sort(), [...endpoints.map(endpoint => endpoint.name + '.ts'), 'client-errors.ts'].sort());
 });
 
 test('cookie-bearing cross-origin form requests cannot enter any public API service', async () => {

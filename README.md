@@ -178,10 +178,12 @@ To check a change, run `npx vite build` before and after it: the file names that
 
 Error states, temporary saves, alarm capability notices and the minimal public health contract are documented in [docs/error-handling.md](docs/error-handling.md).
 
+[Centralized error tracking](docs/error-tracking.md) uses existing Vercel runtime logs for server exceptions and bounded, privacy-filtered browser reports. Safe reload/dismiss screens show a generated reference. No additional account or secret is needed. The application follow-up is local pending commit/deployment. Its exact client-error POST firewall extension is already published and verified as active version 6.
+
 Shared-cache ownership, atomic cross-tab preferences and stale request guards are documented in [docs/concurrency.md](docs/concurrency.md).
 
 Repeated OneMap searches and static trip plans now have bounded five-minute caches; incident provider reads share the existing two-minute freshness window. See [caching and invalidation](docs/caching.md) for keys, TTL settings, cancellation rules and measured results. `npm run profile:lookups` includes repeated-plan cache timings.
 
-Public API IP rate limiting is managed by Vercel WAF: 600 reads per minute per IP per region, shared across API paths. The rule is live and returns HTTP 429 for excess API reads; see [the rate-limit guide](docs/rate-limiting.md). Per-account limits are deferred until verified login exists. Local Express is not protected by the Vercel rule.
+Public API IP rate limiting is managed by Vercel WAF: 600 requests per minute per IP per region, shared across API GET/HEAD reads and exactly POST /api/client-errors. The rule is live and returns HTTP 429 for excess matching requests; see [the rate-limit guide](docs/rate-limiting.md). Per-account limits are deferred until verified login exists. Local Express is not protected by the Vercel rule.
 
 Traffic incidents support opt-in `limit`/`offset` pagination with a snapshot fingerprint; the map client loads complete matching pages before route filtering. See [pagination](docs/pagination.md) for bounds, 409 recovery, legacy compatibility and why offset suits the current cached feed. Related arrays inside arrivals/routes/weather remain atomic.

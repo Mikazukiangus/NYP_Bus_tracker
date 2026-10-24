@@ -25,12 +25,19 @@ export function createApiRateLimitRule(input: FirewallStage) {
     { type: 'path', op: 'pre', value: apiRateLimitPolicy.pathPrefix },
     { type: 'method', op: 'inc', value: [...apiRateLimitPolicy.methods] },
   ];
-  if (stage === 'preview') conditions.push({ type: 'environment', op: 'eq', value: 'preview' });
+  const reports = [
+    { type: 'path', op: 'eq', value: '/api/client-errors' },
+    { type: 'method', op: 'eq', value: 'POST' },
+  ];
+  if (stage === 'preview') {
+    conditions.push({ type: 'environment', op: 'eq', value: 'preview' });
+    reports.push({ type: 'environment', op: 'eq', value: 'preview' });
+  }
   return {
     name: apiRateLimitPolicy.name,
-    description: 'Shared GET/HEAD API budget per source IP and region. User limits await verified login.',
+    description: 'Shared API reads and client-error POST budget per IP and region. User limits await verified login.',
     active: true,
-    conditionGroup: [{ conditions }],
+    conditionGroup: [{ conditions }, { conditions: reports }],
     action: { mitigate: { action: 'rate_limit', rateLimit: {
       algo: 'fixed_window', window: apiRateLimitPolicy.windowSeconds,
       limit: apiRateLimitPolicy.requests, keys: ['ip'],

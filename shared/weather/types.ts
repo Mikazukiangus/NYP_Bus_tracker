@@ -3,9 +3,8 @@
 export type LatLng = { lat: number; lng: number };
 export type WeatherRegion = 'north' | 'south' | 'east' | 'west' | 'central';
 
-export type WeatherDatasetKey =
-  | 'forecast2h' | 'temperature' | 'rainfall' | 'psi' | 'pm25' | 'humidity'
-  | 'forecast24h' | 'uv' | 'lightning' | 'wbgt' | 'windSpeed' | 'outlook4d';
+export const weatherKeys = ['forecast2h','temperature','rainfall','psi','pm25','humidity','forecast24h','uv','lightning','wbgt','windSpeed','outlook4d'] as const;
+export type WeatherDatasetKey = typeof weatherKeys[number];
 
 export interface StationReadings {
   timestamp: string;

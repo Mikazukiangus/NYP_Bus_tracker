@@ -4,6 +4,7 @@ import type { BusRoute } from '../../types/bus';
 import { createAssetCache, type AssetCacheSettings } from './assetCache';
 import { serviceNoSchema } from '../../../shared/input/primitives';
 import { fetchReadWithBackoff } from '../../../shared/http/readRetry';
+import { browserErrors } from '../errors/reporting';
 
 export type BusRouteLookup =
   | { status: 'ok'; route: BusRoute }
@@ -21,7 +22,7 @@ export function createRouteRepository(settings: AssetCacheSettings, dependencies
       const res = await fetchReadWithBackoff(request, dataUrl(url), { signal: AbortSignal.timeout(config.timeouts.requestMs) }, config.retry);
       if (!res.ok || !res.headers.get('content-type')?.includes('json')) return null;
       return await res.json();
-    } catch { return null; }
+    } catch (error) { browserErrors.capture(error, { operation: 'route.fetch', method: 'GET' }); return null; }
   }
 
   async function load(serviceNo: string, expectedVersion?: string): Promise<BusRouteLookup> {
@@ -44,7 +45,10 @@ export function createRouteRepository(settings: AssetCacheSettings, dependencies
       if (!res.ok) return { status: 'unavailable' };
       const route = parseRoute(await res.json(), serviceNo, expectedVersion);
       return route ? { status: 'ok', route } : { status: 'unavailable' };
-    } catch { return { status: 'unavailable' }; }
+    } catch (error) {
+      browserErrors.capture(error, { operation: 'route.fetch', route: '/api/bus-route', method: 'GET' });
+      return { status: 'unavailable' };
+    }
   }
 
   function fetchBusRoute(serviceNo: string, expectedVersion?: string): Promise<BusRouteLookup> {
