@@ -90,3 +90,7 @@ Because ignored local credential files are included, a key you intentionally sto
 2. Replace it in the secret manager, local/hosted environments and affected CI secrets, then verify the app using the replacement. Check provider usage and affected logs.
 3. Remove it from current files. Coordinate history cleanup with collaborators before a destructive rewrite or force-push; forks/cached views may need separate remediation. Follow [GitHub's sensitive-data removal instructions](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository).
 4. Re-run the scan. Keep reports redacted and limit access to any historical logs that might contain the value.
+
+## Public API IP limits
+
+See [rate limiting](docs/rate-limiting.md) for the validated Vercel WAF policy and actual rollout state. The 600 GET/HEAD requests per 60 seconds per IP/per-region rule is live and returns HTTP 429 for excess reads after user-authorized API publication and an isolated native enforcement/recovery test. Per-account limits are deferred by the user until verified login exists. No client-controlled identity, anonymous cookie, application IP log, new secret or in-memory serverless counter was added. Standalone Express is outside this platform rule; protect its gateway before public exposure.

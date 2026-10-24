@@ -17,6 +17,7 @@
     "config:check": "tsx scripts/check-config.ts",
     "secrets:scan": "tsx scripts/scan-secrets.ts",
     "security:https": "tsx scripts/check-https.ts",
+    "firewall:rule": "tsx scripts/write-firewall-rule.ts",
     "profile:lookups": "tsx scripts/profile-lookups.ts"
   },
   "dependencies": {

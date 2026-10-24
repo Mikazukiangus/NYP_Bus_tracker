@@ -8,7 +8,8 @@ Every handler calls the shared schema gate in `server/http/request.ts` before se
 
 - `/api/bus-arrival` (also the existing `/api/BusArrival` alias): required `BusStopCode`, optional `ServiceNo`.
 - `/api/bus-route`: required `ServiceNo`.
-- `/api/weather`, `/api/traffic-incidents`, `/api/health`: no query parameters.
+- `/api/weather`, `/api/health`: no query parameters.
+- `/api/traffic-incidents`: optional bounded `limit`, `offset` and content `snapshot`; continuations require the first page's snapshot. No parameters retain the complete legacy feed. See [pagination](pagination.md).
 
 Business requests accept **GET and HEAD only**, with no request payload. Approved CORS OPTIONS preflights return an empty 204 before service work; see [the CORS policy](cors.md). Unsupported methods return **405** and `Allow: GET, HEAD`; malformed query/body input returns **400**. These rejections use `Cache-Control: no-store`. Untrusted Origin-bearing requests now receive 403 through the shared CORS gate; ordinary OPTIONS without valid preflight metadata remains unsupported. The standalone server no longer parses unused JSON bodies before these gates. A malformed JSON POST is rejected as an unsupported method, and a GET with a declared/nonempty body is rejected without interpreting it. Serverless handlers apply the same checks independently of Express.
 

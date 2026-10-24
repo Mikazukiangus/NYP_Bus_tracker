@@ -69,7 +69,7 @@ export function validateReadRequest<T>(req: RequestInput, res: ResponseOutput, s
   const secondary = hasRaw && hasAdapted ? schema.safeParse(adapted) : null;
   if (!parsed.success || secondary && (!secondary.success || JSON.stringify(secondary.data) !== JSON.stringify(parsed.data))) {
     const issues = !parsed.success ? parsed.error.issues : secondary && !secondary.success ? secondary.error.issues : [];
-    const paths = issues.map(issue => ['BusStopCode', 'ServiceNo'].includes(String(issue.path[0])) ? `query.${String(issue.path[0])}` : 'query');
+    const paths = issues.map(issue => ['BusStopCode', 'ServiceNo', 'limit', 'offset', 'snapshot'].includes(String(issue.path[0])) ? `query.${String(issue.path[0])}` : 'query');
     reject(res, 400, paths.length ? paths : 'query'); return null;
   }
   return parsed.data;
