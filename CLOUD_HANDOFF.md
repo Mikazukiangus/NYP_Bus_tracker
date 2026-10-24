@@ -1,6 +1,6 @@
 # Cloud development handoff — BusTrackerSG
 
-Prepared 22 October 2026; updated for the 23 October error-handling release. Paste this note into the new cloud chat.
+Prepared 22 October 2026; updated for the 24 October concurrency/cache release. Paste this note into the new cloud chat.
 
 Continue my project at https://github.com/Mikazukiangus/NYP_Bus_tracker. Set up cloud development from the repository; keep the existing Vercel production hosting unless I explicitly request a hosting migration.
 
@@ -17,9 +17,9 @@ Continue my project at https://github.com/Mikazukiangus/NYP_Bus_tracker. Set up 
 - Repository: https://github.com/Mikazukiangus/NYP_Bus_tracker
 - Production: https://nypbus-tracker.vercel.app/
 - Branch at handoff: `main`.
-- Latest verified application release: `929a145877c0c140da196f2048ad757680ca1185` — all six error-handling fixes, including the minimal public-health contract; subsequent commits record release notes.
-- Application commit: `929a145877c0c140da196f2048ad757680ca1185`; it includes the previously released circuit breakers, retries and outbound request/map image deadlines.
-- Verified application deployment: `dpl_212d1KWcewdR6699aFMjd4pPQ45b`, READY with the exact application SHA and live domain assigned.
+- Latest verified application release: `e01960a7532d6928a4a1a17a0aee8715fa430784` — atomic shared updates and repeated-operation caches, including the earlier error-handling fixes; subsequent commits record release notes.
+- Application commit: `e01960a7532d6928a4a1a17a0aee8715fa430784`; it includes the previously released circuit breakers, retries and outbound request/map image deadlines.
+- Verified application deployment: `dpl_FiLq9bsNTxFse8VCsEygFmffNQZU`, READY with the exact application SHA and live domain assigned.
 - Existing Vercel project: `nypbus-tracker`, team slug `carbon-bc04`; project ID `prj_hRkofLg97cZMW7uyG1cvDrDx4R7L`, team ID `team_ZEUyUqyAE43B7bGMi6Rdux14`. These IDs are identifiers, not credentials. New chat access must be established separately.
 - GitHub integration deploys pushes to `main`. Do not trigger a second manual deployment for the same push.
 - This handoff is committed and pushed; Turn 104 updates its circuit-breaker release baseline. A fresh clone of current main contains it. Read the latest COMMENTS.md delivery entries and recheck remote state rather than resetting to an earlier SHA.
@@ -68,7 +68,7 @@ Use `HOST`/`PORT` if the preview platform requires them. Keep development mode f
 
 ## Validation and known limitations
 
-Last application release passed 262 tests, TypeScript including unused-local checks, HTTPS scan across 141 files, client build, working-tree/history Gitleaks scans, 58 live CORS checks and production browser flows at 375 px/1280 px. Real arrivals, trips, map tiles/logo/local CSS, saved buses, location persistence and map cleanup passed. Consult COMMENTS.md for the latest documentation-only deployment and its smoke results. These are historical results; rerun checks in the new runtime before claiming new verification.
+Latest application release passed 291 tests, TypeScript including unused-local checks, HTTPS scan across 147 files, client build, working-tree/history Gitleaks scans, 58 live CORS checks and production browser flows at 375 px/1280 px. Real arrivals, trips, map tiles/logo/local CSS, saved buses, location persistence and map cleanup passed. Consult COMMENTS.md for the latest documentation-only deployment and its smoke results. These are historical results; rerun checks in the new runtime before claiming new verification.
 
 The production build generated 601 services, 5,209 stops and 797 directions. Dataset counts can change. NEA weather can return validated partial data: it had seven missing datasets initially and no missing datasets on follow-up; later cold instances can still return partial data. Runtime error-level records checked were existing Node DEP0169 `url.parse()` deprecation warnings; no other failures were returned in that window. No external log drains are configured, and continuous monitoring has not been established.
 
@@ -92,7 +92,7 @@ Turn 105 reviewed six error-handling gaps; Turn 106 published the review notes o
 
 ## Atomic update follow-up — 23 October 2026
 
-Turn 109 addresses shared-cache and stale-completion races plus cross-tab preference read–modify–write updates. Read docs/concurrency.md and the latest COMMENTS.md for the actual validation/delivery state. New public VITE_PREFERENCE_LOCK_TIMEOUT_MS defaults to 5,000 ms; no production setting is required to use the default. Updated tabs use native Web Locks and storage notifications; denied/unsupported locking keeps changes session-only. Server cache ownership remains per warm instance; no shared database or distributed lock was added. Do not assume this local work is deployed until a subsequent delivery entry verifies it.
+Turn 109 addresses shared-cache and stale-completion races plus cross-tab preference read–modify–write updates. Read docs/concurrency.md and the latest COMMENTS.md for the actual validation/delivery state. New public VITE_PREFERENCE_LOCK_TIMEOUT_MS defaults to 5,000 ms; no production setting is required to use the default. Updated tabs use native Web Locks and storage notifications; denied/unsupported locking keeps changes session-only. Server cache ownership remains per warm instance; no shared database or distributed lock was added. Turn 118 commits, pushes and verifies this work in production; consult that entry for actual checks and limits. Refresh old open tabs so preference writers participate in the updated Web Locks protocol.
 
 ## Queue proposal cancelled — 24 October 2026
 
@@ -100,4 +100,8 @@ Turn 116 removes the uncommitted background-queue migration at the user's reques
 
 ## Repeated-operation cache follow-up — 24 October 2026
 
-Turn 117 adds bounded browser OneMap/static-trip caches (five-minute defaults) and a shared per-warm-owner incident cache using the existing two-minute incident TTL. Incident edge freshness subtracts snapshot age. Read docs/caching.md for invalidation, cancellation ownership, privacy and existing-cache boundaries. VITE_PLACE_SEARCH_CACHE_SECONDS and VITE_TRIP_PLANS_CACHE_SECONDS have defaults; no production setting or new secret is required. Preserve live arrival refresh and dynamic trip ranking. These changes are local until a later COMMENTS.md delivery entry verifies a release; the cancelled background queue stays removed.
+Turn 117 adds bounded browser OneMap/static-trip caches (five-minute defaults) and a shared per-warm-owner incident cache using the existing two-minute incident TTL. Incident edge freshness subtracts snapshot age. Read docs/caching.md for invalidation, cancellation ownership, privacy and existing-cache boundaries. VITE_PLACE_SEARCH_CACHE_SECONDS and VITE_TRIP_PLANS_CACHE_SECONDS have defaults; no production setting or new secret is required. Preserve live arrival refresh and dynamic trip ranking. Turn 118 commits, pushes and verifies these changes in production; the cancelled background queue stays removed.
+
+## Release verification — 24 October 2026
+
+Turn 118 releases the concurrency and caching work as e01960a / dpl_FiLq9bsNTxFse8VCsEygFmffNQZU. All 291 tests, TypeScript, client build, HTTPS/security scans, 58 live CORS checks and production browser flows at 375 px/1280 px pass. Provider counts remain 601 services / 5,209 stops / 797 directions. Initial weather had seven missing datasets; the follow-up smoke had zero missing datasets. Runtime records returned in the checked window were existing DEP0169 warnings only. Existing npm audit finding: transitive body-parser 1.20.8 has GHSA-27r3-jxmh-p828, fixed in 1.20.9; app source enables no body-parsing middleware, but the dependency still needs maintenance. No dependency change is part of this release. Refresh old tabs to use the updated preference coordination.
