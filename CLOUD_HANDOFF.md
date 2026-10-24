@@ -1,6 +1,6 @@
 # Cloud development handoff — BusTrackerSG
 
-Prepared 22 October 2026; updated for the 24 October concurrency/cache release. Paste this note into the new cloud chat.
+Prepared 22 October 2026; updated for the 24 October pagination/firewall-policy release. Paste this note into the new cloud chat.
 
 Continue my project at https://github.com/Mikazukiangus/NYP_Bus_tracker. Set up cloud development from the repository; keep the existing Vercel production hosting unless I explicitly request a hosting migration.
 
@@ -17,9 +17,9 @@ Continue my project at https://github.com/Mikazukiangus/NYP_Bus_tracker. Set up 
 - Repository: https://github.com/Mikazukiangus/NYP_Bus_tracker
 - Production: https://nypbus-tracker.vercel.app/
 - Branch at handoff: `main`.
-- Latest verified application release: `e01960a7532d6928a4a1a17a0aee8715fa430784` — atomic shared updates and repeated-operation caches, including the earlier error-handling fixes; subsequent commits record release notes.
-- Application commit: `e01960a7532d6928a4a1a17a0aee8715fa430784`; it includes the previously released circuit breakers, retries and outbound request/map image deadlines.
-- Verified application deployment: `dpl_FiLq9bsNTxFse8VCsEygFmffNQZU`, READY with the exact application SHA and live domain assigned.
+- Latest verified application release: `6db039d131721a38d808dc0f96f70dfb3be024e3` — incident snapshot pagination and tracked firewall policy files, including the earlier concurrency/cache/error-handling fixes; subsequent commits record release notes.
+- Application commit: `6db039d131721a38d808dc0f96f70dfb3be024e3`; it includes the previously released circuit breakers, retries and outbound request/map image deadlines.
+- Verified application deployment: `dpl_D7Zex8xX3HZL9aAxbAv5RijNx5Hr`, READY with the exact application SHA and live domain assigned.
 - Existing Vercel project: `nypbus-tracker`, team slug `carbon-bc04`; project ID `prj_hRkofLg97cZMW7uyG1cvDrDx4R7L`, team ID `team_ZEUyUqyAE43B7bGMi6Rdux14`. These IDs are identifiers, not credentials. New chat access must be established separately.
 - GitHub integration deploys pushes to `main`. Do not trigger a second manual deployment for the same push.
 - This handoff is committed and pushed; Turn 104 updates its circuit-breaker release baseline. A fresh clone of current main contains it. Read the latest COMMENTS.md delivery entries and recheck remote state rather than resetting to an earlier SHA.
@@ -68,7 +68,7 @@ Use `HOST`/`PORT` if the preview platform requires them. Keep development mode f
 
 ## Validation and known limitations
 
-Latest application release passed 291 tests, TypeScript including unused-local checks, HTTPS scan across 147 files, client build, working-tree/history Gitleaks scans, 58 live CORS checks and production browser flows at 375 px/1280 px. Real arrivals, trips, map tiles/logo/local CSS, saved buses, location persistence and map cleanup passed. Consult COMMENTS.md for the latest documentation-only deployment and its smoke results. These are historical results; rerun checks in the new runtime before claiming new verification.
+Latest application release passed 305 tests, TypeScript including unused-local checks, HTTPS scan across 148 files, client build, working-tree/history Gitleaks scans, 58 live CORS checks and production browser flows at 375 px/1280 px. Real arrivals, trips, map tiles/logo/local CSS, saved buses, location persistence and map cleanup passed. Consult COMMENTS.md for the latest documentation-only deployment and its smoke results. These are historical results; rerun checks in the new runtime before claiming new verification.
 
 The production build generated 601 services, 5,209 stops and 797 directions. Dataset counts can change. NEA weather can return validated partial data: it had seven missing datasets initially and no missing datasets on follow-up; later cold instances can still return partial data. Runtime error-level records checked were existing Node DEP0169 `url.parse()` deprecation warnings; no other failures were returned in that window. No external log drains are configured, and continuous monitoring has not been established.
 
@@ -112,4 +112,8 @@ The user chose IP limiting now and account limits only when login exists. Read d
 
 ## Incident pagination — 24 October 2026
 
-Turn 123 implements opt-in offset pagination on /api/traffic-incidents (100 default, 200 max, 10,000-record bound) with deterministic content fingerprints and 409 on changed snapshots. No-query legacy responses remain complete. The browser drains validated matching pages atomically under one timeout, restarts once on conflict and retains complete stale data on failure. It does not paginate nested arrivals/route/weather resources or introduce a database/index/store/secret. Read docs/pagination.md and the latest COMMENTS.md for validation and delivery; this application work is local until a later release entry verifies deployment. Preserve the separately live 600/60 per-IP WAF blocking configuration.
+Turn 123 implements opt-in offset pagination on /api/traffic-incidents (100 default, 200 max, 10,000-record bound) with deterministic content fingerprints and 409 on changed snapshots. No-query legacy responses remain complete. The browser drains validated matching pages atomically under one timeout, restarts once on conflict and retains complete stale data on failure. It does not paginate nested arrivals/route/weather resources or introduce a database/index/store/secret. Read docs/pagination.md and the latest COMMENTS.md for validation and delivery; Turn 124 commits, pushes and verifies this application work in production, including a real 24-record/two-page traversal, safe 409 handling and complete legacy responses. Preserve the separately live 600/60 per-IP WAF blocking configuration.
+
+## Pagination delivery — 24 October 2026
+
+Turn 124 delivers application 6db039d / dpl_D7Zex8xX3HZL9aAxbAv5RijNx5Hr, READY at the exact SHA with the live domain. All 305 tests, TypeScript, HTTPS/build/security scans, live pagination and 58 CORS checks pass, plus production phone/desktop flows. The independently published WAF remains the 600/60 per-IP blocking policy; application deploys do not publish firewall drafts. Existing dependency advisory/DEP0169 warnings and variable partial weather remain documented limitations. Consult the latest COMMENTS.md for documentation follow-up deployment and smoke results.
