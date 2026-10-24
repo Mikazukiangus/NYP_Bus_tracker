@@ -21,7 +21,7 @@ Important limits: shared NAT/VPN addresses share a budget; IPv6 address rotation
 - Active configuration: `waf_YhhlPTGZjZU1`, version `6`, `firewallEnabled: true`; zero pending draft changes.
 - Conditions: (path starts with `/api/` AND method is GET or HEAD) OR (path equals `/api/client-errors` AND method equals POST). No preview/host/test-header restriction remains.
 - Rate limit: fixed window, `keys: ["ip"]`, `limit: 600`, `window: 60`, exceeded action **`rate_limit` (HTTP 429)**. Setting this nested action to `log` only observes traffic; `deny` would return 403 instead.
-- The active rule now exactly matches `createApiRateLimitRule('production')`. Turn 127 publishes its POST extension after explicit user authorization: MCP read/update returned 404, so the documented authenticated CLI fallback staged one valid rule update, reviewed the complete diff and published it. Active version 6 matches the reviewed rule; other settings are unchanged and no draft remains. Other POST paths and OPTIONS remain excluded. The application collector is still local pending commit/deployment; application deployment and firewall publication are separate.
+- The active rule now exactly matches `createApiRateLimitRule('production')`. Turn 127 publishes its POST extension after explicit user authorization: MCP read/update returned 404, so the documented authenticated CLI fallback staged one valid rule update, reviewed the complete diff and published it. Active version 6 matches the reviewed rule; other settings are unchanged and no draft remains. Other POST paths and OPTIONS remain excluded. The application collector was subsequently deployed and verified in release 5ae3003; application deployment and firewall publication remain separate.
 
 ## Actual verification and limits
 
@@ -38,7 +38,7 @@ To verify native blocking without applying a low threshold to real visitors, a t
 
 The full 600/60 rule then replaced the temporary conditions and was read back as active with no pending changes. Post-enforcement production smoke passed all six API URLs, existing client assets, service index and denied-origin/approved-preflight behavior. The native threshold/recovery test used 3/10 in isolation; no 601-request burst, separate genuine source-IP test, broad outage/load test or continuous monitoring is claimed. No Retry-After header was returned on the observed native 429s.
 
-The version 6 POST extension was verified by exact active-config readback and six low-volume production checks: page 200 with CSP/HSTS, malformed arrival GET/legacy HEAD 400, unrelated weather POST 405, approved preflight 204 and unapproved Origin 403. The existing 600/60 action and IP key are unchanged. No 601-request burst, new native threshold canary or live collector test was performed; the application endpoint is not deployed yet.
+The version 6 POST extension was verified by exact active-config readback and six low-volume production checks: page 200 with CSP/HSTS, malformed arrival GET/legacy HEAD 400, unrelated weather POST 405, approved preflight 204 and unapproved Origin 403. The existing 600/60 action and IP key are unchanged. No 601-request burst or new native threshold canary was performed. The collector was not deployed at firewall-publication time; Turn 128 subsequently verifies its deployed boundaries, actual browser delivery and Vercel log correlation.
 
 ## Change or roll back the rule
 

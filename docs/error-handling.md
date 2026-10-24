@@ -25,7 +25,7 @@ A degraded probe records a restricted server log such as:
 {"level":"warn","event":"health.probe_failed","details":{"provider":"lta","status":"unavailable","httpStatus":401,"reason":"upstream_http_error","latencyMs":23,"checkedAt":"2026-10-23T00:00:00.000Z"}}
 ```
 
-Use authorized Vercel runtime logs or local server output to diagnose provider/status and correlate generated references. Never add a query flag to reveal environment settings, print raw provider errors or paste credentials into logs. The centralized tracking follow-up is local pending release; it provisions no log drain, authentication or continuous monitor.
+Use authorized Vercel runtime logs or local server output to diagnose provider/status and correlate generated references. Never add a query flag to reveal environment settings, print raw provider errors or paste credentials into logs. Centralized tracking is deployed and verified in application release 5ae3003; it provisions no log drain, authentication or continuous monitor. See the tracking guide for live collector/log-correlation evidence.
 
 Regression coverage lives in `tests/error-handling.test.ts`, `tests/error-hooks.test.ts` and `tests/api-health.test.ts`, alongside existing security/transport tests. The hook tests use an isolated DOM and controlled providers/storage/device capabilities; they do not depend on a live provider or prove physical vibration/audio output. Production deployment and device verification are separate delivery steps.
 

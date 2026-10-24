@@ -178,7 +178,7 @@ To check a change, run `npx vite build` before and after it: the file names that
 
 Error states, temporary saves, alarm capability notices and the minimal public health contract are documented in [docs/error-handling.md](docs/error-handling.md).
 
-[Centralized error tracking](docs/error-tracking.md) uses existing Vercel runtime logs for server exceptions and bounded, privacy-filtered browser reports. Safe reload/dismiss screens show a generated reference. No additional account or secret is needed. The application follow-up is local pending commit/deployment. Its exact client-error POST firewall extension is already published and verified as active version 6.
+[Centralized error tracking](docs/error-tracking.md) uses existing Vercel runtime logs for server exceptions and bounded, privacy-filtered browser reports. Safe reload/dismiss screens show a generated reference. No additional account or secret is needed. Centralized tracking is deployed and verified live (application release 5ae3003); its exact client-error POST firewall extension is active as version 6. See the guide and COMMENTS.md for the delivery evidence.
 
 Shared-cache ownership, atomic cross-tab preferences and stale request guards are documented in [docs/concurrency.md](docs/concurrency.md).
 
