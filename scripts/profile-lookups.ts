@@ -9,6 +9,7 @@ import { buildBusNetwork } from '../src/features/network/domain/buildNetwork.ts'
 import { parseNetwork } from '../shared/transit/parsers.ts';
 import { nearestStops, searchStops } from '../src/features/network/domain/queries.ts';
 import { planTrips } from '../src/services/tripPlanner.ts';
+import { createTripPlanCache } from '../src/features/journey/tripPlanCache.ts';
 import { favoriteLabels } from '../src/features/saved/domain/labels.ts';
 import { SINGAPORE_LOCATIONS } from '../src/data/locations.ts';
 import type { FavoriteItem } from '../src/types/bus';
@@ -39,6 +40,7 @@ try {
   const parsed = parseNetwork(JSON.parse(await readFile(path.join(root, 'public/bus-routes/network.json'), 'utf8')));
   assert.ok(parsed, 'Generate valid local route data before profiling');
   const net = buildBusNetwork(parsed);
+  const tripCache = createTripPlanCache({ freshnessMs: 300000 });
   const locations = SINGAPORE_LOCATIONS;
   const pairs = [[0,3], [0,6], [0,9], [1,10], [2,12], [3,15], [4,17], [5,19]]
     .map(([a, b]) => ({ from: locations[a], to: locations[b] }));
@@ -67,6 +69,7 @@ try {
   await writeFile(comparisonPath, source);
   const baseline = await import(pathToFileURL(comparisonPath).href);
   for (const pair of pairs) assert.deepEqual(planTrips(net, pair.from, pair.to), baseline.planTrips(net, pair.from, pair.to));
+  for (const pair of pairs) assert.deepEqual(tripCache.plan(net, pair.from, pair.to), planTrips(net, pair.from, pair.to));
   const scannedLabels = () => favorites.map(item => {
     const stop = net.byCode.get(item.stopCode);
     const pattern = net.patterns.find(p => p.serviceNo.toUpperCase() === item.serviceNo.toUpperCase() && p.direction === item.direction);
@@ -78,6 +81,7 @@ try {
   const results = [
     benchmark('uncached planner baseline', 120, 1, i => baseline.planTrips(net, pairs[i % pairs.length].from, pairs[i % pairs.length].to)),
     benchmark('indexed planner / warm', 120, 1, i => planTrips(net, pairs[i % pairs.length].from, pairs[i % pairs.length].to)),
+    benchmark('cached static trip plan / repeated points', 120, 1, i => tripCache.plan(net, pairs[i % pairs.length].from, pairs[i % pairs.length].to)),
     benchmark('nearestStops / 20 presets', 200, 10, i => nearestStops(net, locations[i % locations.length].lat, locations[i % locations.length].lng)),
     benchmark('searchStops / mixed queries', 200, 10, i => searchStops(net, queries[i % queries.length])),
     benchmark('exact code scan baseline', 200, 100, () => net.stops.filter(s => s.code.startsWith('55329')).slice(0, 4)),

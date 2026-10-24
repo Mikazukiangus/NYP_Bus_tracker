@@ -15,6 +15,7 @@ export function createWeatherService(settings: AppConfig['weather'], baseUrl: st
   const DATASETS = weatherCatalog(settings, now);
   const circuits = new Map(DATASETS.map(d => [d.key, createCircuitBreaker(settings.circuit, now)]));
   const cache = new Map<DatasetKey, { at: number; value: unknown }>();
+  const pending = new Map<DatasetKey, Promise<void>>();
   const recentCalls: number[] = [];
   const RATE_WINDOW_MS = settings.rateWindowMs;
   async function fetchDataset(path: string, parse: (raw: unknown) => unknown, signal: AbortSignal, apiKey?: string) {
@@ -36,12 +37,13 @@ export function createWeatherService(settings: AppConfig['weather'], baseUrl: st
 
     const due = DATASETS.filter((d) => {
       const hit = cache.get(d.key);
-      return (!hit || startedAt - hit.at > d.ttlMs) && circuits.get(d.key)!.canRequest();
+      return (!hit || startedAt < hit.at || startedAt - hit.at > d.ttlMs) && !pending.has(d.key) && circuits.get(d.key)!.canRequest();
     }).slice(0, Math.max(0, budget - recentCalls.length));
     recentCalls.push(...due.map(() => startedAt));
 
-    await Promise.all(
-      due.map(async (d) => {
+    for (const d of due) {
+      // Reserve the dataset before invoking the provider. Other requests join it without reserving quota again.
+      const task = Promise.resolve().then(async () => {
         try {
           const path = typeof d.path === 'function' ? d.path() : d.path;
           const signal = AbortSignal.timeout(settings.timeoutMs);
@@ -50,8 +52,10 @@ export function createWeatherService(settings: AppConfig['weather'], baseUrl: st
         } catch (err) {
           logger.warn('nea.dataset_refresh_failed', { dataset: d.key, error: err });
         }
-      })
-    );
+      }).finally(() => { if (pending.get(d.key) === task) pending.delete(d.key); });
+      pending.set(d.key, task);
+    }
+    await Promise.all([...pending.values()]);
 
     const body: WeatherSnapshot = { fetchedAt: {}, missing: [], stale: [], source: 'NEA_DATA_GOV_SG' };
     for (const d of DATASETS) {

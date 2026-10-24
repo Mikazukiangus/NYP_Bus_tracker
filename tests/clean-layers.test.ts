@@ -91,7 +91,8 @@ test('OneMap adapter encodes queries and combines cancellation with its timeout'
   assert.deepEqual(await client.search('AMK & YCK', controller.signal), []);
   assert.equal(signal?.aborted, false);
   controller.abort();
-  assert.equal(signal?.aborted, true);
+  assert.equal(signal?.aborted, false); // Completed shared work releases this subscriber's listener.
+  assert.equal(await client.search('AMK & YCK', controller.signal), null); // An aborted subscriber cannot read a warm hit.
   const unavailable = createOneMapClient({ url: 'https://fixture.test/search', timeoutMs: 1000 }, async () => new Response('', { status: 429 }));
   assert.equal(await unavailable.search('NYP'), null);
 });

@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { config } from '../config/server.ts';
-import { cdnCache } from '../config/schema.ts';
+import { incidentCacheControl } from '../server/http/cache.ts';
 import { logger } from '../security/logger.ts';
 import { createIncidentService } from '../server/lta/incidents.ts';
 import { validateReadRequest, emptyQuerySchema } from '../server/http/request.ts';
@@ -24,5 +24,5 @@ export default async function handler(req: Request | any, res: Response | any) {
   const result = await service.incidents();
   if (result.kind === 'not_configured') return send(res, 503, { error: 'Traffic incidents are temporarily unavailable.' }, 'no-store');
   if (result.kind === 'unavailable') return send(res, 502, { error: 'Failed to load traffic incidents from LTA DataMall.' }, 'no-store');
-  if (result.kind === 'ok') return send(res, 200, result.body, cdnCache(config.lta.cache.incidentsSeconds, config.lta.cache.incidentsStaleSeconds));
+  if (result.kind === 'ok') return send(res, 200, result.body, incidentCacheControl(config.lta.cache, result.body.fetchedAt));
 }

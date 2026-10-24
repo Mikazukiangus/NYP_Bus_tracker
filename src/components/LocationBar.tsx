@@ -1,16 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { ArrowUpDown, Clock, Flag, LoaderCircle, Locate, MapPin } from 'lucide-react';
 import type { UserLocation } from '../types/bus';
 import type { BusNetwork } from '../features/network/model';
 import type { PlaceResult } from '../features/places/model';
-import { requestGpsLocation } from '../services/userLocation';
+import { useGpsRequest } from '../features/location/useGpsRequest';
+import type { GpsSelectionResult } from '../features/location/useUserLocation';
 import { PlaceKindIcon, PlaceSearch } from './PlaceSearch';
 
 interface LocationBarProps {
   location: UserLocation;
   isDefault?: boolean; // the app's starting place (NYP), not one the user gave: offer their own location
   onOpenPicker: () => void;
-  onLocationChange: (location: UserLocation) => void;
+  onRequestGps: (signal: AbortSignal) => Promise<GpsSelectionResult>;
   network: BusNetwork | null;
   destination: PlaceResult | null;
   onSetDestination: (place: PlaceResult) => void;
@@ -29,7 +30,7 @@ export const LocationBar: React.FC<LocationBarProps> = ({
   location,
   isDefault = false,
   onOpenPicker,
-  onLocationChange,
+  onRequestGps,
   network,
   destination,
   onSetDestination,
@@ -38,24 +39,9 @@ export const LocationBar: React.FC<LocationBarProps> = ({
   recentPlaces,
   children,
 }) => {
-  const [isLocating, setIsLocating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { isLocating, error, start: useGps, cancel } = useGpsRequest(onRequestGps);
+  const openPicker = () => { cancel(); onOpenPicker(); };
   const isGps = (location.source === 'gps');
-
-  useEffect(() => {
-    if (!error) return;
-    const timer = setTimeout(() => setError(null), 8000);
-    return () => clearTimeout(timer);
-  }, [error]);
-
-  const useGps = async () => {
-    setIsLocating(true);
-    setError(null);
-    const result = await requestGpsLocation();
-    setIsLocating(false);
-    if ('error' in result) setError(result.error);
-    else onLocationChange(result.location);
-  };
 
   const detail = isGps
     ? location.accuracyMeters !== undefined
@@ -80,7 +66,7 @@ export const LocationBar: React.FC<LocationBarProps> = ({
             <span className="w-3 h-3 rounded-full bg-green-blue ring-[3px] ring-green-blue/40" />
           </span>
           <button
-            onClick={onOpenPicker}
+            onClick={openPicker}
             className="min-w-0 flex-1 text-left rounded-lg -mx-1 px-1 py-0.5 hover:bg-white/10"
             aria-label={`Your location: ${location.name}. Change location`}
           >
@@ -108,7 +94,7 @@ export const LocationBar: React.FC<LocationBarProps> = ({
               {isLocating ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Locate className="w-4 h-4" />}
               <span className="hidden sm:inline">{isLocating ? 'Locating…' : 'GPS'}</span>
             </button>
-            <button onClick={onOpenPicker} className="px-2 py-1.5 rounded-lg font-bold underline hover:bg-white/10">
+            <button onClick={openPicker} className="px-2 py-1.5 rounded-lg font-bold underline hover:bg-white/10">
               Change
             </button>
           </div>

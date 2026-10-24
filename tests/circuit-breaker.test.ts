@@ -212,9 +212,10 @@ test('NEA keeps stale readings while open and admits one dataset recovery probe 
   assert.deepEqual(blocked.forecast2h,before.forecast2h);assert.equal(blocked.fetchedAt.forecast2h,before.fetchedAt.forecast2h);
   assert.ok(blocked.stale.includes('forecast2h'));assert.deepEqual(blocked.missing,[]);
   time+=30000;hold=true;failed=false;
-  const first=service.snapshot();assert.equal(calls,previousCalls+1);
-  const overlapping=await service.snapshot();assert.equal(calls,previousCalls+1);assert.ok(overlapping.stale.includes('forecast2h'));
+  const first=service.snapshot();
+  const overlapping=service.snapshot();await Promise.resolve();assert.equal(calls,previousCalls+1);
   gate.resolve(Response.json(neaFixture()));const recovered=await first;
+  assert.deepEqual(await overlapping,recovered);
   assert.ok(!recovered.stale.includes('forecast2h'));assert.notEqual(recovered.fetchedAt.forecast2h,before.fetchedAt.forecast2h);
 });
 

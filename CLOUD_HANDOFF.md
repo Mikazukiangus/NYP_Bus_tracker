@@ -89,3 +89,15 @@ Turn 103 implemented circuit breakers; Turn 104 committed, pushed and verified a
 ## Error handling follow-up — 23 October 2026
 
 Turn 105 reviewed six error-handling gaps; Turn 106 published the review notes only. Turn 107 implemented the fixes; Turn 108 committed, pushed and verified application 929a145 in production: visible weather/incident freshness and failure state, explicit session-only persistence, alarm capability outcomes, safe numeric provider status in logs, and a minimal public health response. Read docs/error-handling.md for the changed contracts and COMMENTS.md for actual verification/commit/deployment status. The hook regressions are portable Node/DOM tests; temporary Chrome fixtures remain local to this Mac. No login, database, monitoring integration or new environment setting was added. Consult Turn 108 for exact application/deployment verification and later documentation commits. Public health now exposes only status/service/timestamp; authorized server logs carry safe failed-probe details.
+
+## Atomic update follow-up — 23 October 2026
+
+Turn 109 addresses shared-cache and stale-completion races plus cross-tab preference read–modify–write updates. Read docs/concurrency.md and the latest COMMENTS.md for the actual validation/delivery state. New public VITE_PREFERENCE_LOCK_TIMEOUT_MS defaults to 5,000 ms; no production setting is required to use the default. Updated tabs use native Web Locks and storage notifications; denied/unsupported locking keeps changes session-only. Server cache ownership remains per warm instance; no shared database or distributed lock was added. Do not assume this local work is deployed until a subsequent delivery entry verifies it.
+
+## Queue proposal cancelled — 24 October 2026
+
+Turn 116 removes the uncommitted background-queue migration at the user's request. Existing Vercel build-time LTA generation, the route API fallback and the original monthly OSM workflow remain in place; no new background queue was deployed. No GitHub LTA key is needed for the cancelled proposal. Preserve the completed concurrency fixes and consult the latest COMMENTS.md for their release status.
+
+## Repeated-operation cache follow-up — 24 October 2026
+
+Turn 117 adds bounded browser OneMap/static-trip caches (five-minute defaults) and a shared per-warm-owner incident cache using the existing two-minute incident TTL. Incident edge freshness subtracts snapshot age. Read docs/caching.md for invalidation, cancellation ownership, privacy and existing-cache boundaries. VITE_PLACE_SEARCH_CACHE_SECONDS and VITE_TRIP_PLANS_CACHE_SECONDS have defaults; no production setting or new secret is required. Preserve live arrival refresh and dynamic trip ranking. These changes are local until a later COMMENTS.md delivery entry verifies a release; the cancelled background queue stays removed.

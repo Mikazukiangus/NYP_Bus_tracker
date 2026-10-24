@@ -5,8 +5,8 @@ import { parseStopRows, parseRouteRows, parseServiceRows } from './schemas.ts';
 
 export function createDatasetStore(settings: AppConfig['lta'], request?: typeof fetch, now = Date.now) {
   const { fetchAll } = createLtaClient(settings, request, now);
-  let datasetsPromise: Promise<Datasets> | null = null;
-  let datasetsLoadedAt = 0;
+  let cached: Datasets | null = null;
+  let pending: Promise<Datasets> | null = null;
   async function loadDatasets(accountKey: string): Promise<Datasets> {
     const [stopRows, routeRows, serviceRows] = await Promise.all([
       fetchAll<LTABusStop>('BusStops', accountKey, undefined, parseStopRows),
@@ -35,15 +35,16 @@ export function createDatasetStore(settings: AppConfig['lta'], request?: typeof 
   }
 
   function getDatasets(accountKey: string): Promise<Datasets> {
-    if (!datasetsPromise || now() - datasetsLoadedAt > settings.datasetTtlMs) {
-      datasetsLoadedAt = now();
-      datasetsPromise = loadDatasets(accountKey).catch((err) => {
-        // Don't cache failures
-        datasetsPromise = null;
-        throw err;
-      });
-    }
-    return datasetsPromise;
+    // Claim pending work synchronously; expiry applies to a completed snapshot, never its loader.
+    if (pending) return pending;
+    const age = cached ? now() - cached.loadedAt : Infinity;
+    if (cached && age >= 0 && age < settings.datasetTtlMs) return Promise.resolve(cached);
+    const task = Promise.resolve().then(() => loadDatasets(accountKey)).then(data => {
+      cached = data; // Publish all three validated collections and their completion timestamp together.
+      return data;
+    }).finally(() => { if (pending === task) pending = null; });
+    pending = task;
+    return task;
   }
 
   return { loadDatasets, getDatasets };

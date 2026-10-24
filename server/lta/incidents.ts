@@ -5,6 +5,7 @@ import { parseBoundary } from '../../shared/input/primitives.ts';
 import { safeFetch } from '../../security/ssrf.ts';
 import { DEFAULT_READ_RETRY_POLICY, fetchReadWithBackoff, type ReadRetryPolicy } from '../../shared/http/readRetry.ts';
 import { createCircuitBreaker, CircuitOpenError, DependencyHttpError, readDependencyJson } from '../../shared/http/circuitBreaker.ts';
+import { createAsyncCache } from '../../shared/cache/asyncCache.ts';
 interface LTAIncident { Type: string; Latitude: number; Longitude: number; Message: string }
 export function parseIncidents(rows: LTAIncident[]): TrafficIncident[] {
   return rows.filter(row => Number.isFinite(row.Latitude) && Number.isFinite(row.Longitude))
@@ -21,10 +22,12 @@ export function createIncidentService(settings: AppConfig['lta'], dependencies: 
   const now = dependencies.now ?? Date.now;
   const logger = dependencies.logger ?? { error() {} };
   const circuit = createCircuitBreaker(settings.circuit, now);
-  async function incidents(): Promise<IncidentResult> {
+  const cache = createAsyncCache<IncidentResult>({ freshnessMs: settings.cache.incidentsSeconds * 1000, maxEntries: 1 },
+    value => value.kind === 'ok', now);
+  async function load(ownerSignal: AbortSignal): Promise<IncidentResult> {
     if (!settings.accountKey) return { kind: 'not_configured' };
     try {
-      const signal = AbortSignal.timeout(settings.timeoutMs);
+      const signal = AbortSignal.any([ownerSignal, AbortSignal.timeout(settings.timeoutMs)]);
       const body = await circuit.run(async probe => {
         const response = await fetchReadWithBackoff(request, `${settings.baseUrl}/TrafficIncidents`, {
           redirect: 'error',
@@ -36,9 +39,9 @@ export function createIncidentService(settings: AppConfig['lta'], dependencies: 
       }, signal);
       return { kind: 'ok', body: { incidents: parseIncidents(body.value), fetchedAt: new Date(now()).toISOString(), source: 'LTA_DATAMALL' } };
     } catch (error) {
-      if (!(error instanceof CircuitOpenError)) logger.error('lta.incidents_request_failed', { error });
+      if (!ownerSignal.aborted && !(error instanceof CircuitOpenError)) logger.error('lta.incidents_request_failed', { error });
       return { kind: 'unavailable' };
     }
   }
-  return { incidents };
+  return { incidents: () => cache.load('feed', load), invalidate: () => cache.invalidate() };
 }

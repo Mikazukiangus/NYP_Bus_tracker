@@ -1,17 +1,12 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback } from 'react';
 import type { PlaceResult } from '../model';
 import { addRecentPlace, isPlace } from '../domain/recentPlaces';
 import { recentPlacesStore, type RecentPlacesStore } from '../data/recentPlacesStore';
+import { useStoredCollection } from '../../preferences/application/useStoredCollection';
 export function useRecentPlaces(store: RecentPlacesStore = recentPlacesStore) {
-  const [recentPlaces, setRecentPlaces] = useState(() => store.load());
-  const [persistence, setPersistence] = useState<string | null>(null);
-  const current = useRef(recentPlaces);
+  const { items: recentPlaces, persistence, apply } = useStoredCollection(store, () => []);
   const rememberPlace = useCallback((place: PlaceResult) => {
-    if (!isPlace(place)) return;
-    const next = addRecentPlace(place, current.current);
-    current.current = next;
-    setRecentPlaces(next);
-    setPersistence(store.save(next).status);
-  }, [store]);
+    if (isPlace(place)) return apply(items => addRecentPlace(place, items));
+  }, [apply]);
   return { recentPlaces, persistence, rememberPlace };
 }

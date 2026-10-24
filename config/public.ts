@@ -26,8 +26,11 @@ export const publicSchema = {
   },
   cache: {
     routeAssetsSeconds: seconds('VITE_ROUTE_ASSETS_CACHE_SECONDS', 300, 'PUBLIC. Browser route/shape success-cache lifetime; 0 shares pending requests only.', 0, 3600),
+    placeSearchSeconds: seconds('VITE_PLACE_SEARCH_CACHE_SECONDS', 300, 'PUBLIC. Valid OneMap search results in browser memory; 0 shares pending requests only.', 0, 1800),
+    tripPlansSeconds: seconds('VITE_TRIP_PLANS_CACHE_SECONDS', 300, 'PUBLIC. Static trip plans per loaded network and exact coordinates; live waits are never cached here. 0 disables reuse.', 0, 1800),
   },
   timeouts: {
+    preferenceLockMs: ms('VITE_PREFERENCE_LOCK_TIMEOUT_MS', 5000, 'PUBLIC. Maximum wait for a cross-tab preference write lock; denied/expired admission keeps changes session-only.', 250, 30000),
     arrivalsMs: ms('VITE_ARRIVALS_TIMEOUT_MS', 5000, 'PUBLIC. Arrival request timeout.'),
     requestMs: ms('VITE_REQUEST_TIMEOUT_MS', 10000, 'PUBLIC. Static route/shape, weather and incident timeout.'),
     routeMs: ms('VITE_ROUTE_TIMEOUT_MS', 30000, 'PUBLIC. Cold /api/bus-route timeout.'),

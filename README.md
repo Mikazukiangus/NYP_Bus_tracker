@@ -176,3 +176,7 @@ To keep it that way:
 To check a change, run `npx vite build` before and after it: the file names that stay the same are the ones browsers will keep.
 
 Error states, temporary saves, alarm capability notices and the minimal public health contract are documented in [docs/error-handling.md](docs/error-handling.md).
+
+Shared-cache ownership, atomic cross-tab preferences and stale request guards are documented in [docs/concurrency.md](docs/concurrency.md).
+
+Repeated OneMap searches and static trip plans now have bounded five-minute caches; incident provider reads share the existing two-minute freshness window. See [caching and invalidation](docs/caching.md) for keys, TTL settings, cancellation rules and measured results. `npm run profile:lookups` includes repeated-plan cache timings.

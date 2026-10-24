@@ -55,11 +55,12 @@ test('overlapping weather requests reserve the budget before awaiting the provid
   const request: typeof fetch = async () => { calls++; await gate; return Response.json(raw()); };
   const service = createWeatherService(createConfig().weather, 'https://fixture.invalid', { request });
   const first = service.snapshot();
-  const second = await service.snapshot();
+  const second = service.snapshot();
+  await Promise.resolve();
   assert.equal(calls, 5);
-  assert.equal(second.missing.length, 12);
   release();
   assert.equal((await first).missing.length, 7);
+  assert.equal((await second).missing.length, 7);
 });
 
 test('weather service caches are isolated and failures never fabricate readings', async () => {

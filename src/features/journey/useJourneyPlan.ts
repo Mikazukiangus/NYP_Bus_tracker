@@ -3,7 +3,8 @@ import { rankTrips, trackedLegIndex } from './selectors';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BusRoute, BusStop, RouteDirection, StopServiceArrivals, ArrivalDataSource, UserLocation } from '../../types/bus';
 import type { BusNetwork } from '../network/model';
-import { TripLeg, TripOption, legServiceNos, planTrips, withServices } from '../../services/tripPlanner';
+import { TripLeg, TripOption, legServiceNos, withServices } from '../../services/tripPlanner';
+import { tripPlanCache } from './tripPlanCache';
 import type { PlaceResult } from '../places/model';
 import { placeToLocation } from '../places/domain/locations';
 import { useStopsArrivals } from '../../services/useStopsArrivals';
@@ -19,21 +20,27 @@ interface JourneyInputs {
   dataSource: ArrivalDataSource;
   stopServices: StopServiceArrivals[] | null;
   loadRoute: (serviceNo: string, opts?: { direction?: number; stopCode?: string; stopCall?: StopCallRef; datasetVersion?: string; remember?: boolean }) => Promise<boolean>;
+  cancelRouteRequest: (tripOnly?: boolean) => void;
   rememberPlace: (place: PlaceResult) => void;
   applyUserLocation: (location: UserLocation) => void;
 }
 
-export function useJourneyPlan({ network, networkStatus, userLocation, currentRoute, routeDir, selectedStop, dataSource, stopServices, loadRoute, rememberPlace, applyUserLocation }: JourneyInputs) {
+export function useJourneyPlan({ network, networkStatus, userLocation, currentRoute, routeDir, selectedStop, dataSource, stopServices, loadRoute, cancelRouteRequest, rememberPlace, applyUserLocation }: JourneyInputs) {
   // Trip planning: buses from the user's location to a destination
   const [destination, setDestination] = useState<PlaceResult | null>(null);
+  const [planRevision, setPlanRevision] = useState(0);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   // The bus chosen for each leg of a trip where more than one service runs between the same stops (trip id -> service per leg)
   const [tripServices, setTripServices] = useState<Record<string, string[]>>({});
 
   const tripPlan = useMemo(
-    () => (network && destination ? planTrips(network, userLocation, destination) : null),
+    () => (network && destination ? tripPlanCache.plan(network, userLocation, destination) : null),
     [network, destination, userLocation.lat, userLocation.lng]
   );
+
+  const tripPlanKey = tripPlan && destination
+    ? `${planRevision}|${destination.id}|${userLocation.lat},${userLocation.lng}|${tripPlan.options.map(o => o.id).join(',')}` : '';
+  const autoSelectedPlanKey = useRef('');
 
   // Live arrivals where each bus of each option is boarded (the first bus's for departure times, all of them
   // to see which of the buses that run between the same stops are due), refreshed while a destination is set
@@ -94,11 +101,12 @@ export function useJourneyPlan({ network, networkStatus, userLocation, currentRo
   // Track the first bus of a trip at its boarding stop
   const selectTrip = useCallback(
     (option: TripOption) => {
+      autoSelectedPlanKey.current = tripPlanKey;
       setSelectedTripId(option.id);
       const leg = option.legs[0];
       loadRoute(leg.serviceNo, { direction: leg.direction, stopCode: leg.board.code, stopCall: leg.board.call, datasetVersion: leg.board.call?.datasetVersion });
     },
-    [loadRoute]
+    [loadRoute, tripPlanKey]
   );
 
   // Track one bus of a trip (e.g. the bus after a change) at its boarding stop, keeping the trip shown and the
@@ -107,11 +115,12 @@ export function useJourneyPlan({ network, networkStatus, userLocation, currentRo
     (option: TripOption, index: number) => {
       const leg = option.legs[index];
       if (!leg) return;
+      autoSelectedPlanKey.current = tripPlanKey;
       setTripServices((current) => ({ ...current, [option.id]: option.legs.map((l) => l.serviceNo) }));
       setSelectedTripId(option.id);
       loadRoute(leg.serviceNo, { direction: leg.direction, stopCode: leg.board.code, stopCall: leg.board.call, datasetVersion: leg.board.call?.datasetVersion });
     },
-    [loadRoute]
+    [loadRoute, tripPlanKey]
   );
   const trackTripLegAt = useCallback(
     (index: number) => {
@@ -124,6 +133,7 @@ export function useJourneyPlan({ network, networkStatus, userLocation, currentRo
   // bus, track the chosen bus instead
   const chooseTripService = useCallback(
     (option: TripOption, index: number, serviceNo: string) => {
+      autoSelectedPlanKey.current = tripPlanKey;
       const services = option.legs.map((l) => l.serviceNo);
       services[index] = serviceNo;
       const chosen = withServices(option, services);
@@ -133,7 +143,7 @@ export function useJourneyPlan({ network, networkStatus, userLocation, currentRo
         setSelectedTripId(option.id);
       }
     },
-    [plannedTrip?.id, trackedLeg, trackTripLeg]
+    [plannedTrip?.id, trackedLeg, trackTripLeg, tripPlanKey]
   );
   const chooseTripServiceAt = useCallback(
     (index: number, serviceNo: string) => {
@@ -152,17 +162,14 @@ export function useJourneyPlan({ network, networkStatus, userLocation, currentRo
   // trip; a suggested trip that uses that bus from that stop is still shown
   const trackService = useCallback(
     (serviceNo: string, opts: { direction?: number; stopCode?: string; stopCall?: StopCallRef; datasetVersion?: string; remember?: boolean } = {}) => {
+      autoSelectedPlanKey.current = tripPlanKey;
       setSelectedTripId(null);
       return loadRoute(serviceNo, opts);
     },
-    [loadRoute]
+    [loadRoute, tripPlanKey]
   );
 
-  // Once live times are in for a new plan, pick the best option and show it on the map
-  const tripPlanKey = tripPlan && destination
-    ? `${destination.id}|${userLocation.lat},${userLocation.lng}|${tripPlan.options.map((o) => o.id).join(',')}`
-    : '';
-  const autoSelectedPlanKey = useRef('');
+  // Once live times are in for a new plan, pick the best option unless a user already chose a bus.
   useEffect(() => {
     if (!tripPlanKey || autoSelectedPlanKey.current === tripPlanKey) return;
     if (rankedTrips.some((t) => t.live.status === 'loading')) return;
@@ -174,23 +181,29 @@ export function useJourneyPlan({ network, networkStatus, userLocation, currentRo
 
   const handleSetDestination = useCallback(
     (place: PlaceResult) => {
+      cancelRouteRequest(true);
+      setPlanRevision(value => value + 1);
       rememberPlace(place);
       setDestination(place);
       setSelectedTripId(null);
       setTripServices({});
     },
-    [rememberPlace]
+    [rememberPlace, cancelRouteRequest]
   );
 
   const handleClearDestination = useCallback(() => {
+    cancelRouteRequest(true);
+    setPlanRevision(value => value + 1);
     setDestination(null);
     setSelectedTripId(null);
     setTripServices({});
-  }, []);
+  }, [cancelRouteRequest]);
 
   // Citymapper's swap: the trip back, from the destination to where this trip starts
   const handleSwapTrip = useCallback(() => {
     if (!destination) return;
+    cancelRouteRequest(true);
+    setPlanRevision(value => value + 1);
     const from = userLocation;
     applyUserLocation(placeToLocation(destination));
     setDestination({
@@ -203,7 +216,7 @@ export function useJourneyPlan({ network, networkStatus, userLocation, currentRo
     });
     setSelectedTripId(null);
     setTripServices({});
-  }, [destination, userLocation, applyUserLocation]);
+  }, [destination, userLocation, applyUserLocation, cancelRouteRequest]);
 
   const tripState = useMemo<TripPlannerState>(() => {
     if (tripPlan) return { status: 'ready', plan: tripPlan, trips: shownTrips };

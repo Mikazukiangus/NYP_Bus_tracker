@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { UserLocation } from '../types/bus';
 import { SINGAPORE_LOCATIONS } from '../data/locations';
-import { requestGpsLocation } from '../services/userLocation';
+import { useGpsRequest } from '../features/location/useGpsRequest';
+import type { GpsSelectionResult } from '../features/location/useUserLocation';
 import type { BusNetwork } from '../features/network/model';
 import type { PlaceResult } from '../features/places/model';
 import { placeToLocation } from '../features/places/domain/locations';
@@ -13,6 +14,7 @@ interface LocationPickerModalProps {
   onClose: () => void;
   currentLocation: UserLocation;
   onSelectLocation: (location: UserLocation) => void;
+  onRequestGps: (signal: AbortSignal) => Promise<GpsSelectionResult>;
   network: BusNetwork | null;
   recentPlaces: PlaceResult[];
   onPlaceChosen: (place: PlaceResult) => void;
@@ -23,15 +25,16 @@ const sameSpot = (a: { lat: number; lng: number }, b: { lat: number; lng: number
 
 export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   isOpen,
-  onClose,
+  onClose: closeParent,
   currentLocation,
   onSelectLocation,
+  onRequestGps,
   network,
   recentPlaces,
   onPlaceChosen,
 }) => {
-  const [isLocating, setIsLocating] = useState(false);
-  const [geoError, setGeoError] = useState<string | null>(null);
+  const { isLocating, error: geoError, start: locate, cancel } = useGpsRequest(onRequestGps, isOpen);
+  const onClose = useCallback(() => { cancel(); closeParent(); }, [cancel, closeParent]);
   // On phones the picker is a bottom sheet: its top (the handle and header) can be dragged down to close it
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -39,7 +42,6 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    setGeoError(null);
     setDragY(0);
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -64,12 +66,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   };
 
   const handleUseGps = async () => {
-    setIsLocating(true);
-    setGeoError(null);
-    const result = await requestGpsLocation();
-    setIsLocating(false);
-    if ('error' in result) setGeoError(result.error);
-    else choose(result.location);
+    if (await locate()) onClose();
   };
 
   const onDragStart = (e: React.PointerEvent<HTMLDivElement>) => {

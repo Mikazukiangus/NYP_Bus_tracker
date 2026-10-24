@@ -99,3 +99,11 @@ test('environment files have deterministic precedence and shell values win witho
     assert.throws(() => readEnvironment('../escape', directory, shell), /Invalid environment mode/);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+test('preference lock admission has a separate validated bounded wait', () => {
+  assert.equal(createPublicConfig().timeouts.preferenceLockMs, 5000);
+  assert.equal(createPublicConfig({ VITE_PREFERENCE_LOCK_TIMEOUT_MS: '250' }).timeouts.preferenceLockMs, 250);
+  for (const value of ['0', '249', '30001', 'not-a-number']) {
+    assert.throws(() => createPublicConfig({ VITE_PREFERENCE_LOCK_TIMEOUT_MS: value }), /VITE_PREFERENCE_LOCK_TIMEOUT_MS/);
+  }
+});

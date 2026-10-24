@@ -76,7 +76,7 @@ export const configSchema = {
       routesSeconds: seconds('LTA_ROUTES_CACHE_SECONDS', 86400, 'CDN route freshness.'),
       routesStaleSeconds: seconds('LTA_ROUTES_STALE_SECONDS', 604800, 'CDN route stale-while-revalidate.'),
       notFoundSeconds: seconds('LTA_NOT_FOUND_CACHE_SECONDS', 3600, 'CDN lifetime of unknown service responses.'),
-      incidentsSeconds: seconds('LTA_INCIDENTS_CACHE_SECONDS', 120, 'CDN incident freshness.', 0, 3600),
+      incidentsSeconds: seconds('LTA_INCIDENTS_CACHE_SECONDS', 120, 'Warm-instance and total CDN incident freshness; edge max-age subtracts provider snapshot age.', 0, 3600),
       incidentsStaleSeconds: seconds('LTA_INCIDENTS_STALE_SECONDS', 300, 'CDN incident stale-while-revalidate.', 0, 3600),
     },
   },

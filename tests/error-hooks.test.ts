@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { act, createElement } from 'react';
-import { createRoot } from 'react-dom/client';
-import { parseHTML } from 'linkedom';
+import { withHook } from './fixtures/hooks';
 import { useWeatherSnapshot } from '../src/features/weather/useWeatherSnapshot';
 import { weatherCatalog } from '../server/weather/catalog';
 import { createConfig } from '../config/schema';
 import { neaFixture } from './fixtures/nea';
 import { useRouteIncidents } from '../src/features/incidents/useRouteIncidents';
 import { useSavedBuses } from '../src/features/saved/application/useSavedBuses';
+import { createRecentPlacesStore } from '../src/features/places/data/recentPlacesStore';
+import type { PreferenceLocks } from '../src/services/atomicPreferences';
 import { createFavoritesStore } from '../src/features/saved/data/favoritesStore';
 import { useRecentPlaces } from '../src/features/places/application/useRecentPlaces';
 import { useUserLocation } from '../src/features/location/useUserLocation';
@@ -16,31 +16,6 @@ import { useGetOffAlarm } from '../src/services/useGetOffAlarm';
 import { alarmStatus } from '../src/components/GetOffAlarm';
 import type { WeatherSnapshot } from '../src/types/weather';
 
-type Rig<T> = { read(): T; change(action: () => void | Promise<unknown>): Promise<void>; poll(ms: number): Promise<void> };
-async function withHook<T>(hook: () => T, run: (rig: Rig<T>) => Promise<void>, overrides: Record<string, unknown> = {}) {
-  const { window, document } = parseHTML('<!doctype html><html><body><div id="root"></div></body></html>');
-  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
-  const callbacks = new Map<number, () => unknown>();
-  const patches: Record<string, unknown> = { window, document, navigator: {}, IS_REACT_ACT_ENVIRONMENT: true,
-    setInterval(fn: () => unknown, delay: number) { callbacks.set(delay, fn); return delay; },
-    clearInterval(id: number) { callbacks.delete(id); }, ...overrides };
-  const descriptors = new Map(Object.keys(patches).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-  for (const [key, value] of Object.entries(patches)) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-  const root = createRoot(document.getElementById('root')! as unknown as HTMLElement);
-  let value: T;
-  function Harness() { value = hook(); return null; }
-  const change = async (action: () => void | Promise<unknown>) => { await act(async () => { await action(); }); };
-  try {
-    await change(() => root.render(createElement(Harness)));
-    await run({ read: () => value!, change, poll: ms => change(async () => { await callbacks.get(ms)?.(); }) });
-  } finally {
-    await change(() => root.unmount());
-    for (const [key, descriptor] of descriptors) {
-      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-      else Reflect.deleteProperty(globalThis, key);
-    }
-  }
-}
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (reason: unknown) => void;
@@ -102,7 +77,8 @@ test('incident hook distinguishes initial outage, current empty feed, retained s
 test('favorites, recent places and location hooks report session-only changes and clear notices after persistence recovers', async () => {
   let denied = true, raw = '[]';
   const storage = { getItem: () => raw, setItem(_key: string, value: string) { if (denied) throw new Error('private storage'); raw = value; } };
-  const favorites = createFavoritesStore(storage);
+  const locks = { request: async (_name: string, _options: unknown, update: () => unknown) => update() } as unknown as PreferenceLocks;
+  const favorites = createFavoritesStore(storage, locks);
   await withHook(() => useSavedBuses('50', stop, 2, 'Destination', favorites), async rig => {
     await rig.change(() => rig.read().handleToggleFavorite());
     assert.equal(rig.read().isCurrentFavorite, true);
@@ -112,7 +88,8 @@ test('favorites, recent places and location hooks report session-only changes an
     await rig.change(() => rig.read().handleToggleFavorite());
     assert.equal(rig.read().persistence, 'saved');
   });
-  await withHook(() => useRecentPlaces({ load: () => [], save: () => ({ status: denied ? 'session-only' : 'saved' }) }), async rig => {
+  const recent = createRecentPlacesStore(storage, locks);
+  await withHook(() => useRecentPlaces(recent), async rig => {
     denied = true;
     await rig.change(() => rig.read().rememberPlace({ id: 'nyp', kind: 'place', name: 'NYP', lat: 1.38, lng: 103.85 }));
     assert.equal(rig.read().persistence, 'session-only');

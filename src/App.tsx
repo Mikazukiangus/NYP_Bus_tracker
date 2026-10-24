@@ -62,7 +62,7 @@ const MapPlaceholder: React.FC = () => (
 );
 
 export default function App() {
-  const { userLocation, isDefaultLocation, persistence: locationPersistence, selectLocation, requestStartupGps } = useUserLocation();
+  const { userLocation, isDefaultLocation, persistence: locationPersistence, selectLocation, requestGps, requestStartupGps } = useUserLocation();
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 
   // Fetch the map's code once the first screen is drawn, so it's ready before anyone opens the Map tab
@@ -73,7 +73,7 @@ export default function App() {
 
   const { network, networkStatus, nearbyStops, stopNames } = useBusNetwork(userLocation);
   const { searchedBus, direction, currentRoute, isRouteLoading, routeNotice, routeDir,
-    nearestStop, distanceMeters, stopsWithDistance, selectedStop, loadRoute,
+    nearestStop, distanceMeters, stopsWithDistance, selectedStop, loadRoute, cancelRouteRequest,
     handleSelectStop, handleSetDirection, retarget } = useTrackedRoute(userLocation, nearbyStops);
 
   const { activeTab, selectTab, revealArrivals, showTripOnMap, showArrivalsCard } = useAppNavigation();
@@ -91,6 +91,7 @@ export default function App() {
     selectLocation(loc);
     retarget(loc);
   }, [selectLocation, retarget]);
+  const requestUserGps = useCallback((signal: AbortSignal) => requestGps(applyUserLocation, signal), [requestGps, applyUserLocation]);
 
   // Places chosen recently as a start or destination
   const { recentPlaces, persistence: recentPersistence, rememberPlace } = useRecentPlaces();
@@ -99,7 +100,7 @@ export default function App() {
     trackTripLegAt, chooseTripService, chooseTripServiceAt, trackService, handleSetDestination,
     handleClearDestination, handleSwapTrip, tripState, notDueAt } = useJourneyPlan({
       network, networkStatus, userLocation, currentRoute, routeDir, selectedStop,
-      dataSource, stopServices, loadRoute, rememberPlace, applyUserLocation,
+      dataSource, stopServices, loadRoute, cancelRouteRequest, rememberPlace, applyUserLocation,
     });
 
   const { tripRoadPaths, tripPathKey } = useJourneyGeometry(selectedTrip);
@@ -353,7 +354,7 @@ export default function App() {
             location={userLocation}
             isDefault={isDefaultLocation}
             onOpenPicker={() => setIsLocationModalOpen(true)}
-            onLocationChange={applyUserLocation}
+            onRequestGps={requestUserGps}
             network={network}
             destination={destination}
             onSetDestination={handleSetDestination}
@@ -640,6 +641,7 @@ export default function App() {
         onClose={() => setIsLocationModalOpen(false)}
         currentLocation={userLocation}
         onSelectLocation={applyUserLocation}
+        onRequestGps={requestUserGps}
         network={network}
         recentPlaces={recentPlaces}
         onPlaceChosen={rememberPlace}
