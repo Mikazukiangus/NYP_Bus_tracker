@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
-import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import arrival from '../api/bus-arrival';
 import route from '../api/bus-route';
@@ -213,9 +215,15 @@ test('GPS and recent/location storage writers reject malformed records before pe
 test('Overpass inputs reject invalid elements before file output or shape logic', () => {
   assert.ok(parseOverpass({ elements: [{ type: 'way', id: 1, geometry: [{ lat: 1.3, lon: 103.8 }] }] }));
   for (const value of [null, { elements: null }, { elements: [null] }, { elements: [{ type: 'way', id: 1, geometry: [{ lat: 999, lon: 103.8 }] }] }]) assert.throws(() => parseOverpass(value));
-  const file = '/private/tmp/nyp-invalid-overpass-boundary.json';
+  const directory = mkdtempSync(join(tmpdir(), 'nyp-overpass-boundary-'));
+  const file = join(directory, 'invalid.json');
   try {
     writeFileSync(file, JSON.stringify({ elements: [{ type: 'way', id: 1, geometry: 'PRIVATE_INPUT_SENTINEL' }] }));
-    assert.throws(() => execFileSync(process.execPath, ['--import', 'tsx', 'scripts/build-route-shapes.ts', file], { cwd: new URL('..', import.meta.url), stdio: 'pipe' }), (error: any) => !String(error.stderr).includes('PRIVATE_INPUT_SENTINEL'));
-  } finally { unlinkSync(file); }
+    assert.throws(() => execFileSync(process.execPath, ['--import', 'tsx', 'scripts/build-route-shapes.ts', file], { cwd: new URL('..', import.meta.url), stdio: 'pipe' }), (error: any) => {
+      assert.equal(error.status, 1);
+      assert.match(String(error.stderr), /"event":"build.shapes_failed"/);
+      assert.doesNotMatch(String(error.stderr), /PRIVATE_INPUT_SENTINEL/);
+      return true;
+    });
+  } finally { rmSync(directory, { recursive: true, force: true }); }
 });
