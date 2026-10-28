@@ -180,7 +180,7 @@ Error states, temporary saves, alarm capability notices and the minimal public h
 
 [Centralized error tracking](docs/error-tracking.md) uses existing Vercel runtime logs for server exceptions and bounded, privacy-filtered browser reports. Safe reload/dismiss screens show a generated reference. No additional account or secret is needed. Centralized tracking is deployed and verified live (application release 5ae3003); its exact client-error POST firewall extension is active as version 6. See the guide and COMMENTS.md for the delivery evidence.
 
-[Structured logging](docs/structured-logging.md) adds automatic request IDs, route/method, anonymous user context, release labels and response status/duration to shared server logs. This follow-up is local pending release; the app still has no login or user identity source.
+[Structured logging](docs/structured-logging.md) adds automatic request IDs, route/method, anonymous user context, release labels and response status/duration to shared server logs. This is deployed and verified in application release 9c69da4; the app still has no login or user identity source.
 
 Shared-cache ownership, atomic cross-tab preferences and stale request guards are documented in [docs/concurrency.md](docs/concurrency.md).
 

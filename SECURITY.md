@@ -14,7 +14,7 @@ Pattern-based scanning cannot prove that no secret exists, especially for custom
 
 ## Store credentials locally
 
-The local [structured logging follow-up](docs/structured-logging.md) generates request IDs and uses anonymous user context because the app has no login. Incoming request/user-ID headers, cookies, browser-report fields and request `user` objects are never trusted as identity. Context omits bodies, arbitrary paths/queries, IPs and GPS. Contact/email/phone-named log detail fields are redacted; arbitrary personal text still belongs outside log metadata. Publication/deployment status remains in COMMENTS.md.
+The deployed [structured logging implementation](docs/structured-logging.md) generates request IDs and uses anonymous user context because the app has no login. Incoming request/user-ID headers, cookies, browser-report fields and request `user` objects are never trusted as identity. Context omits bodies, arbitrary paths/queries, IPs and GPS. Contact/email/phone-named log detail fields are redacted; arbitrary personal text still belongs outside log metadata. Publication/deployment status remains in COMMENTS.md.
 
 Use your password manager or your team's secret manager as the source of truth. For this app, place development values in `.env.local`, which the shared config loader reads and Git ignores. Keep the local file accessible only to your account:
 
@@ -98,3 +98,8 @@ Because ignored local credential files are included, a key you intentionally sto
 ## Public API IP limits
 
 See [rate limiting](docs/rate-limiting.md) for the validated Vercel WAF policy and actual rollout state. The 600 requests per 60 seconds per IP/per-region rule is live for API GET/HEAD and exactly POST /api/client-errors (active version 6), returning HTTP 429 above the shared budget. Earlier GET/HEAD enforcement/recovery was verified with an isolated native test; the POST extension has exact configuration readback and low-volume production smoke verification, without a threshold burst. Per-account limits are deferred by the user until verified login exists. No client-controlled identity, anonymous cookie, application IP log, new secret or in-memory serverless counter was added. Standalone Express is outside this platform rule; protect its gateway before public exposure.
+
+
+## Dependency maintenance observed during the 28 October release
+
+`npm audit --omit=dev` reports two transitive Express dependencies: body-parser 1.20.8 / [GHSA-27r3-jxmh-p828](https://github.com/advisories/GHSA-27r3-jxmh-p828) (high; fixed in 1.20.9) and qs 6.16.0 / [GHSA-6pq8-jhm2-2vcw](https://github.com/advisories/GHSA-6pq8-jhm2-2vcw) (moderate; fixed in 6.16.1). The former concerns compressed-body parsing; the latter concerns comma-format qs.stringify on attacker-influenced objects. Source inspection found no enabled body-parser middleware or first-party qs.stringify call. This narrows observed use; it does not prove all transitive paths are unreachable. No vulnerability exploitation test or dependency update was included in the structured-logging release. Track patching the lockfile and rerunning the relevant HTTP/security checks as separate maintenance.

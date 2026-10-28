@@ -1,6 +1,6 @@
 # Structured JSON logging and automatic context
 
-Local implementation, 28 October 2026. The user clarified that “user contacts” means **user context**. This follow-up is not committed or deployed yet; the prior centralized error-tracking release remains the live baseline.
+Released and verified live on 28 October 2026 as application commit `9c69da483c7be4729a4660537b4f66782652de52`. The user clarified that “user contacts” means **user context**. Production deployment `dpl_3fhj2hVaFzoAL5Ka74eKPRa3ZoqK` reached READY at that exact SHA with the live domain assigned; subsequent documentation commits record delivery.
 
 The existing logger already emitted JSON, but ordinary info/warning records lacked request context. All shared server/build logging now uses one configured sink, and business APIs, the browser-report collector and the standalone Express server establish request context automatically. No new dependency, account, login, cookie, secret or environment setting is needed.
 
@@ -60,6 +60,17 @@ A completion record is emitted for each function invocation/standalone response,
 
 For diagnostics, copy `X-Request-ID` from a response and search `request.id`, then inspect its completion and provider/exception records. Existing error-reference searches still use `details.eventId`. Normal stdout carries info; stderr carries warnings/errors, with one JSON object per call. Build successes are now `build.routes_completed` / `build.shapes_completed` with numeric counts/bytes and fixed output-directory labels.
 
-Regression coverage in `tests/structured-logging.test.ts` exercises concurrent info/warn/error propagation, immutable scopes, generated versus spoofed identity, collector trust boundaries, nested Express/API correlation, final middleware errors, finish/close deduplication and cleanup, aborted responses, safe JSON/redaction/sink failure and all six actual API defaults. Existing security tests still assert upstream bodies/raw errors never appear. No production request, provider outage or deployed-log verification is required for this local implementation.
+Regression coverage in `tests/structured-logging.test.ts` exercises concurrent info/warn/error propagation, immutable scopes, generated versus spoofed identity, collector trust boundaries, nested Express/API correlation, final middleware errors, finish/close deduplication and cleanup, aborted responses, safe JSON/redaction/sink failure and all six actual API defaults. Existing security tests still assert upstream bodies/raw errors never appear. These regressions use controlled inputs; actual production verification is recorded below.
 
 The propagation mechanism follows Node's [AsyncLocalStorage documentation](https://nodejs.org/docs/latest-v24.x/api/async_context.html#class-asynclocalstorage).
+
+
+## Production verification — 28 October 2026
+
+All 324 tests, TypeScript/unused-local checks, HTTPS scanning and the client build pass. Vercel's build emits a `build.routes_completed` JSON record with the exact public release/environment, null request/user, 604 services, 5,211 stops and 801 directions. Client assets match a local build using the same release metadata.
+
+Eleven targeted uncached production requests (six API defaults, canonical legacy HEAD, unsupported method, accepted/rejected collector writes and an actual browser report) return unique generated IDs. Every ID appears exactly once in the bounded latest-100 completion-log result, with the correct route/method/status, nonnegative duration, completed outcome, anonymous user and exact deployment release/environment. Forged request/user headers, extra browser identity fields and private test text cannot replace or enter context. The API/browser synthetic report records retain the same collector request ID plus the separate error reference and `trusted: false`. No real account, identity cookie or provider outage was introduced.
+
+Existing API/health/alias contracts, HSTS/CSP, redirects, input/HEAD gates, 58 business CORS checks, real 21-record/two-page incident pagination and phone/desktop trip/map/save/location/reload/cleanup flows pass. Screenshots inspected; zero page errors, overflow, app cookies or CSP/mixed-content issues. The bounded warning/error/fatal log result contains 14 existing DEP0169 warnings and two intentional synthetic reports; no other failure was returned. Weather initially had seven missing datasets and is complete on follow-up. These observations are bounded verification, not continuous monitoring or exhaustive traffic statistics.
+
+The build retains npm cache-dir warnings and two transitive advisories: body-parser 1.20.8 (high) and qs 6.16.0 (moderate). They were not introduced by dependency changes in this release. The app enables no body-parser middleware and uses no first-party qs.stringify call; no exploit test or claim of complete non-exposure is made. See SECURITY.md for maintenance references.
