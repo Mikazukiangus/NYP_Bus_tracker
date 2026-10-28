@@ -5,12 +5,15 @@ Run from the repository root with the existing Node 24 environment:
 ```sh
 source .venv/bin/activate
 npm ci
+npm run verify
 npm test
 npm run test:integration
 npm run test:coverage
 ```
 
 `npm test` includes every root `tests/*.test.ts`, including the dedicated `*.integration.test.ts` files. The integration-only command is a convenient subset; older files also contain integration checks. No additional test package, real provider key or reporting service is required. Dedicated integration fixtures use controlled responses and a temporary loopback HTTP server, with no provider or production writes. A restricted execution environment must permit binding that local server.
+
+`npm run verify` is the required [Vercel CI/CD build gate](ci-cd.md): TypeScript, HTTPS scan and the full test suite must pass before route generation or production compilation starts. It runs fixtures in a separate test-mode subprocess so the subsequent application build remains in production mode.
 
 The coverage command uses [Node's built-in test coverage](https://nodejs.org/docs/latest-v24.x/api/test.html#collecting-code-coverage), returns a failing exit code when tests fail, and produces:
 

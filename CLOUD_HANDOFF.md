@@ -8,6 +8,8 @@ Continue my project at https://github.com/Mikazukiangus/NYP_Bus_tracker. Set up 
 
 ## Start here
 
+CI/CD build gate (28 October 2026): `npm run build` requires `npm run verify` before generating routes or compiling assets. Verification runs TypeScript, the HTTPS scan and the complete test suite inside Vercel's existing Git build. Fixtures run in a separate test-mode process; the parent production build retains its settings and provider keys. See `docs/ci-cd.md` and Turn 133. Keep this shared gate in place; no new GitHub deployment workflow or deployment token is needed.
+
 Latest released follow-up (28 October 2026): application `38ceedf` adds critical-path unit/integration tests, an injectable arrival HTTP adapter and repeatable `npm run test:coverage` / `npm run test:integration` commands. All 338 tests pass; loaded-file coverage is 93.66% lines / 88.55% branches with unloaded runtime/UI files listed separately. Read `docs/testing.md` and Turns 131–132 for coverage gaps and actual delivery checks. No dependencies, accounts or required settings were added.
 
 Released follow-up (28 October 2026): automatic structured logging is deployed and verified on top of the Vercel-log error tracker. Read `docs/structured-logging.md` and Turns 129–130 for implementation/validation/delivery. It adds a shared request scope, generated `X-Request-ID`, top-level anonymous user context and response status/duration, preserving strict browser-report ingestion and exception references. It does not add login, persistent identity or required environment settings; application release 9c69da4 is committed, pushed and verified live.

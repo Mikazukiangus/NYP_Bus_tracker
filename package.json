@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "tsx server.ts",
-    "build": "tsx scripts/check-https.ts && tsx scripts/build-bus-routes.ts && vite build",
+    "build": "npm run verify && tsx scripts/build-bus-routes.ts && vite build",
+    "verify": "tsx scripts/verify.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",

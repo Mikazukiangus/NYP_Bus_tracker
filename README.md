@@ -106,11 +106,12 @@ Other commands:
 | Command | What it does |
 |---|---|
 | `npm test` | Runs the tests in `tests/` |
+| `npm run verify` | Runs the same required type, HTTPS and full test checks used before every Vercel build |
 | `npm run test:integration` | Runs the dedicated local HTTP, React error-screen and network/GPS integration tests |
 | `npm run test:coverage` | Runs the full suite and writes LCOV, JSON coverage/inventory and test output into `coverage/` |
 | `npm run lint` | Type-checks the project (`tsc --noEmit`) |
 | `npm run routes` | Downloads LTA's bus routes and stops into `public/bus-routes/` (needs the key) |
-| `npm run build` | Runs `npm run routes`, then builds the site into `dist/` |
+| `npm run build` | Requires `verify` to pass, then regenerates LTA route data and builds the site into `dist/` |
 | `npx vite build` | Builds the site only, keeping the route files you already have |
 | `npm run shapes` | Rebuilds the road-following route lines in `public/route-shapes/` from OpenStreetMap |
 | `npm run config:check` | Validates local configuration and reports key presence without printing secrets |
@@ -119,6 +120,8 @@ Other commands:
 | `npm run secrets:scan` | Scans current first-party files and complete local Git history with Gitleaks, reporting only finding locations |
 
 See [critical-path tests and coverage gaps](docs/testing.md) for what is exercised, measurement limits and the next tests to add. The 338-test suite and arrival-adapter test seam were released as `38ceedf` and verified live. Coverage reports are local and ignored by Git; no reporting account or credential is required.
+
+[The CI/CD pipeline](docs/ci-cd.md) uses the existing Vercel Git integration: pushes to `main` run required checks before building and automatically publishing production. A failed check stops the build and preserves the current live deployment.
 
 `npm run build` empties `public/bus-routes/` before downloading, so without a key, or if LTA DataMall is down, it leaves none. The app still works (it asks `/api/bus-route` instead), just more slowly. To see the production build locally, run `npm run build`, then:
 
