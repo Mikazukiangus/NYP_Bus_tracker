@@ -1,14 +1,14 @@
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { config } from '../../config/server.ts';
-import { createLogger } from '../../security/redact.ts';
+import { appLogger as base } from '../../security/logging.ts';
+import { currentLogContext } from '../../security/log-context.ts';
+import { withRequestLogging } from '../http/logging.ts';
 import { createErrorReporter, errorOperations, errorRoutes, SAFE_ERROR_MESSAGE, type ErrorContext } from '../../shared/errors/events.ts';
 import { weatherKeys } from '../../shared/weather/types.ts';
 
-const base = createLogger([config.lta.accountKey, config.weather.apiKey]);
-export const requestErrors = new AsyncLocalStorage<Omit<ErrorContext, 'operation'>>();
 export const serverErrors = createErrorReporter({ source: 'server', ...config.public.errors }, event => base.error('errors.exception', { ...event }));
 export function captureServerError(error: unknown, operation: ErrorContext['operation'] = 'server.request_failed', extra: Pick<ErrorContext, 'dataset'> = {}) {
-  return serverErrors.capture(error, { ...requestErrors.getStore(), ...extra, operation });
+  const request = currentLogContext()?.request;
+  return serverErrors.capture(error, { ...(request ? { route: request.route, requestId: request.id, method: request.method } : {}), ...extra, operation });
 }
 export function trackedLog(level: 'warn' | 'error', event: string, details?: Record<string, unknown>) {
   if (details && Object.hasOwn(details, 'error') && (errorOperations as readonly string[]).includes(event)) {
@@ -26,11 +26,8 @@ function sendUnexpected(res: any, errorId: string | null) {
   res.end?.(JSON.stringify(body));
 }
 export function withErrorTracking<T extends (req: any, res: any) => unknown>(handler: T, route: typeof errorRoutes[number]) {
-  return async (req: any, res: any) => requestErrors.run({
-    route, requestId: crypto.randomUUID(),
-    method: ['GET', 'HEAD', 'POST', 'OPTIONS'].includes(req.method) ? req.method : 'OTHER',
-  }, async () => {
+  return withRequestLogging(async (req: any, res: any) => {
     try { return await handler(req, res); }
     catch (error) { return sendUnexpected(res, captureServerError(error)); }
-  });
+  }, route);
 }

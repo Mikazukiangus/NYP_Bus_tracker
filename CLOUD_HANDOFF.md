@@ -8,6 +8,8 @@ Continue my project at https://github.com/Mikazukiangus/NYP_Bus_tracker. Set up 
 
 ## Start here
 
+Local follow-up (28 October 2026): automatic structured logging is implemented on top of the Vercel-log error tracker. Read `docs/structured-logging.md` and Turn 129 for validation/delivery. It adds a shared request scope, generated `X-Request-ID`, top-level anonymous user context and response status/duration, preserving strict browser-report ingestion and exception references. It does not add login, persistent identity or required environment settings; commit/deployment remains a separate action.
+
 - Read `AGENTS.md` and `COMMENTS.md` before project work. Latest history is the source of truth when older review documents describe work as pending.
 - Append a dated entry with the next `Turn N` to `COMMENTS.md` on every project-related turn. Preserve history, record actual validation and distinguish local edits, commits, pushes and verified deployments. Never record credentials.
 - Use normal concise completion summaries. The old fixed “This is completed” rule was removed. Ask explicitly when a decision or confirmation is actually required.

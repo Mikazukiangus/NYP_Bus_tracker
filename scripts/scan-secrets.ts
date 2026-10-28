@@ -98,6 +98,6 @@ async function main() {
 }
 
 main().catch(() => {
-  console.error('Secret scan failed. Install Gitleaks and use a complete Git checkout. Raw errors are omitted to protect credentials.');
+  console.error(JSON.stringify({ scan: 'failed', error: 'Install Gitleaks and use a complete Git checkout. Raw errors omitted.' }));
   process.exitCode = 2;
 });

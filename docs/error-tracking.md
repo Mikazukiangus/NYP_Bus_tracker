@@ -2,6 +2,8 @@
 
 The user selected the existing Vercel runtime logs, with no additional account. Application commit `5ae30032efe2d4c27dcd4d6c0c15994f0eea227f` is deployed and verified live; see the production verification below. No Sentry project, SDK, secret, log drain or scheduled GitHub job is required.
 
+Local follow-up, 28 October: [structured logging](structured-logging.md) supplies automatic top-level request/user/release context and response-completion records across ordinary logs and exceptions. It preserves this collector's strict wire schema and untrusted browser marker. Request IDs now come from the shared logging scope; the exception's nested request ID and error-reference format remain compatible. This follow-up has not been deployed yet.
+
 ## Capture and recovery
 
 - `shared/errors/events.ts` owns the strict versioned envelope, exception classification, safe stack-location extraction, deduplication and bounded reporting policy.

@@ -180,6 +180,8 @@ Error states, temporary saves, alarm capability notices and the minimal public h
 
 [Centralized error tracking](docs/error-tracking.md) uses existing Vercel runtime logs for server exceptions and bounded, privacy-filtered browser reports. Safe reload/dismiss screens show a generated reference. No additional account or secret is needed. Centralized tracking is deployed and verified live (application release 5ae3003); its exact client-error POST firewall extension is active as version 6. See the guide and COMMENTS.md for the delivery evidence.
 
+[Structured logging](docs/structured-logging.md) adds automatic request IDs, route/method, anonymous user context, release labels and response status/duration to shared server logs. This follow-up is local pending release; the app still has no login or user identity source.
+
 Shared-cache ownership, atomic cross-tab preferences and stale request guards are documented in [docs/concurrency.md](docs/concurrency.md).
 
 Repeated OneMap searches and static trip plans now have bounded five-minute caches; incident provider reads share the existing two-minute freshness window. See [caching and invalidation](docs/caching.md) for keys, TTL settings, cancellation rules and measured results. `npm run profile:lookups` includes repeated-plan cache timings.

@@ -206,9 +206,8 @@ async function main() {
     }
   }
 
-  console.log(
-    `${byService.size} services (${relations.length} OSM relations, ${(totalBytes / 1024 / 1024).toFixed(1)} MB) in ${path.relative(process.cwd(), OUT_DIR)}: ${changed} updated, ${removed} removed`
-  );
+  logger.info('build.shapes_completed', { services: byService.size, relations: relations.length,
+    bytes: totalBytes, outputDirectory: 'public/route-shapes', updated: changed, removed });
 }
 
 main().catch((err) => {

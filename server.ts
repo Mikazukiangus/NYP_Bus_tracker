@@ -11,6 +11,7 @@ import clientErrorsHandler from './api/client-errors.ts';
 import { logger } from './security/logger.ts';
 import { asyncHandler, errorHandler } from './security/http-errors.ts';
 import { createTransportSecurity } from './security/transport.ts';
+import { requestLoggingMiddleware } from './server/http/logging.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,6 +20,7 @@ const app = express();
 const PORT = config.server.port;
 
 app.set('trust proxy', config.security.trustedProxyCidrs);
+app.use(requestLoggingMiddleware);
 app.use(createTransportSecurity({ production: config.server.nodeEnv === 'production' || config.server.vercel, appOrigin: config.security.appOrigin }));
 // Business APIs reject bodies; client-errors owns a separate bounded JSON stream reader.
 // Do not install a global body parser before these boundary guards.

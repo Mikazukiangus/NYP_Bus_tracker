@@ -106,7 +106,10 @@ test('arrival upstream errors never print an echoed response body or raw request
     await handler({ method: 'GET', query: { BusStopCode: '55329' } }, res);
     process.stdout.write(JSON.stringify(bodies.map(body => body.source)));
   `], { cwd: new URL('..', import.meta.url), env: { ...process.env, LTA_ACCOUNT_KEY: secret, DATA_GOV_SG_API_KEY: '' } });
-  assert.deepEqual(JSON.parse(stdout), ['FALLBACK_SIMULATED', 'FALLBACK_SIMULATED']);
+  const records = stdout.trim().split('\n').map(line => JSON.parse(line));
+  assert.deepEqual(records.pop(), ['FALLBACK_SIMULATED', 'FALLBACK_SIMULATED']);
+  assert.equal(records.length, 2);
+  assert.ok(records.every(record => record.event === 'http.request_completed' && record.request.route === '/api/bus-arrival' && record.user.kind === 'anonymous'));
   assert.ok(stderr.includes('lta.arrivals_http_error'));
   assert.ok(stderr.includes('lta.arrivals_request_failed'));
   for (const value of [secret, 'UPSTREAM_ECHO_SENTINEL', 'RAW_ERROR_SENTINEL']) assert.ok(!(stdout + stderr).includes(value));

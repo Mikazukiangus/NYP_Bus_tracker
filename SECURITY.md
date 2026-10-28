@@ -14,6 +14,8 @@ Pattern-based scanning cannot prove that no secret exists, especially for custom
 
 ## Store credentials locally
 
+The local [structured logging follow-up](docs/structured-logging.md) generates request IDs and uses anonymous user context because the app has no login. Incoming request/user-ID headers, cookies, browser-report fields and request `user` objects are never trusted as identity. Context omits bodies, arbitrary paths/queries, IPs and GPS. Contact/email/phone-named log detail fields are redacted; arbitrary personal text still belongs outside log metadata. Publication/deployment status remains in COMMENTS.md.
+
 Use your password manager or your team's secret manager as the source of truth. For this app, place development values in `.env.local`, which the shared config loader reads and Git ignores. Keep the local file accessible only to your account:
 
 ```bash

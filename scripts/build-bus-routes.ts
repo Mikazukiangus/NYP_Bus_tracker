@@ -23,7 +23,7 @@ async function main() {
 
   const accountKey = config.lta.accountKey;
   if (!accountKey) {
-    console.warn('[bus-routes] LTA_ACCOUNT_KEY not set; skipping. The app will use /api/bus-route instead.');
+    logger.warn('build.routes_skipped', { reason: 'credentials_missing', fallback: '/api/bus-route' });
     return;
   }
 
@@ -59,11 +59,9 @@ async function main() {
   const network = buildNetwork(data, generatedAt);
   const networkBody = JSON.stringify(network);
   await writeFile(path.join(OUT_DIR, 'network.json'), networkBody);
-  console.log(
-    `[bus-routes] Wrote ${services.length} services (${(totalBytes / 1024 / 1024).toFixed(1)} MB) and network.json ` +
-      `(${network.stops.length} stops, ${network.patterns.length} service directions, ${(networkBody.length / 1024).toFixed(0)} KB) ` +
-      `to ${path.relative(process.cwd(), OUT_DIR)}`
-  );
+  logger.info('build.routes_completed', { services: services.length, routeBytes: totalBytes,
+    stops: network.stops.length, directions: network.patterns.length, networkBytes: Buffer.byteLength(networkBody),
+    outputDirectory: 'public/bus-routes' });
 }
 
 main().catch((err) => {

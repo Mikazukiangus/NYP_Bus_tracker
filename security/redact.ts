@@ -3,7 +3,7 @@ import { CircuitOpenError, DependencyHttpError, InvalidDependencyResponseError }
 
 export const REDACTED = '[REDACTED]';
 const sensitiveKey = (key: string) =>
-  /(?:secret|token|password|passwd|authorization|cookie|accountkey|apikey|credential|deployhook|privatekey)|^(?:key|signature|sig)$/i.test(key.replace(/[^a-z0-9]/gi, ''));
+  /(?:secret|token|password|passwd|authorization|cookie|accountkey|apikey|credential|deployhook|privatekey|email|phone|telephone)|^(?:key|signature|sig|contacts?)$/i.test(key.replace(/[^a-z0-9]/gi, ''));
 
 // Errors deliberately expose no arbitrary message, stack, cause, request headers or response body.
 export function safeError(error: unknown): { kind: string; httpStatus?: number } {
@@ -75,10 +75,20 @@ export function redact(value: unknown, secrets: readonly string[] = []): unknown
 type LogLevel = 'info' | 'warn' | 'error';
 type LogSink = (level: LogLevel, line: string) => void;
 
-export function createLogger(secrets: readonly string[] = [], sink: LogSink = (level, line) => console[level](line)) {
+export function createLogger(secrets: readonly string[] = [], sink: LogSink = (level, line) => console[level](line), options: {
+  metadata?: () => Record<string, unknown>; now?: () => number;
+} = {}) {
   const write = (level: LogLevel, event: string, details: Record<string, unknown> = {}) => {
-    // One JSON record prevents newline/control-character log injection. Never pass raw objects to console.
-    sink(level, JSON.stringify(redact({ level, event, details }, secrets)));
+    // One JSON object per line; metadata is resolved at the call, never when a singleton is created.
+    try {
+      const timestamp = new Date((options.now ?? Date.now)()).toISOString();
+      let metadata: Record<string, unknown> = {};
+      try { metadata = options.metadata?.() ?? {}; } catch { /* Keep the fixed envelope if context fails. */ }
+      const clean = redact({ ...metadata, version: 1, timestamp, level, event, details }, secrets);
+      sink(level, JSON.stringify(clean !== null && typeof clean === 'object' && !Array.isArray(clean) ? clean : {
+        version: 1, timestamp, level, event: 'logging.redaction_failed', details: { omitted: true },
+      }));
+    } catch { /* Logging cannot fail a request or recursively report a broken sink. */ }
   };
   return {
     info: (event: string, details?: Record<string, unknown>) => write('info', event, details),
