@@ -106,6 +106,8 @@ Other commands:
 | Command | What it does |
 |---|---|
 | `npm test` | Runs the tests in `tests/` |
+| `npm run test:integration` | Runs the dedicated local HTTP, React error-screen and network/GPS integration tests |
+| `npm run test:coverage` | Runs the full suite and writes LCOV, JSON coverage/inventory and test output into `coverage/` |
 | `npm run lint` | Type-checks the project (`tsc --noEmit`) |
 | `npm run routes` | Downloads LTA's bus routes and stops into `public/bus-routes/` (needs the key) |
 | `npm run build` | Runs `npm run routes`, then builds the site into `dist/` |
@@ -115,6 +117,8 @@ Other commands:
 | `npm run config:example` | Regenerates `.env.example` from the schema's defaults, without reading local secrets |
 | `npm run --silent firewall:rule -- log` | Prints the validated Vercel IP-limit rule; no publish or remote write. See [rate limiting](docs/rate-limiting.md) for rollout status |
 | `npm run secrets:scan` | Scans current first-party files and complete local Git history with Gitleaks, reporting only finding locations |
+
+See [critical-path tests and coverage gaps](docs/testing.md) for what is exercised, measurement limits and the next tests to add. Coverage reports are local and ignored by Git; no reporting account or credential is required.
 
 `npm run build` empties `public/bus-routes/` before downloading, so without a key, or if LTA DataMall is down, it leaves none. The app still works (it asks `/api/bus-route` instead), just more slowly. To see the production build locally, run `npm run build`, then:
 
