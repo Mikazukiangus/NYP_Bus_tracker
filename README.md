@@ -118,7 +118,7 @@ Other commands:
 | `npm run --silent firewall:rule -- log` | Prints the validated Vercel IP-limit rule; no publish or remote write. See [rate limiting](docs/rate-limiting.md) for rollout status |
 | `npm run secrets:scan` | Scans current first-party files and complete local Git history with Gitleaks, reporting only finding locations |
 
-See [critical-path tests and coverage gaps](docs/testing.md) for what is exercised, measurement limits and the next tests to add. Coverage reports are local and ignored by Git; no reporting account or credential is required.
+See [critical-path tests and coverage gaps](docs/testing.md) for what is exercised, measurement limits and the next tests to add. The 338-test suite and arrival-adapter test seam were released as `38ceedf` and verified live. Coverage reports are local and ignored by Git; no reporting account or credential is required.
 
 `npm run build` empties `public/bus-routes/` before downloading, so without a key, or if LTA DataMall is down, it leaves none. The app still works (it asks `/api/bus-route` instead), just more slowly. To see the production build locally, run `npm run build`, then:
 
