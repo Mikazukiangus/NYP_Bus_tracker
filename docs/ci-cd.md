@@ -31,3 +31,11 @@ In Vercel's deployment build logs, look for JSON events `ci.check_started`, `ci.
 The current pipeline is build-gated CI/CD, not a GitHub required-status rule or a post-build browser promotion check. Adding those later requires a separate reviewed setup. No new GitHub workflow or deployment credential was introduced; the existing monthly shape-refresh workflow remains in place.
 
 Platform references: [Vercel build configuration](https://vercel.com/docs/builds/configure-a-build), [GitHub integration](https://vercel.com/docs/git/vercel-for-github), [production deployment behavior](https://vercel.com/docs/deployment-checks).
+
+## Verified delivery: 28 October 2026
+
+The gate is committed and active. The first deployment (`8858b8c`) failed an existing Mac-only temporary-file fixture after passing types/HTTPS; Vercel kept production on `cf86098`. The fixture now uses a unique OS temporary directory and stricter failure/privacy assertions. A scan found no other real OS-specific test paths.
+
+Commit `ddc3bb5` then passed all three checks on Vercel's Linux builder, including **338 tests across 44 files**, before route generation and the production build ran. Git-triggered deployment `dpl_4VUUXBNoy2ybh99unmtd7xTk2Rbc` reached READY at that exact commit with the live domain assigned. The remote log order was checked, rather than inferring success from the configuration. Live verification passes eight API/data responses, four exact client assets and phone/desktop arrival/map screens with no page errors, insecure requests, policy violations or horizontal overflow. Initial weather is validated partial data, consistent with the existing fallback policy.
+
+An additional isolated local red-test fixture returned exit 1 before provider generation or Vite, preserving existing route-data and asset sentinels. The disposable fixture was removed and never pushed. No failing check was bypassed. These are delivery observations; rerun verification after future changes.

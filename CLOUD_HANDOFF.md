@@ -1,6 +1,6 @@
 # Cloud development handoff — BusTrackerSG
 
-Prepared 22 October 2026; updated for the 28 October critical-path testing release. Paste this note into the new cloud chat.
+Prepared 22 October 2026; updated for the 28 October CI/CD release. Paste this note into the new cloud chat.
 
 Centralized error tracking is delivered using **Vercel logs, no additional account**. See `docs/error-tracking.md` and the latest COMMENTS entry for implementation/checks and delivery status. Browser reports use a separate strict anonymous POST collector; business APIs remain GET/HEAD. The firewall extension adding exactly POST /api/client-errors to the shared IP budget is already published and verified as active version 6, with no pending draft. Application release 9c69da4 is deployed and verified, including automatic request context and actual browser-report/log correlation. No Sentry secret, background queue or GitHub reporting job is needed.
 
@@ -8,7 +8,7 @@ Continue my project at https://github.com/Mikazukiangus/NYP_Bus_tracker. Set up 
 
 ## Start here
 
-CI/CD build gate (28 October 2026): `npm run build` requires `npm run verify` before generating routes or compiling assets. Verification runs TypeScript, the HTTPS scan and the complete test suite inside Vercel's existing Git build. Fixtures run in a separate test-mode process; the parent production build retains its settings and provider keys. See `docs/ci-cd.md` and Turn 133. Keep this shared gate in place; no new GitHub deployment workflow or deployment token is needed.
+Released CI/CD build gate (28 October 2026, `ddc3bb5`): `npm run build` requires `npm run verify` before generating routes or compiling assets. All 338 tests, TypeScript and the HTTPS scan passed on Vercel's Linux builder before automatic production publication; an earlier failed fixture blocked its deployment and preserved the previous live version. Fixtures run in a separate test-mode process; the parent production build retains its settings and provider keys. See `docs/ci-cd.md` and Turn 133. Keep this shared gate in place; no new GitHub deployment workflow or deployment token is needed.
 
 Latest released follow-up (28 October 2026): application `38ceedf` adds critical-path unit/integration tests, an injectable arrival HTTP adapter and repeatable `npm run test:coverage` / `npm run test:integration` commands. All 338 tests pass; loaded-file coverage is 93.66% lines / 88.55% branches with unloaded runtime/UI files listed separately. Read `docs/testing.md` and Turns 131–132 for coverage gaps and actual delivery checks. No dependencies, accounts or required settings were added.
 
@@ -25,12 +25,12 @@ Released follow-up (28 October 2026): automatic structured logging is deployed a
 - Repository: https://github.com/Mikazukiangus/NYP_Bus_tracker
 - Production: https://nypbus-tracker.vercel.app/
 - Branch at handoff: `main`.
-- Latest verified application release: `38ceedf94178ce875e97a0bb6c4f11c08dc5cefb` — critical-path tests, honest coverage inventory and an injectable arrival adapter; retains structured request/anonymous-user context, Vercel error tracking, pagination and earlier concurrency/cache/error-handling fixes. Subsequent commits record release notes.
-- Application commit: `38ceedf94178ce875e97a0bb6c4f11c08dc5cefb`; it includes the previously released circuit breakers, retries and outbound request/map image deadlines.
-- Verified application deployment: `dpl_wumJ2qZPNZoEMhWBsQTJxHkt3fyn`, READY with the exact application SHA and live domain assigned.
+- Latest verified application release: `ddc3bb5134b56c4ff94dce1c0afe74df6ddd4c82` — required Vercel build checks and a portable Linux/Mac Overpass test fixture; retains critical-path tests, coverage inventory, structured logging, pagination and earlier runtime fixes. Subsequent commits record release notes.
+- Application commit: `ddc3bb5134b56c4ff94dce1c0afe74df6ddd4c82`; it includes the previously released circuit breakers, retries and outbound request/map image deadlines.
+- Verified application deployment: `dpl_4VUUXBNoy2ybh99unmtd7xTk2Rbc`, READY with the exact application SHA and live domain assigned.
 - Existing Vercel project: `nypbus-tracker`, team slug `carbon-bc04`; project ID `prj_hRkofLg97cZMW7uyG1cvDrDx4R7L`, team ID `team_ZEUyUqyAE43B7bGMi6Rdux14`. These IDs are identifiers, not credentials. New chat access must be established separately.
 - GitHub integration deploys pushes to `main`. Do not trigger a second manual deployment for the same push.
-- This handoff accompanies the committed application release; Turn 132 records its current delivery checks. A fresh clone of current main contains it. Read the latest COMMENTS.md delivery entries and recheck remote state rather than resetting to an earlier SHA.
+- This handoff accompanies the committed application release; Turn 133 records its current delivery checks. A fresh clone of current main contains it. Read the latest COMMENTS.md delivery entries and recheck remote state rather than resetting to an earlier SHA.
 
 ## Cloud setup
 
@@ -76,7 +76,7 @@ Use `HOST`/`PORT` if the preview platform requires them. Keep development mode f
 
 ## Validation and known limitations
 
-Latest application release passed 338 tests, TypeScript including unused-local checks, HTTPS scan across 151 files, client build, working-tree/history Gitleaks scans, 58 live business-API CORS checks and production browser flows at 375 px/1280 px. Two fresh uncached arrival-request IDs correlate exactly once to completion logs with the correct release, method/route/status and anonymous user context. Real arrivals, trips, tiles/local CSS, saved buses, persisted location/reload and map cleanup pass with no page exceptions, horizontal overflow, app cookies or CSP/mixed-content issues. Sixteen-case collector-boundary and eleven-request/full browser-report correlation evidence remain historical results in Turns 128/130; no production crash or synthetic client report was induced for this test release. Consult COMMENTS.md for subsequent documentation commits and smoke checks; rerun validation in a new runtime rather than claiming these historical results as fresh verification.
+Current CI/CD release passed all 338 tests, TypeScript/unused-local checks and the HTTPS scan on Vercel before generating data, compiling and automatically publishing. An actual red deployment preserved the previous live release, and an isolated red-test build preserved route/asset sentinels before provider generation. Live checks pass eight API/data responses, four exact client assets and 375 px/1280 px arrival/map screens with no page exceptions, policy violations, insecure requests or horizontal overflow. No production crash or synthetic client report was induced. The broader 58-case CORS, saved-bus/location/journey/map-cleanup and two-request log-correlation evidence remains Turn 132's historical result; collector and full logging delivery evidence remains Turns 128/130. Consult COMMENTS.md for subsequent documentation commits and smoke checks; rerun validation in a new runtime rather than claiming these historical results as fresh verification.
 
 The latest production build generated 604 services, 5,211 stops and 801 directions. Dataset counts can change. NEA weather can return validated partial data: it had seven missing datasets initially and no missing/stale datasets on follow-up; later cold instances can still return partial data. A deployment-filtered 30-minute warning/error/fatal query (limit 100) returned 14 existing DEP0169 warnings and no other failure at the checked time; this is a bounded observation, not continuous monitoring. Cached API responses can reuse the generating invocation header; individual edge hits require platform request metadata. Build reports the existing moderate/high transitive dependency advisories; no dependency versions were changed. The prior audit identified body-parser and qs advisories with no enabled body-parser middleware or first-party qs.stringify call; retain the separate maintenance follow-up. No external log drains are configured, and continuous monitoring has not been established.
 
