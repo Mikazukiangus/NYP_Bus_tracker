@@ -4,6 +4,7 @@ import { config } from '../config/server.ts';
 import { cdnCache, type AppConfig } from '../config/schema.ts';
 import { logger } from '../security/logger.ts';
 import { createArrivalService } from '../server/lta/arrivals.ts';
+import type { ArrivalService } from '../server/arrivals/provider.ts';
 import { validateReadRequest, arrivalQuerySchema } from '../server/http/request.ts';
 export type { LTABusArrival, LTAService, LTABusArrivalResponse } from '../server/lta/arrivalTypes.ts';
 const service = createArrivalService(config.lta, { logger, retry: config.outbound.retry });
@@ -17,7 +18,7 @@ function send(res: Response | any, status: number, body: unknown, cacheControl?:
   return body;
 }
 // Keep the deployed adapter and integration fixtures on the same validation/response path.
-export function createArrivalHandler(arrivals: Pick<ReturnType<typeof createArrivalService>, 'arrivals'>, settings: Pick<AppConfig, 'security' | 'lta'> = config) {
+export function createArrivalHandler(arrivals: ArrivalService, settings: Pick<AppConfig, 'security' | 'lta'> = config) {
   async function handler(req: Request | any, res: Response | any) {
     const query = validateReadRequest(req, res, arrivalQuerySchema, settings.security);
     if (!query) return;

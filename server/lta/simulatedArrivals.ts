@@ -1,6 +1,7 @@
-import type { LTAService, LTABusArrivalResponse } from './arrivalTypes.ts';
+import type { LTAService } from './arrivalTypes.ts';
+import type { SimulatedArrivalResponse } from '../arrivals/provider.ts';
 // Generate realistic Singapore LTA v3 payload when LTA_ACCOUNT_KEY is not configured yet
-export function generateSimulatedLtaResponse(busStopCode: string, serviceNo: string | undefined, nowMs: number, baseUrl: string): LTABusArrivalResponse {
+export function generateSimulatedLtaResponse(busStopCode: string, serviceNo: string | undefined, nowMs: number, baseUrl: string): SimulatedArrivalResponse {
   const now = new Date(nowMs);
   const serviceList = serviceNo ? [serviceNo.toUpperCase()] : ['14', '65', '147'];
 

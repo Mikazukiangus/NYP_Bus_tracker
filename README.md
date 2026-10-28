@@ -10,6 +10,8 @@ Live site: https://nypbus-tracker.vercel.app
 
 See [the modularity review and implementation notes](MODULARITY_REVIEW.md) for the responsibility boundaries, extraction results and optional follow-ups. `npm test` includes checks that protect domain/UI/data and server/browser boundaries and keep Leaflet behind its lazy import.
 
+The [bus-arrival adapter guide](docs/arrival-provider-adapter.md) shows the provider interface, default LTA composition and how to replace the adapter or add a live fallback later while preserving validation and source labels.
+
 The [bus-arrival response contract](docs/api/bus-arrival.md) includes an example JSON response, accepted empty-bus values, runtime validation and fallback behavior.
 
 The [data-model guide](docs/data-model.md) explains stop visits, absolute arrival times, generated-file validation and the backward-compatible saved-record formats. It also records [implemented lookup indexes and shared arrival requests](docs/data-model.md#implemented-lookup-and-request-optimizations--21-october-2026); `npm run profile:lookups` compares the optimized lookups with an uncached baseline without calling providers.

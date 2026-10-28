@@ -122,6 +122,18 @@ test('transit and weather HTTP adapters delegate provider requests to server ser
   }
 });
 
+test('arrival application policy depends on its ports and shared contracts, not concrete providers or transport', () => {
+  const directory = path.join(root, 'server/arrivals');
+  for (const file of files(directory)) {
+    assert.ok(!/\bfetch\s*\(/.test(readFileSync(file, 'utf8')), `${path.relative(root, file)} owns transport`);
+    for (const { specifier } of imports(file)) {
+      const target = resolve(file, specifier);
+      if (!target) continue;
+      assert.ok(target.startsWith(directory + path.sep) || target.startsWith(path.join(root, 'shared') + path.sep), `${path.relative(root, file)} imports ${path.relative(root, target)}`);
+    }
+  }
+});
+
 test('all arrival polling owners use the shared repository rather than uncached transport', () => {
   for (const name of ['useStopArrivals', 'useStopsArrivals', 'favoriteArrivals']) {
     const file = path.join(root, `src/services/${name}.ts`);
