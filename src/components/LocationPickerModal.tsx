@@ -7,6 +7,7 @@ import type { BusNetwork } from '../features/network/model';
 import type { PlaceResult } from '../features/places/model';
 import { placeToLocation } from '../features/places/domain/locations';
 import { PlaceSearch, PlaceKindIcon } from './PlaceSearch';
+import { LocationPrivacyControls } from './LocationPrivacyControls';
 import { X, Navigation, Locate, MapPin, Check, LoaderCircle, GraduationCap, Clock } from 'lucide-react';
 
 interface LocationPickerModalProps {
@@ -18,6 +19,7 @@ interface LocationPickerModalProps {
   network: BusNetwork | null;
   recentPlaces: PlaceResult[];
   onPlaceChosen: (place: PlaceResult) => void;
+  onClearLocationData: () => Promise<boolean>;
 }
 
 const sameSpot = (a: { lat: number; lng: number }, b: { lat: number; lng: number }, tolerance = 0.0002) =>
@@ -32,6 +34,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   network,
   recentPlaces,
   onPlaceChosen,
+  onClearLocationData,
 }) => {
   const { isLocating, error: geoError, start: locate, cancel } = useGpsRequest(onRequestGps, isOpen);
   const onClose = useCallback(() => { cancel(); closeParent(); }, [cancel, closeParent]);
@@ -278,6 +281,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               })}
             </div>
           </section>
+          <LocationPrivacyControls onClear={async () => { cancel(); return onClearLocationData(); }} />
         </div>
 
         {/* Footer */}

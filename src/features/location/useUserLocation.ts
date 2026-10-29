@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UserLocation } from '../../types/bus';
 import { config } from '../../config';
 import { SINGAPORE_LOCATIONS } from '../../data/locations';
-import { loadSavedLocation, locationFromGps, saveUserLocation, requestGpsLocation, type GpsResult } from '../../services/userLocation';
+import { loadSavedLocation, locationFromGps, saveUserLocation, forgetSavedLocation, requestGpsLocation, LOCATION_STORAGE_KEY, type GpsResult } from '../../services/userLocation';
 import { parseLocation } from '../../../shared/geo/locationValidation';
 
 export type GpsSelectionResult = GpsResult | { cancelled: true };
@@ -23,6 +23,24 @@ export function useUserLocation() {
     revision.current += 1;
     setState({ userLocation: location, isDefaultLocation: false, persistence: saveUserLocation(location).status });
   }, []);
+  const forgetLocation = useCallback(() => {
+    revision.current += 1; // A late explicit/startup GPS callback must not restore cleared coordinates.
+    const result = forgetSavedLocation();
+    const location = SINGAPORE_LOCATIONS[0];
+    setState({ userLocation: location, isDefaultLocation: true, persistence: result.status });
+    return { location, cleared: result.status === 'saved' };
+  }, []);
+  useEffect(() => {
+    // Other open tabs must also invalidate pending fixes when this device's saved location is removed.
+    const cleared = (event: StorageEvent) => {
+      if ((event.key === LOCATION_STORAGE_KEY && event.newValue === null) || event.key === null) {
+        revision.current += 1;
+        setState({ userLocation: SINGAPORE_LOCATIONS[0], isDefaultLocation: true, persistence: 'saved' });
+      }
+    };
+    window.addEventListener?.('storage', cleared);
+    return () => window.removeEventListener?.('storage', cleared);
+  }, []);
   const requestGps = useCallback(async (onFix: (location: UserLocation) => void, signal?: AbortSignal): Promise<GpsSelectionResult> => {
     const ticket = ++revision.current;
     const result: GpsResult = await requestGpsLocation().catch(() => ({ error: 'Could not get a GPS fix. Try again, or search for an address or postal code.' }));
@@ -41,5 +59,5 @@ export function useUserLocation() {
     }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: config.timeouts.startupGpsMs });
     return () => { active = false; };
   }, []);
-  return { userLocation, isDefaultLocation, persistence, selectLocation, requestGps, requestStartupGps };
+  return { userLocation, isDefaultLocation, persistence, selectLocation, forgetLocation, requestGps, requestStartupGps };
 }

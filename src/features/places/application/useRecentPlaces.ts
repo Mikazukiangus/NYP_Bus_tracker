@@ -8,5 +8,10 @@ export function useRecentPlaces(store: RecentPlacesStore = recentPlacesStore) {
   const rememberPlace = useCallback((place: PlaceResult) => {
     if (isPlace(place)) return apply(items => addRecentPlace(place, items));
   }, [apply]);
-  return { recentPlaces, persistence, rememberPlace };
+  const clearRecentPlaces = useCallback(async () => {
+    await apply(() => []); // Ordered after pending writes and rebased under the existing cross-tab lock.
+    const saved = store.read();
+    return saved.status === 'saved' && saved.items.length === 0;
+  }, [apply, store]);
+  return { recentPlaces, persistence, rememberPlace, clearRecentPlaces };
 }

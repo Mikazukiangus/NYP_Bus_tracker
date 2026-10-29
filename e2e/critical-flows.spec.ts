@@ -1,5 +1,37 @@
 import { test, expect, openApp, view, checkpoint } from './fixtures';
 import { SAFE_ERROR_MESSAGE } from '../shared/errors/events';
+import { readFile } from 'node:fs/promises';
+
+test('download remembered locations and clear them without losing saved buses', async ({ page, scenario }, testInfo) => {
+  void scenario;
+  await openApp(page);
+  await page.getByRole('region', { name: 'Your trip' }).getByRole('button', { name: /^Your location:/ }).click();
+  let dialog = page.getByRole('dialog');
+  await dialog.getByRole('combobox', { name: 'Search for a location' }).fill('54351');
+  await dialog.getByRole('option').filter({ hasText: '54351' }).first().click();
+  await page.getByRole('region', { name: 'Your trip' }).getByRole('button', { name: /^Your location:/ }).click();
+  dialog = page.getByRole('dialog');
+  await dialog.getByText('Your saved location data', { exact: true }).click();
+  await expect(dialog.getByText(/until you clear them/)).toBeVisible();
+  const downloadEvent = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: 'Download location data', exact: true }).click();
+  const download = await downloadEvent;
+  expect(download.suggestedFilename()).toBe('bustrackersg-locations.json');
+  const exported = JSON.parse(await readFile((await download.path())!, 'utf8'));
+  expect(exported.location.name).toBeTruthy();
+  expect(exported.recentPlaces.length).toBeGreaterThan(0);
+  expect(Object.keys(exported).sort()).toEqual(['exportedAt', 'location', 'recentPlaces', 'schemaVersion']);
+  await dialog.getByRole('button', { name: 'Clear location and recent places', exact: true }).click();
+  await expect(dialog.getByRole('status')).toContainText('Saved location and recent places cleared.');
+  await dialog.getByRole('status').scrollIntoViewIfNeeded();
+  await expect(dialog.getByRole('status')).toBeVisible();
+  const stored = await page.evaluate(() => ({ location: localStorage.getItem('bustrackersg_location_v1'), recent: JSON.parse(localStorage.getItem('bustrackersg_recent_places_v1')!).places }));
+  expect(stored).toEqual({ location: null, recent: [] });
+  await page.screenshot({ path: testInfo.outputPath('location-privacy.png') });
+  await page.reload();
+  await expect(page.getByRole('button', { name: /^Your location:/ }).first()).toHaveAttribute('aria-label', /Nanyang Polytechnic/);
+  await expect(page.getByRole('button', { name: 'Saved buses (1)', exact: true })).toBeVisible();
+});
 
 test('track a bus, change direction and choose a route stop', async ({ page, scenario }, testInfo) => {
   void scenario;

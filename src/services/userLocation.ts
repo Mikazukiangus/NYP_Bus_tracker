@@ -32,6 +32,13 @@ export function saveUserLocation(loc: UserLocation, storage?: Pick<Storage, 'set
   return persistValue(LOCATION_STORAGE_KEY, { schemaVersion: 2, location }, storage);
 }
 
+export function forgetSavedLocation(storage?: Pick<Storage, 'removeItem'>): PersistenceResult {
+  try {
+    (storage ?? window.localStorage).removeItem(LOCATION_STORAGE_KEY);
+    return { status: 'saved' };
+  } catch { return { status: 'session-only' }; }
+}
+
 export function locationFromGps(value: unknown, capturedAtMs = Date.now()): UserLocation | null {
   const coords = parseGpsCoordinates(value);
   if (!coords || !Number.isFinite(capturedAtMs) || capturedAtMs < 0) return null;

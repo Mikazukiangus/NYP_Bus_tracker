@@ -62,7 +62,7 @@ const MapPlaceholder: React.FC = () => (
 );
 
 export default function App() {
-  const { userLocation, isDefaultLocation, persistence: locationPersistence, selectLocation, requestGps, requestStartupGps } = useUserLocation();
+  const { userLocation, isDefaultLocation, persistence: locationPersistence, selectLocation, forgetLocation, requestGps, requestStartupGps } = useUserLocation();
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 
   // Fetch the map's code once the first screen is drawn, so it's ready before anyone opens the Map tab
@@ -94,7 +94,7 @@ export default function App() {
   const requestUserGps = useCallback((signal: AbortSignal) => requestGps(applyUserLocation, signal), [requestGps, applyUserLocation]);
 
   // Places chosen recently as a start or destination
-  const { recentPlaces, persistence: recentPersistence, rememberPlace } = useRecentPlaces();
+  const { recentPlaces, persistence: recentPersistence, rememberPlace, clearRecentPlaces } = useRecentPlaces();
 
   const { destination, tripPlan, selectedTrip, trackedLeg, selectTrip, trackTripLeg,
     trackTripLegAt, chooseTripService, chooseTripServiceAt, trackService, handleSetDestination,
@@ -645,6 +645,13 @@ export default function App() {
         network={network}
         recentPlaces={recentPlaces}
         onPlaceChosen={rememberPlace}
+        onClearLocationData={async () => {
+          const result = forgetLocation();
+          retarget(result.location);
+          handleClearDestination();
+          if (getOffAlarm.on) getOffAlarm.toggle();
+          return (await clearRecentPlaces()) && result.cleared;
+        }}
       />
     </div>
   );
