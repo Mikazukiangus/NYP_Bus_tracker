@@ -1,7 +1,7 @@
 import { z } from '../../shared/input/zod.ts';
 import { nameSchema, textSchema, stopCodeSchema, serviceNoSchema, latitudeSchema, longitudeSchema, numberSchema, parseBoundary } from '../../shared/input/primitives.ts';
 
-export const pageSchema = z.object({ value: z.array(z.unknown()) });
+export const pageSchema = z.object({ value: z.array(z.unknown()).max(500) });
 const times = z.string().regex(/^(?:-|(?:[01]\d|2[0-3])[0-5]\d|2400)$/).optional();
 const operator = z.enum(['SBST', 'SMRT', 'TTS', 'GAS']);
 export const stopRowSchema = z.object({ BusStopCode: stopCodeSchema, RoadName: textSchema, Description: nameSchema, Latitude: latitudeSchema, Longitude: longitudeSchema });

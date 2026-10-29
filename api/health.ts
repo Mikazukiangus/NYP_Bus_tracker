@@ -7,18 +7,20 @@ import { parseArrivalResponse } from '../shared/transit/arrivals.ts';
 import { neaSchemas } from '../shared/weather/validation.ts';
 import { safeFetch } from '../security/ssrf.ts';
 import { logger } from '../security/logger.ts';
+import { readDependencyJson } from '../shared/http/circuitBreaker.ts';
 
 async function probe(url: string, headers: Record<string, string>, valid: (body: any) => boolean, timeoutMs: number, request: typeof fetch) {
   const startedAt = Date.now();
   let httpStatus: number | null = null;
   try {
-    const response = await request(url, { headers, signal: AbortSignal.timeout(timeoutMs), redirect: 'error' });
+    const signal = AbortSignal.timeout(timeoutMs);
+    const response = await request(url, { headers, signal: signal, redirect: 'error' });
     httpStatus = response.status;
     if (!response.ok || !response.headers.get('content-type')?.includes('json')) {
       await response.body?.cancel().catch(() => {});
       throw new Error('invalid_response');
     }
-    if (!valid(await response.json())) throw new Error('invalid_response');
+    await readDependencyJson(response, body => { if (!valid(body)) throw new Error('invalid_response'); }, { signal });
     return { status: 'ok' as const, httpStatus, latencyMs: Date.now() - startedAt, checkedAt: new Date().toISOString() };
   } catch (error) {
     // Do not expose upstream response bodies or errors which might include request credentials.

@@ -1,4 +1,5 @@
 import { isRetryableFailure, isRetryableStatus } from './readRetry.ts';
+import { readBoundedJson, InvalidJsonBodyError, type JsonBodyLimits } from './boundedJson.ts';
 
 export interface CircuitSettings { failureThreshold: number; failureWindowMs: number; openMs: number }
 export const DEFAULT_CIRCUIT_SETTINGS: Readonly<CircuitSettings> = Object.freeze({ failureThreshold: 3, failureWindowMs: 60000, openMs: 30000 });
@@ -18,13 +19,13 @@ export function isDependencyFailure(error: unknown): boolean {
 }
 
 // Validated successes alone close a probe; parse errors have a fixed safe marker.
-export async function readDependencyJson<T>(response: Response, parse: (raw: unknown) => T): Promise<T> {
+export async function readDependencyJson<T>(response: Response, parse: (raw: unknown) => T, limits?: JsonBodyLimits): Promise<T> {
   if (!response.headers.get('content-type')?.includes('json')) {
     await response.body?.cancel().catch(() => {});
     throw new InvalidDependencyResponseError();
   }
-  const raw: unknown = await response.json().catch(error => {
-    if (error instanceof SyntaxError) throw new InvalidDependencyResponseError();
+  const raw = await readBoundedJson(response, limits).catch(error => {
+    if (error instanceof InvalidJsonBodyError) throw new InvalidDependencyResponseError();
     throw error;
   });
   try { return parse(raw); } catch { throw new InvalidDependencyResponseError(); }

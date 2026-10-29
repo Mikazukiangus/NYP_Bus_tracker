@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 import { config } from '../config/server.ts';
 import { logger } from '../security/logger.ts';
 import { fetchOverpassQuery } from '../server/overpassClient.ts';
-import { parseOverpass } from '../server/overpassSchema';
+import { parseOverpass, createShapeWorkBudget } from '../server/overpassSchema.ts';
 import { parseShapes } from '../shared/transit/parsers';
 
 // Singapore mainland bounding box (south, west, north, east); stops short of Johor Bahru
@@ -91,7 +91,7 @@ function stitchWays(ways: LatLng[][]): LatLng[] {
 }
 
 // Iterative Douglas-Peucker to keep files small without visibly changing the line
-function simplify(points: LatLng[], tolerance: number): LatLng[] {
+function simplify(points: LatLng[], tolerance: number, budget: ReturnType<typeof createShapeWorkBudget>): LatLng[] {
   if (points.length < 3) return points;
   const keep = new Uint8Array(points.length);
   keep[0] = keep[points.length - 1] = 1;
@@ -108,6 +108,7 @@ function simplify(points: LatLng[], tolerance: number): LatLng[] {
     let maxSq = 0;
     let index = -1;
     for (let i = start + 1; i < end; i++) {
+      budget.compare();
       const [py, px] = points[i];
       const t = lenSq ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq)) : 0;
       const ex = ax + t * dx - px;
@@ -148,6 +149,7 @@ async function main() {
   }
 
   const byService = new Map<string, RouteShape[]>();
+  const budget = createShapeWorkBudget();
   for (const rel of relations) {
     const ref = rel.tags?.ref?.trim().toUpperCase();
     if (!ref || !/^[0-9A-Z]{1,6}$/.test(ref)) continue;
@@ -156,6 +158,7 @@ async function main() {
       .filter((m) => m.type === 'way' && ['', 'forward', 'backward'].includes(m.role))
       .map((m) => wayGeometry.get(m.ref))
       .filter((g): g is LatLng[] => Boolean(g?.length));
+    budget.admitRoute(ways.reduce((count, way) => count + way.length, 0));
     const stitched = stitchWays(ways);
     if (stitched.length < 2) continue;
 
@@ -164,7 +167,7 @@ async function main() {
       name: rel.tags?.name,
       from: rel.tags?.from,
       to: rel.tags?.to,
-      path: simplify(stitched, SIMPLIFY_TOLERANCE_DEG).map(([lat, lng]): LatLng => [
+      path: simplify(stitched, SIMPLIFY_TOLERANCE_DEG, budget).map(([lat, lng]): LatLng => [
         Math.round(lat * 1e5) / 1e5,
         Math.round(lng * 1e5) / 1e5,
       ]),

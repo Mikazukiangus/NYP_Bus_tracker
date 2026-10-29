@@ -1,5 +1,6 @@
 import type { AppConfig } from '../config/schema.ts';
 import { safeFetch } from '../security/ssrf.ts';
+import { readDependencyJson } from '../shared/http/circuitBreaker.ts';
 import { backoffMs, isRetryableFailure, isRetryableStatus, retryAfterMs, waitForRetry, type RetryRuntime } from '../shared/http/readRetry.ts';
 
 // Explicit POST exception: the offline builder's fixed Overpass interpreter query
@@ -35,7 +36,7 @@ export async function fetchOverpassQuery(settings: AppConfig['shapes'], query: s
             await res.body?.cancel().catch(() => {});
             throw new Error('Invalid external data.');
           }
-          return await res.json();
+          return await readDependencyJson(res, raw => raw, { maxBytes: 64 * 1024 * 1024, signal: overall });
         }
         const retryable = isRetryableStatus(res.status);
         const advised = retryAfterMs(res.headers.get('retry-after'), now());
