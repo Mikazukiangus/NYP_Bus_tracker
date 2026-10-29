@@ -27,7 +27,10 @@ test('download remembered locations and clear them without losing saved buses', 
   await expect(dialog.getByRole('status')).toBeVisible();
   const stored = await page.evaluate(() => ({ location: localStorage.getItem('bustrackersg_location_v1'), recent: JSON.parse(localStorage.getItem('bustrackersg_recent_places_v1')!).places }));
   expect(stored).toEqual({ location: null, recent: [] });
-  await page.screenshot({ path: testInfo.outputPath('location-privacy.png') });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  const image = testInfo.outputPath('location-privacy.png');
+  await page.screenshot({ path: image });
+  await testInfo.attach('location-privacy', { path: image, contentType: 'image/png' });
   await page.reload();
   await expect(page.getByRole('button', { name: /^Your location:/ }).first()).toHaveAttribute('aria-label', /Nanyang Polytechnic/);
   await expect(page.getByRole('button', { name: 'Saved buses (1)', exact: true })).toBeVisible();

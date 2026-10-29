@@ -80,13 +80,14 @@ On a Linux machine without browser system libraries, provision them with `npx pl
 
 `playwright.config.ts` builds the real Vite application into ignored `.e2e-dist/` and starts a temporary loopback preview on port 4173. The port must be free. It does not run the production provider-data generator or clear local `public/bus-routes/`. Each test uses its own browser context/storage, a clock advancing from a known date, Singapore timezone, reduced motion, and controlled HTTP fixtures. Advancing time lets real Leaflet pan/fade animation finish. No provider key, production write or real device location is required. Unexpected data/provider URLs and uncaught browser exceptions fail the test.
 
-Nine scenarios run in Chromium at **1280×900** and **390×844** (18 cases):
+Ten scenarios run in Chromium at **1280×900** and **390×844** (20 cases):
 
 | Flow | Browser assertions |
 | --- | --- |
 | Bus tracking | Switch direction, select a stop, search another service and show live GPS indicators |
 | Saved buses | Save/remove, reload persistence, modal preview and open tracker |
 | Saved location | Select a five-digit stop code and retain it after reload |
+| Location privacy | Download allowlisted location data, clear remembered location/recent places, reload the default and retain saved buses |
 | Fresh GPS | Grant virtual geolocation, update the visible location and persist GPS provenance |
 | Journey/map | Choose Bishan Int, select a trip, load real Leaflet tiles/markers, open boarding popup, zoom and reopen the map |
 | Weather recovery | Retain earlier readings with a failed-refresh warning, then clear it on successful refresh |
@@ -107,6 +108,8 @@ npm run test:e2e:visual -- --update-snapshots
 ```
 
 Reviewed baseline PNGs live under `e2e/snapshots/{desktop,phone}/darwin/`. Screenshot matching uses zero differing pixels and disabled CSS animations. The advancing header clock is masked. Incidental map previews are masked in other flows because subpixel fit/pan completion can vary; the dedicated journey-map baseline compares the real decoded tiles, paths, markers and controls without that mask. The error-notice scenario alone substitutes a deterministic valid UUID so its text does not change the panel's natural width. Playwright requires stable consecutive captures before comparison. Inspect expected/actual/diff images in the report before accepting a baseline change; do not auto-update snapshots in CI. Default functional runs capture evidence without requiring OS-specific baselines.
+
+There are 18 existing baseline comparisons; the new location-privacy flow attaches an inspected viewport capture without introducing an automatic baseline. Phone captures wait for focusout-driven navigation to mount and verify actual fixed-bar positions. The original phone `arrivals` baseline placed those bars at the full document's bottom, while the other phone baselines place them at the viewport boundary. Chromium's full-page compositor can otherwise choose either for that focus-transition capture. Only this legacy checkpoint uses a temporary, flushed stylesheet to anchor the bars to the document for capture; it is removed in finally, and fixed positioning is checked again. No viewport resize, new mask, baseline replacement or diff tolerance is used. The e2e directory is excluded from Tailwind source discovery so test-only CSS does not change shipped utility generation.
 
 As [Playwright documents](https://playwright.dev/docs/test-snapshots), browser/OS/font rendering affects pixels. These macOS baselines must be compared on the same OS/browser version. A Linux visual job needs separately reviewed Linux baselines. Phone mode is Chromium device emulation, not proof of Safari, Android hardware, real GPS accuracy, audio permission, wake locks or background-tab behavior.
 

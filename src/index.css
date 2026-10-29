@@ -5,6 +5,7 @@
 /* Configuration descriptions and test fixtures do not define UI styles. */
 @source not "../config";
 @source not "../tests";
+@source not "../e2e";
 
 /* Sanzo Wada, plate 259: Lemon Yellow & Green Blue +2.
    Exact swatches anchor the theme; lighter/darker tones keep small text legible. */
