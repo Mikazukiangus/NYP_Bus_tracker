@@ -45,6 +45,14 @@ async function main() {
     }
     names.add('.git/config');
     let files = 0;
+    // The index can differ from the worktree: a cleaned working file must not hide a staged credential.
+    const stagedNames = git('ls-files', '-z').split('\0').filter(Boolean);
+    for (const name of stagedNames) {
+      const target = path.join(snapshot, 'staged-index', name);
+      await mkdir(path.dirname(target), { recursive: true });
+      await writeFile(target, git('show', `:./${name}`), { mode: 0o600 });
+      files++;
+    }
     for (const name of names) {
       const source = path.join(root, name);
       if (!await lstat(source).then((s) => s.isFile(), () => false)) continue;

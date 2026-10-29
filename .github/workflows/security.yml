@@ -1,0 +1,50 @@
+name: Security checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Exact v7 action SHAs require remote verification; deferred by the offline audit instruction.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: npm ci
+      - name: Provision existing Gitleaks tool
+        shell: bash
+        run: |
+          set -euo pipefail
+          directory="$RUNNER_TEMP/security-tools"
+          mkdir -p "$directory"
+          cd "$directory"
+          base='https://github.com/gitleaks/gitleaks/releases/download/v8.30.1'
+          archive='gitleaks_8.30.1_linux_x64.tar.gz'
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --connect-timeout 10 --max-time 120 "$base/$archive" -o "$archive"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --connect-timeout 10 --max-time 60 "$base/gitleaks_8.30.1_checksums.txt" -o checksums.txt
+          awk -v archive="$archive" '$2 == archive { print }' checksums.txt > selected-checksum.txt
+          test "$(wc -l < selected-checksum.txt)" -eq 1
+          sha256sum --check selected-checksum.txt
+          tar -xzf "$archive" gitleaks
+          echo "$directory" >> "$GITHUB_PATH"
+      - name: Scan files, index and history without printing credentials
+        run: npm run secrets:scan
+      - name: Prove staged-only secrets cannot bypass the scanner
+        run: GITLEAKS_BINARY="$(command -v gitleaks)" node scripts/test-secret-index.mjs
+      - name: Check dependency advisories
+        shell: bash
+        run: |
+          set +e
+          npm audit --json > "$RUNNER_TEMP/npm-audit.json" 2>/dev/null
+          status=$?
+          set -e
+          node scripts/check-audit-report.mjs "$RUNNER_TEMP/npm-audit.json" "$status"

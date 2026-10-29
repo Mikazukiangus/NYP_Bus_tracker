@@ -1,5 +1,17 @@
 # Secrets, logs and repository scan
 
+## Reporting and audit controls — 29 October 2026
+
+Report a suspected vulnerability privately through GitHub's repository security advisory reporting if enabled, or privately to the repository owner. Do not put credentials, exact GPS, exploit payloads containing personal data or production logs in a public issue. Include affected commit, file/line, safe reproduction and impact. Hosted reporting settings were not verified in this offline audit.
+
+The approved remediation branch is `security/audit-20261029`; the evidence, limits and deferred controls are in [the audit record](docs/security-audit-2026-10-29.md). No production change or remote verification is part of that offline work.
+
+Install the repository hook once per clone: `git config core.hooksPath .githooks`. Activate `.venv` before committing. The hook fails closed on scanner failure, checks working files, the staged index and locally reachable history, and prints only finding locations. Hooks can be bypassed; configure required hosted checks and secret push protection as a separate repository setting. The local hook does not replace a hosted gate.
+
+The new `Security checks` workflow uses a read-only token, full checkout without persisted credentials, the existing Gitleaks 8.30.1 development tool (official archive plus matching release checksum), scanner regression and a fail-closed npm advisory report. Moderate or higher advisories fail the dependency check; unavailability also fails. Dependabot proposes npm/action updates weekly. No new runtime package was added. These workflow definitions have not run remotely; provisioning and mutable v7 action tags still need online verification/pinning. The existing Vercel deployment gate does not wait for this separate workflow automatically. Require its successful checks before merge and configure deployment checks if direct pushes can publish. Previously observed advisories may make the first run fail; do not add blanket exceptions to make it green.
+
+Rotation ownership: the repository/project owner maintains LTA, optional NEA and deployment-hook credentials in the hosting/CI secret stores, reviews provider scope and expiry and performs the rotation procedure below. Where a provider supports simultaneous active keys, provision the replacement, switch environments, verify, then revoke the old key. Where it does not, plan a brief degraded-data interval and revoke/reissue; application support cannot create provider overlap. Never print either key during validation. Provider overlap/expiry capabilities and cloud/operator permissions remain unverified offline.
+
 ## Scan result — 19 October 2026
 
 No confirmed credentials were found in the scanned current code or the 52 commits reachable from the fetched local branches, remote-tracking refs, tags and reflogs. This was a full checkout, not a shallow clone. Commit metadata, `.git/config`, uncommitted/untracked first-party files, generated browser files and any local `.env`/npm files present were included. Dependencies and `.venv` were excluded. GitHub-hosted caches, forks, pull-request refs not fetched locally, remote logs and unrelated account credential stores were outside this scan.

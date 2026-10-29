@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+# Fail closed if the configured scanner or Node toolchain is unavailable.
+npm run secrets:scan
