@@ -4,6 +4,8 @@ Live Singapore bus arrivals, live bus positions on a map, trip planning and NEA 
 
 Live site: https://nypbus-tracker.vercel.app
 
+The [MCP connection guide](docs/mcp-setup.md) records the verified GitHub/Vercel connections and how to reuse them. [Browser regression tests](docs/testing.md#real-browser-regression-tests) run the critical flows in Chromium on phone and desktop layouts, with screenshots and failure traces.
+
 ## Code structure
 
 `src/App.tsx` composes feature owners in `src/features/` for tracking, journey planning, location, saved buses, weather, incidents and maps. Places, network and saved-bus features separate pure `domain/` rules, `data/` adapters and `application/` hooks; browser data clients live with their features; `src/services/` retains focused algorithms and arrival/alarm hooks. `server/lta/` and `server/weather/` hold reusable provider services, while `api/` and `scripts/` provide HTTP and build entry points. `shared/` contains environment-neutral geometry, contracts and weather parsers.

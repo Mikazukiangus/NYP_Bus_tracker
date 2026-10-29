@@ -30,6 +30,8 @@ In Vercel's deployment build logs, look for JSON events `ci.check_started`, `ci.
 
 The current pipeline is build-gated CI/CD, not a GitHub required-status rule or a post-build browser promotion check. Adding those later requires a separate reviewed setup. No new GitHub workflow or deployment credential was introduced; the existing monthly shape-refresh workflow remains in place.
 
+The [Playwright suite](testing.md#real-browser-regression-tests) provides a separate local browser release check: `npm run test:e2e` captures phone/desktop evidence and `npm run test:e2e:visual` compares reviewed screenshots on the matching OS. It is not included in the Vercel build command, whose builder has not been provisioned with Chromium/system browser libraries. A browser-test failure currently does not block native Vercel publication automatically.
+
 Platform references: [Vercel build configuration](https://vercel.com/docs/builds/configure-a-build), [GitHub integration](https://vercel.com/docs/git/vercel-for-github), [production deployment behavior](https://vercel.com/docs/deployment-checks).
 
 ## Verified delivery: 28 October 2026

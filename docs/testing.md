@@ -57,9 +57,57 @@ The suite measures **129 of 183 source files** in scope (declaration files exclu
 
 ## Where coverage is weakest, in priority order
 
-1. **Full app, maps and journey orchestration are unmeasured.** `src/App.tsx`, `src/main.tsx`, `src/components/LiveBusMap.tsx`, `src/features/map/*`, `src/features/journey/useJourneyGeometry.ts` and `src/app/useAppNavigation.ts` have no loaded-file result. Add repeatable real-browser tests for choosing a journey/boarding stop, switching trips during delayed route/shape loads, opening/closing the map repeatedly, tile failures and mobile layout. Earlier delivery notes contain live-browser evidence; those temporary fixtures are not a committed regression suite or part of these metrics.
+1. **Full app, maps and journey orchestration are unmeasured by Node coverage.** `src/App.tsx`, `src/main.tsx`, `src/components/LiveBusMap.tsx`, `src/features/map/*`, `src/features/journey/useJourneyGeometry.ts` and `src/app/useAppNavigation.ts` have no loaded-file result. The browser suite below now covers journey selection, the boarding popup, map zoom/reopening and mobile layout. Remaining gaps include changing trips during delayed route/shape loads and tile failures. Browser execution is separate from these historical V8 metrics; it does not raise the reported Node coverage percentages.
 2. **Interactive weather/alarm views have low branch coverage.** `NEAWeatherWidget.tsx` is **18.52%**, `NearestStopBanner.tsx` **36.36%**, and `GetOffAlarm.tsx` **50.00%**. Add interaction tests for expanded views, missing/stale sections and enabling/disabling alarms. Existing pure alarm logic is strongly tested; `useGetOffAlarm.ts` remains **67.14%** on branches. Real GPS accuracy, background-tab throttling, audio permission and device wake-lock behavior still need browser/device verification.
 3. **Some HTTP response branches and advice formatting remain lightly tested.** `api/weather.ts` is **37.50%**, journey presentation **40.00%**, and `rainAdvice.ts` **52.73%** on branches. The route adapter has only **55.10% line coverage** despite 75.00% branch coverage. Next add native-response adapter checks for weather/route success and degradation, plus user-visible trip/advice variants. Branch percentages can be misleading for tiny files with few branches; use risk and actual assertions to prioritize.
 4. **Place-search and remaining arrival orchestration are unmeasured.** `usePlaceSearch.ts`, `useStopArrivals.ts`, `favoriteArrivals.ts` and several consumer components are absent from the loaded set. Existing shared repository tests protect coalescing, invalidation and stale ownership, but do not prove those views wire them correctly. Add deferred-response tests for rapid search edits, unmount/abort, saved-stop fan-out and switching the tracked stop during a slow response.
 
 No arbitrary global threshold is imposed yet: it would exclude unloaded app code and reward misleading coverage. Maintain meaningful assertions for these risks, expand the inventory into browser tests, and then establish per-area regression budgets. This test/coverage work was committed, pushed and verified live in application release `38ceedf`; Turn 132 in COMMENTS.md records production verification. Generated coverage reports remain local and ignored by Git.
+
+## Real-browser regression tests
+
+From a fresh checkout with Node 24:
+
+```sh
+source .venv/bin/activate # if using this project's existing local environment
+npm ci
+npx playwright install chromium
+npm run test:e2e
+npm run test:e2e:report
+```
+
+On a Linux machine without browser system libraries, provision them with `npx playwright install --with-deps chromium` (requires OS package-install permission). Playwright's [browser installation guidance](https://playwright.dev/docs/browsers) explains supported environments. The bundled browser version follows the exact `@playwright/test` version in the lockfile; no absolute local Chrome path is used.
+
+`playwright.config.ts` builds the real Vite application into ignored `.e2e-dist/` and starts a temporary loopback preview on port 4173. The port must be free. It does not run the production provider-data generator or clear local `public/bus-routes/`. Each test uses its own browser context/storage, a clock advancing from a known date, Singapore timezone, reduced motion, and controlled HTTP fixtures. Advancing time lets real Leaflet pan/fade animation finish. No provider key, production write or real device location is required. Unexpected data/provider URLs and uncaught browser exceptions fail the test.
+
+Nine scenarios run in Chromium at **1280×900** and **390×844** (18 cases):
+
+| Flow | Browser assertions |
+| --- | --- |
+| Bus tracking | Switch direction, select a stop, search another service and show live GPS indicators |
+| Saved buses | Save/remove, reload persistence, modal preview and open tracker |
+| Saved location | Select a five-digit stop code and retain it after reload |
+| Fresh GPS | Grant virtual geolocation, update the visible location and persist GPS provenance |
+| Journey/map | Choose Bishan Int, select a trip, load real Leaflet tiles/markers, open boarding popup, zoom and reopen the map |
+| Weather recovery | Retain earlier readings with a failed-refresh warning, then clear it on successful refresh |
+| Simulated arrivals | Display sample-feed disclosure and omit live GPS indicators |
+| Malformed arrivals | Reject invalid response data and disclose fallback instead of live GPS |
+| Error recovery/privacy | Capture an unhandled rejection, send a validated report without its raw detail, dismiss the safe notice and keep navigation usable |
+
+The route/network fixture contains public stops and routes for services 50/72, extracted from the existing generated LTA dataset; OSM shape geometry is copied from the tracked route-shape assets. Version/time are fixed for the fixture. Weather readings and the map tile are authored test data. HTTP requests are intercepted; application components, routing, client validation, hooks, persistence, planning and Leaflet run normally. This validates client integration with those contracts; it does **not** exercise real API handlers, provider uptime, Vercel headers/firewall or live OneMap cartography. Keep `npm run verify` and separate release smoke checks for those boundaries.
+
+Every scenario captures a checkpoint PNG and attaches it to the HTML report, with a horizontal-overflow assertion. Most capture the full page; the saved-bus modal captures the viewport and the dedicated map checkpoint captures the map component. Maps must finish loading/decoding tiles and zoom/fade animation before capture; page scroll is normalized. Failed cases also retain a screenshot, error context and trace. `playwright-report/` and `test-results/` are ignored; open a failure with `npx playwright show-trace <path-to-trace.zip>`. Keep reports private if adding tests with sensitive data later.
+
+### Screenshot comparisons
+
+```sh
+npm run test:e2e:visual
+# Only after reviewing an intentional UI change:
+npm run test:e2e:visual -- --update-snapshots
+```
+
+Reviewed baseline PNGs live under `e2e/snapshots/{desktop,phone}/darwin/`. Screenshot matching uses zero differing pixels and disabled CSS animations. The advancing header clock is masked. Incidental map previews are masked in other flows because subpixel fit/pan completion can vary; the dedicated journey-map baseline compares the real decoded tiles, paths, markers and controls without that mask. The error-notice scenario alone substitutes a deterministic valid UUID so its text does not change the panel's natural width. Playwright requires stable consecutive captures before comparison. Inspect expected/actual/diff images in the report before accepting a baseline change; do not auto-update snapshots in CI. Default functional runs capture evidence without requiring OS-specific baselines.
+
+As [Playwright documents](https://playwright.dev/docs/test-snapshots), browser/OS/font rendering affects pixels. These macOS baselines must be compared on the same OS/browser version. A Linux visual job needs separately reviewed Linux baselines. Phone mode is Chromium device emulation, not proof of Safari, Android hardware, real GPS accuracy, audio permission, wake locks or background-tab behavior.
+
+This suite runs separately from `npm run verify`; the existing Vercel publication gate remains types/HTTPS/Node tests. No GitHub deployment workflow, browser CI job or extra deployment token was added. Run the browser suite before releasing UI changes. It does not become a required remote check merely by installing Playwright.

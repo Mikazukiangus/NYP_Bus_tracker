@@ -14,6 +14,11 @@
     "test": "tsx --test tests/*.test.ts",
     "test:integration": "tsx --test tests/*.integration.test.ts",
     "test:coverage": "tsx scripts/test-coverage.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:visual": "E2E_VISUAL=1 playwright test",
+    "test:e2e:report": "playwright show-report",
+    "build:e2e": "vite build --outDir .e2e-dist",
+    "serve:e2e": "vite preview --outDir .e2e-dist --host 127.0.0.1 --port 4173 --strictPort",
     "shapes": "tsx scripts/build-route-shapes.ts",
     "routes": "tsx scripts/build-bus-routes.ts",
     "config:example": "tsx scripts/write-env-example.ts",
@@ -39,6 +44,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@types/express": "^4.17.21",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
