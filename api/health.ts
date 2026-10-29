@@ -8,11 +8,11 @@ import { neaSchemas } from '../shared/weather/validation.ts';
 import { safeFetch } from '../security/ssrf.ts';
 import { logger } from '../security/logger.ts';
 
-async function probe(url: string, headers: Record<string, string>, valid: (body: any) => boolean, timeoutMs: number) {
+async function probe(url: string, headers: Record<string, string>, valid: (body: any) => boolean, timeoutMs: number, request: typeof fetch) {
   const startedAt = Date.now();
   let httpStatus: number | null = null;
   try {
-    const response = await safeFetch(url, { headers, signal: AbortSignal.timeout(timeoutMs), redirect: 'error' });
+    const response = await request(url, { headers, signal: AbortSignal.timeout(timeoutMs), redirect: 'error' });
     httpStatus = response.status;
     if (!response.ok || !response.headers.get('content-type')?.includes('json')) {
       await response.body?.cancel().catch(() => {});
@@ -31,9 +31,12 @@ async function probe(url: string, headers: Record<string, string>, valid: (body:
   }
 }
 
-export function createHealthHandler(config: AppConfig, diagnostics: Pick<typeof logger, 'warn'> = logger) {
-  return async function handler(req: Request | any, res: Response | any) {
-    if (!validateReadRequest(req, res, emptyQuerySchema, config.security)) return;
+export function createHealthHandler(config: AppConfig, diagnostics: Pick<typeof logger, 'warn'> = logger, dependencies: { now?: () => number; request?: typeof fetch } = {}) {
+  const now = dependencies.now ?? Date.now, request = dependencies.request ?? safeFetch;
+  const freshnessMs = Math.max(config.health.cacheMs, config.weather.rateWindowMs + 1000);
+  let cached: { healthy: boolean; at: number } | null = null;
+  let pending: Promise<boolean> | null = null;
+  async function refresh() {
     const ltaEndpoint = `${config.lta.baseUrl}/v3/BusArrival`;
     const neaEndpoint = `${config.public.urls.neaBase}/two-hr-forecast`;
     const ltaKey = config.lta.accountKey;
@@ -41,18 +44,30 @@ export function createHealthHandler(config: AppConfig, diagnostics: Pick<typeof 
     const [ltaProbe, neaProbe] = await Promise.all([
       ltaKey
         ? probe(`${ltaEndpoint}?BusStopCode=${config.health.stopCode}`, { AccountKey: ltaKey, Accept: 'application/json' },
-          (body) => parseArrivalResponse(body, { expectedStopCode: config.health.stopCode }).ok, config.health.timeoutMs)
+          (body) => parseArrivalResponse(body, { expectedStopCode: config.health.stopCode }).ok, config.health.timeoutMs, request)
         : Promise.resolve({ status: 'not_configured' as const, reason: 'not_configured' }),
       probe(neaEndpoint, { Accept: 'application/json', ...(dataGovKey ? { 'x-api-key': dataGovKey } : {}) },
-        (body) => neaSchemas.forecast2h.safeParse(body).success, config.health.timeoutMs),
+        (body) => neaSchemas.forecast2h.safeParse(body).success, config.health.timeoutMs, request),
     ]);
     const healthy = ltaProbe.status === 'ok' && neaProbe.status === 'ok';
-    const httpStatus = healthy ? 200 : 503;
     // Operational details stay in restricted server logs. No URL, key-presence flag or raw error is returned.
     for (const [provider, result] of [['lta', ltaProbe], ['nea', neaProbe]] as const) {
       if (result.status !== 'ok') diagnostics.warn('health.probe_failed', { provider, ...result });
     }
-
+    cached = { healthy, at: now() };
+    return healthy;
+  }
+  function readiness(): Promise<boolean> {
+    if (pending) return pending;
+    const age = cached ? now() - cached.at : Infinity;
+    if (cached && age >= 0 && age < freshnessMs) return Promise.resolve(cached.healthy);
+    const task = Promise.resolve().then(refresh).finally(() => { if (pending === task) pending = null; });
+    pending = task;
+    return task;
+  }
+  return async function handler(req: Request | any, res: Response | any) {
+    if (!validateReadRequest(req, res, emptyQuerySchema, config.security)) return;
+    const healthy = await readiness(), httpStatus = healthy ? 200 : 503;
     const healthData = {
       status: healthy ? 'ok' : 'degraded',
       service: 'BusTrackerSG - A member of NYP Bus API',

@@ -109,3 +109,14 @@ test('native HTTP ingestion returns empty 204, exact CORS and safe malformed-req
     assert.equal(rejected.status, 400); assert.doesNotMatch(await rejected.text(), /private-secret/);
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
+
+test('collector signals global admission loss once per window without weakening the bound', async () => {
+  let now = 0, limited = 0;
+  const handler = createClientErrorHandler(settings, () => {}, () => now, { onLimit() { limited++; throw new Error('diagnostic failure'); } });
+  for (let i = 0; i < reportPolicy.serverEvents; i++) { const res = response(); await handler(request({}), res); assert.equal(res.code, 400); }
+  for (let i = 0; i < 3; i++) { const res = response(); await handler(request(), res); assert.equal(res.code, 429); }
+  assert.equal(limited, 1);
+  now += reportPolicy.windowMs;
+  for (let i = 0; i <= reportPolicy.serverEvents; i++) await handler(request({}), response());
+  assert.equal(limited, 2);
+});

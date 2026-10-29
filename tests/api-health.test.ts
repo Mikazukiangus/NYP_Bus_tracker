@@ -128,3 +128,37 @@ test('health uses the configured provider bases and probe stop', async () => {
   assert.equal(logs.length, 0);
   assert.ok(!JSON.stringify(body).includes('example.com'));
 });
+
+test('health coalesces concurrent GET/HEAD probes, caches completion and refreshes after expiry or clock rollback', async () => {
+  let now = 1000, calls = 0;
+  let finish!: () => void;
+  const gate = new Promise<void>(resolve => { finish = resolve; });
+  globalThis.fetch = async url => { calls++; await gate; return Response.json(validBody(String(url))); };
+  const config = createConfig({ LTA_ACCOUNT_KEY: 'fixture-key' });
+  const handler = createHealthHandler(config, { warn() {} }, { now: () => now });
+  const output = () => ({ code: 0, body: null as any, setHeader() {}, status(code: number) { this.code = code; return this; }, json(body: any) { this.body = body; } });
+  const replies = Array.from({ length: 20 }, output);
+  const pending = replies.map((res, i) => handler({ method: i % 2 ? 'HEAD' : 'GET' }, res));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls, 2, 'one provider pair, even while the first requests are pending');
+  now = 2000; finish(); await Promise.all(pending);
+  assert.ok(replies.every(res => res.code === 200 && res.body.status === 'ok'));
+  now = 2000 + config.health.cacheMs - 1;
+  await handler({ method: 'GET' }, output()); assert.equal(calls, 2);
+  now++; await handler({ method: 'HEAD' }, output()); assert.equal(calls, 4);
+  now = 0; await handler({ method: 'GET' }, output()); assert.equal(calls, 6);
+  const bad = output(); await handler({ method: 'GET', url: '/api/health?extra=1' }, bad);
+  assert.equal(bad.code, 400); assert.equal(calls, 6, 'invalid requests never consult a provider');
+});
+
+test('degraded health is cached too and failure diagnostics occur once per refresh', async () => {
+  let now = 0, calls = 0, warnings = 0;
+  globalThis.fetch = async () => { calls++; return new Response('{}', { status: 503 }); };
+  const config = createConfig({ LTA_ACCOUNT_KEY: 'fixture-key' });
+  const handler = createHealthHandler(config, { warn() { warnings++; } }, { now: () => now });
+  const reply = () => ({ code: 0, setHeader() {}, status(code: number) { this.code = code; return this; }, json() {} });
+  for (let i = 0; i < 10; i++) { const res = reply(); await handler({ method: 'GET' }, res); assert.equal(res.code, 503); }
+  assert.equal(calls, 2); assert.equal(warnings, 2);
+  now += config.health.cacheMs;
+  await handler({ method: 'GET' }, reply()); assert.equal(calls, 4); assert.equal(warnings, 4);
+});

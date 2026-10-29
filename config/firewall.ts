@@ -45,3 +45,21 @@ export function createApiRateLimitRule(input: FirewallStage) {
     } } },
   };
 }
+
+// Separate, opt-in publication artifacts; generating these does not change the existing rule.
+// Ten reports/IP/minute fits the browser's own budget and stays below a warm collector's 100.
+export function createSensitiveEndpointRules(input: FirewallStage) {
+  const stage = stageSchema.parse(input);
+  return [
+    { name: 'Public health probe limit', path: '/api/health', methods: ['GET', 'HEAD'], requests: 30 },
+    { name: 'Anonymous error collector limit', path: '/api/client-errors', methods: ['POST'], requests: 10 },
+  ].map(policy => ({
+    name: policy.name, description: 'Additional endpoint budget per IP and region; retain the shared API rule.', active: true,
+    conditionGroup: [{ conditions: [
+      { type: 'path', op: 'eq', value: policy.path }, { type: 'method', op: 'inc', value: policy.methods },
+      ...(stage === 'preview' ? [{ type: 'environment', op: 'eq', value: 'preview' }] : []),
+    ] }],
+    action: { mitigate: { action: 'rate_limit', rateLimit: { algo: 'fixed_window', window: 60,
+      limit: policy.requests, keys: ['ip'], action: stage === 'log' ? 'log' : 'rate_limit' } } },
+  }));
+}

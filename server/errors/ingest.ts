@@ -35,8 +35,8 @@ async function readBody(req: Request): Promise<unknown> {
   });
 }
 
-export function createClientErrorHandler(settings: Pick<AppConfig, 'security' | 'server' | 'public'>, sink: (event: ErrorEvent) => void, clock = Date.now) {
-  let windowStart = -Infinity, count = 0;
+export function createClientErrorHandler(settings: Pick<AppConfig, 'security' | 'server' | 'public'>, sink: (event: ErrorEvent) => void, clock = Date.now, diagnostics: { onLimit?: () => void } = {}) {
+  let windowStart = -Infinity, count = 0, reportedLimit = false;
   const seen = new Set<string>();
   return async (req: Request, res: any) => {
     const send = (status: number) => {
@@ -77,8 +77,11 @@ export function createClientErrorHandler(settings: Pick<AppConfig, 'security' | 
     if (length !== undefined && (typeof length !== 'string' || !/^\d{1,8}$/.test(length))) return send(400);
     if (typeof length === 'string' && Number(length) > reportPolicy.maxBytes) return send(413);
     const now = clock();
-    if (now < windowStart || now - windowStart >= reportPolicy.windowMs) { windowStart = now; count = 0; seen.clear(); }
-    if (count >= reportPolicy.serverEvents) { res.setHeader?.('Retry-After', '60'); return send(429); }
+    if (now < windowStart || now - windowStart >= reportPolicy.windowMs) { windowStart = now; count = 0; reportedLimit = false; seen.clear(); }
+    if (count >= reportPolicy.serverEvents) {
+      if (!reportedLimit) { reportedLimit = true; try { diagnostics.onLimit?.(); } catch { /* Bounded diagnostics cannot fail ingestion. */ } }
+      res.setHeader?.('Retry-After', '60'); return send(429);
+    }
     count++; // Includes invalid submissions, reserving admission before reading asynchronously.
     try {
       const parsed = errorEventSchema.safeParse(await readBody(req));

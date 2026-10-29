@@ -87,6 +87,7 @@ export const configSchema = {
       return raw;
     }),
     timeoutMs: ms('HEALTH_TIMEOUT_MS', 5000, 'Timeout for each upstream health probe.'),
+    cacheMs: ms('HEALTH_CACHE_MS', 15000, 'Warm-instance health probe cache, including degraded results. Effective minimum also exceeds the NEA budget window.', 15000, 300000),
   },
   weather: {
     circuit: circuitSchema('NEA_CIRCUIT', 'SERVER ONLY. Separate breaker per weather dataset; cached readings remain available.'),

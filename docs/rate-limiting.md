@@ -74,3 +74,9 @@ Add a separate rate-limit check using a server-verified immutable account ID aft
 - [Vercel rate-limit SDK](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting-sdk): future verified-user keys and finite check timeouts.
 
 See COMMENTS.md for actual validation and the latest publication/enforcement status.
+
+## Audit follow-up: health and anonymous report budgets
+
+The security branch adds two **unpublished** endpoint rule templates: health GET/HEAD at 30/IP/minute and client-error POST at 10/IP/minute. Print them with `npm run --silent firewall:rule -- log --sensitive` (then preview/production stages after review). Keep the existing shared API rule as well. Generating templates does not stage or publish anything; verify plan/rule capacity and use the normal log/preview rollout before enforcement. The smaller report budget reduces a single IP's ability to consume a warm collector's shared 100/minute admission limit; it does not authenticate browser reports or prevent distributed abuse. Shared-IP users may lose best-effort reports at this budget.
+
+Health now coalesces concurrent probes and caches both healthy and degraded results per warm handler. `HEALTH_CACHE_MS` defaults to 15 seconds, with an effective floor longer than `NEA_RATE_WINDOW_MS`. Responses still use `Cache-Control: no-store`; this is internal probe reuse, not CDN storage. Diagnostics emit once per refresh rather than once per cached response. State is not shared across Vercel functions, regions or cold instances, so this does not promise a global provider quota. The collector retains admission-before-body-reading and emits one safe `errors.collector_admission_limited` warning per exhausted window. No IP is copied into application logs.
