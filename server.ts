@@ -17,11 +17,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+app.disable('x-powered-by');
 const PORT = config.server.port;
 
 app.set('trust proxy', config.security.trustedProxyCidrs);
 app.use(requestLoggingMiddleware);
-app.use(createTransportSecurity({ production: config.server.nodeEnv === 'production' || config.server.vercel, appOrigin: config.security.appOrigin }));
+app.use(createTransportSecurity({ production: config.server.nodeEnv === 'production' || config.server.vercel, appOrigin: config.security.appOrigin, publicUrls: config.public.urls }));
 // Business APIs reject bodies; client-errors owns a separate bounded JSON stream reader.
 // Do not install a global body parser before these boundary guards.
 
