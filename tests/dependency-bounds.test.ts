@@ -54,6 +54,18 @@ test('LTA rejects late completion even if an injected transport ignores cancella
   await assert.rejects(createLtaClient({ ...createConfig().lta, collectionTimeoutMs: 5 }, request).fetchAll('BusStops', 'dummy'), { name: 'TimeoutError' });
 });
 
+test('concurrent LTA page bodies share a collection byte budget', async () => {
+  const page = JSON.stringify({ value: Array.from({ length: 500 }, () => ({ n: 'x'.repeat(10) })) });
+  let calls = 0;
+  const request: typeof fetch = async input => {
+    calls++;
+    const skip = Number(new URL(String(input)).searchParams.get('$skip'));
+    return skip < 1000 ? new Response(page, { headers: { 'Content-Type': 'application/json' } }) : Response.json({ value: [] });
+  };
+  await assert.rejects(createLtaClient({ ...createConfig().lta, pageConcurrency: 2, maxCollectionBytes: page.length + 100 }, request).fetchAll('BusStops', 'dummy'), /Invalid external data/);
+  assert.equal(calls, 2);
+});
+
 test('shape budgets bound repeated way expansion and worst-case simplification work', () => {
   const budget = createShapeWorkBudget({ routePoints: 5, totalPoints: 8, comparisons: 2 });
   budget.admitRoute(5); budget.admitRoute(3);

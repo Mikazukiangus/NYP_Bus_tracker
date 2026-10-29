@@ -69,6 +69,7 @@ export const configSchema = {
     pageConcurrency: integer('LTA_PAGE_CONCURRENCY', 8, 1, 8, 'Concurrent pages per dataset (three datasets load together).'),
     maxPages: integer('LTA_MAX_PAGES', 512, 1, 10000, 'Maximum pages per complete dataset; exceeding this rejects the collection.'),
     maxRows: integer('LTA_MAX_ROWS', 250000, 500, 5000000, 'Maximum rows per complete dataset; exceeding this rejects the collection.'),
+    maxCollectionBytes: integer('LTA_MAX_COLLECTION_BYTES', 33554432, 1048576, 134217728, 'Maximum decoded response bytes across all concurrent pages of one dataset, before retaining chunks.'),
     collectionTimeoutMs: ms('LTA_COLLECTION_TIMEOUT_MS', 45000, 'Total dataset deadline across pages, retries and body reads.', 1000, 300000),
     pageAttempts: integer('LTA_PAGE_ATTEMPTS', 3, 1, 5, 'Attempts for transient page errors.'),
     retryDelayMs: ms('LTA_PAGE_RETRY_DELAY_MS', 500, 'Initial page retry ceiling, doubled after each retry with equal jitter.', 0, 10000),

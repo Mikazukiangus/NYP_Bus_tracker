@@ -1,4 +1,4 @@
-export interface JsonBodyLimits { maxBytes?: number; maxDepth?: number; signal?: AbortSignal }
+export interface JsonBodyLimits { maxBytes?: number; maxDepth?: number; signal?: AbortSignal; consumeBytes?: (bytes: number) => void }
 export class InvalidJsonBodyError extends Error {
   constructor() { super('Invalid external data.'); this.name = 'InvalidJsonBodyError'; }
 }
@@ -30,6 +30,7 @@ export async function readBoundedJson(response: Response, limits: JsonBodyLimits
       if (done) break;
       size += value.byteLength;
       if (size > maxBytes) throw new InvalidJsonBodyError();
+      limits.consumeBytes?.(value.byteLength); // Synchronous shared admission before retaining another chunk.
       chunks.push(value);
     }
   } catch (error) {
