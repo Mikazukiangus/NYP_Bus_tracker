@@ -15,7 +15,6 @@ import { useUserLocation } from './features/location/useUserLocation';
 import React, { Suspense, lazy, useState, useEffect, useCallback, useMemo } from 'react';
 import { BusServiceArrivals, FavoriteItem, IncomingBus, UserLocation } from './types/bus';
 
-import { generateArrivalTimings } from './features/arrivals/simulatedArrivals';
 
 import type { NearbyStop, StopService } from './features/network/model';
 
@@ -139,9 +138,6 @@ export default function App() {
   // Route labels and arrival data always describe the current stop/service, including during loading.
   const arrivals = useMemo<BusServiceArrivals>(() => {
     const service = stopServices?.find((item) => item.serviceNo.toUpperCase() === currentRoute.serviceNo.toUpperCase());
-    const buses = dataSource === 'FALLBACK_SIMULATED'
-      ? generateArrivalTimings(currentRoute.serviceNo, selectedStop.code)
-      : { nextBus: service?.nextBus ?? null, nextBus2: service?.nextBus2 ?? null, nextBus3: service?.nextBus3 ?? null };
     return {
       serviceNo: currentRoute.serviceNo,
       operator: currentRoute.operator,
@@ -150,10 +146,12 @@ export default function App() {
       roadName: selectedStop.road,
       destination: routeDir.destination,
       direction,
-      ...buses,
+      nextBus: service?.nextBus ?? null,
+      nextBus2: service?.nextBus2 ?? null,
+      nextBus3: service?.nextBus3 ?? null,
       lastUpdated,
     };
-  }, [currentRoute.serviceNo, currentRoute.operator, selectedStop, routeDir.destination, direction, stopServices, dataSource, lastUpdated]);
+  }, [currentRoute.serviceNo, currentRoute.operator, selectedStop, routeDir.destination, direction, stopServices, lastUpdated]);
 
   // Real buses approaching the selected stop, plotted from LTA GPS positions (live data only)
   const incomingBuses = useMemo<IncomingBus[]>(() => {
@@ -197,8 +195,10 @@ export default function App() {
   };
 
   // Handle bus number search submission (a number that isn't a bus stays put, so its notice is seen)
-  const handleSearchBus = (num: string) => {
-    trackService(num, { remember: true }).then((found) => found && revealArrivals());
+  const handleSearchBus = async (num: string) => {
+    const found = await trackService(num, { remember: true });
+    if (found) revealArrivals();
+    return found;
   };
 
   const handleSelectStopService = (nearby: NearbyStop, svc: StopService) => {
@@ -329,8 +329,10 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-warm-50 text-warm-900 flex flex-col font-sans">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       {/* SBS Transit Navigation Header */}
       <Header
+        isLiveFeed={isLiveFeed}
         userLocation={userLocation}
         onOpenLocationPicker={() => setIsLocationModalOpen(true)}
         favoritesCount={favorites.length}
@@ -342,12 +344,43 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <main id="main-content" tabIndex={-1} className="flex-1 max-w-7xl w-full mx-auto px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
         <PersistenceNotice items={[
           ...(favoritesPersistence === 'session-only' ? ['saved buses'] : []),
           ...(locationPersistence === 'session-only' ? ['your location'] : []),
           ...(recentPersistence === 'session-only' ? ['recent places'] : []),
         ]} />
+        {activeTab === 'arrivals' && arrivalsCard}
+        {/* Bus Search Box & Direction Selector */}
+        {showTripInputs && (
+          <BusSearchBox
+            busNumber={searchedBus}
+            onSearch={handleSearchBus}
+            currentRoute={currentRoute}
+            direction={direction}
+            setDirection={handleSetDirection}
+            nearbyStops={nearbyStops}
+            locationName={fromPlace ?? 'you'}
+            trackedStopCode={selectedStop.code}
+            onSelectStopService={handleSelectStopService}
+            foldable={activeTab === 'arrivals'}
+          />
+        )}
+
+        {activeTab !== 'weather' && (isRouteLoading || routeNotice) && (
+          <div
+            role="status"
+            className={`rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs border ${
+              routeNotice && !isRouteLoading
+                ? 'bg-amber-50 border-amber-200 text-amber-900'
+                : 'bg-warm-50 border-warm-200 text-warm-600'
+            }`}
+          >
+            <CircleAlert className="w-4 h-4 shrink-0" />
+            <span>{isRouteLoading ? 'Loading the bus\'s stops…' : routeNotice}</span>
+          </div>
+        )}
+
         {/* Where the user is starting from and where they're going */}
         {showTripInputs && (
           <LocationBar
@@ -373,35 +406,6 @@ export default function App() {
             list shows the trip itself) */}
         {(activeTab === 'arrivals' || (activeTab === 'stops' && !isPhone)) && tripCard}
 
-        {/* Bus Search Box & Direction Selector */}
-        {showTripInputs && (
-          <BusSearchBox
-            busNumber={searchedBus}
-            onSearch={handleSearchBus}
-            currentRoute={currentRoute}
-            direction={direction}
-            setDirection={handleSetDirection}
-            nearbyStops={nearbyStops}
-            locationName={fromPlace ?? 'you'}
-            trackedStopCode={selectedStop.code}
-            onSelectStopService={handleSelectStopService}
-            foldable={isPhone && !!destination}
-          />
-        )}
-
-        {activeTab !== 'weather' && (isRouteLoading || routeNotice) && (
-          <div
-            className={`rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs border ${
-              routeNotice && !isRouteLoading
-                ? 'bg-amber-50 border-amber-200 text-amber-900'
-                : 'bg-warm-50 border-warm-200 text-warm-600'
-            }`}
-          >
-            <CircleAlert className="w-4 h-4 shrink-0" />
-            <span>{isRouteLoading ? 'Loading the bus\'s stops…' : routeNotice}</span>
-          </div>
-        )}
-
         {/* Nearest Bus Stop Highlight Banner (phones: in the arrivals card; the Stops tab marks the nearest stop) */}
         {activeTab === 'arrivals' && !isPhone && (
           <NearestStopBanner
@@ -420,9 +424,6 @@ export default function App() {
         {/* Dynamic Tab Views */}
         {activeTab === 'arrivals' && (
           <div className="space-y-4 sm:space-y-6">
-            {/* Live Arrivals Board */}
-            {arrivalsCard}
-
             <StopServicesBoard
               stop={selectedStop}
               services={stopServices}
@@ -482,10 +483,12 @@ export default function App() {
                   </div>
                   <div className="mt-2 divide-y divide-warm-100">
                     {favorites.slice(0, 3).map((f) => (
-                      <div
+                      <button
+                        type="button"
+                        aria-label={`Track saved Bus ${f.serviceNo} from ${f.stopName} towards ${f.destination}`}
                         key={f.id}
                         onClick={() => handleSelectFavorite(f)}
-                        className="py-2 flex items-center justify-between text-xs hover:bg-warm-50 cursor-pointer rounded-lg px-1"
+                        className="w-full text-left gap-2 py-2 flex flex-wrap items-center justify-between text-xs hover:bg-warm-50 cursor-pointer rounded-lg px-1"
                       >
                         <div className="flex items-center gap-2">
                           <span className="bg-helvetia text-white font-extrabold text-[11px] px-1.5 py-0.5 rounded">
@@ -496,7 +499,7 @@ export default function App() {
                           </span>
                         </div>
                         <NextBusLabel arrival={favoriteArrivals[f.id]} />
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>

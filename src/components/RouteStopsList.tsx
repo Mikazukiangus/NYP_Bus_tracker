@@ -2,6 +2,7 @@ import { callIndex, sameStopCall } from '../../shared/transit/stopCalls';
 import React, { useEffect, useRef, useState } from 'react';
 import { AlightHint, BusStop, BusRoute } from '../types/bus';
 import { Search, ChevronRight, ChevronDown, Check, Flag, ArrowLeftRight, ArrowRight, ArrowRightLeft } from 'lucide-react';
+import { ActionButton } from './ActionButton';
 import { ServiceChoice } from './ServiceChoice';
 import { TripLegView, legStyle, tripLegs } from './tripLegs';
 
@@ -21,7 +22,7 @@ interface RouteStopsListProps {
 const minutes = (min: number) => Math.max(1, Math.round(min));
 
 const ServiceChip: React.FC<{ serviceNo: string; legIndex: number }> = ({ serviceNo, legIndex }) => (
-  <span className={`${legStyle(legIndex).badge} font-black text-[11px] px-1.5 py-px rounded`}>{serviceNo}</span>
+  <span className={`${legStyle(legIndex).badge} font-black text-caption px-1.5 py-px rounded`}>{serviceNo}</span>
 );
 
 // Every bus that runs this leg's stops, with the chosen one filled in in the leg's colour
@@ -62,7 +63,7 @@ const NextLegBlock: React.FC<{
       {icon}
       <span className="min-w-0">
         <span className="font-semibold text-warm-900">{stop.name}</span>{' '}
-        <span className="font-mono text-[11px] text-warm-500">{stop.code}</span>
+        <span className="font-mono text-caption text-warm-500">{stop.code}</span>
         {extra && <span className="block text-warm-600">{extra}</span>}
       </span>
     </li>
@@ -83,7 +84,7 @@ const NextLegBlock: React.FC<{
           <button
             type="button"
             onClick={onShow}
-            className="text-[11px] font-bold text-helvetia bg-white border border-helvetia-200 hover:bg-helvetia-50 px-2 py-1 rounded-lg flex items-center gap-0.5 shrink-0"
+            className="text-caption font-bold text-helvetia bg-white border border-helvetia-200 hover:bg-helvetia-50 px-2 py-1 rounded-lg flex items-center gap-0.5 shrink-0"
           >
             Bus {leg.serviceNo} stops &amp; times <ChevronRight className="w-3 h-3" />
           </button>
@@ -103,7 +104,7 @@ const NextLegBlock: React.FC<{
               <button
                 type="button"
                 onClick={() => setShowAll(true)}
-                className="ml-[18px] text-[11px] font-semibold text-helvetia hover:underline flex items-center gap-0.5"
+                className="ml-[18px] text-caption font-semibold text-helvetia hover:underline flex items-center gap-0.5"
               >
                 {between.length} stop{between.length === 1 ? '' : 's'} in between <ChevronDown className="w-3 h-3" />
               </button>
@@ -141,7 +142,7 @@ const PrevLegBlock: React.FC<{
       <button
         type="button"
         onClick={onShow}
-        className="text-[11px] font-bold text-helvetia bg-white border border-helvetia-200 hover:bg-helvetia-50 px-2 py-1 rounded-lg flex items-center gap-0.5 shrink-0"
+        className="text-caption font-bold text-helvetia bg-white border border-helvetia-200 hover:bg-helvetia-50 px-2 py-1 rounded-lg flex items-center gap-0.5 shrink-0"
       >
         Bus {leg.serviceNo} stops &amp; times <ChevronRight className="w-3 h-3" />
       </button>
@@ -219,10 +220,10 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
     <div className="bg-white rounded-2xl border border-warm-200 shadow-sm p-4 sm:p-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-warm-100">
         <div className="min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="text-base font-bold text-helvetia">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <h2 className="text-base font-bold text-helvetia">
               Route Stops: Bus {route.serviceNo}
-            </h3>
+            </h2>
             {onSwitchDirection && route.direction2 && (
               <button
                 type="button"
@@ -239,7 +240,7 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
             From {routeDir.origin} to {routeDir.destination} ({routeDir.stops.length} stops)
           </p>
           {/* What a tap on a stop does, said where the stops are */}
-          <p className="text-[11px] text-warm-500" title="Distances are in a straight line from where you are">
+          <p className="text-caption text-warm-500" title="Distances are in a straight line from where you are">
             Tap a stop to see when Bus {route.serviceNo} gets there.
           </p>
           {trip && trip.legs.length > 1 && onTrackLeg && (
@@ -292,6 +293,7 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
           <Search className="w-4 h-4 text-warm-500 absolute left-3 top-2.5 pointer-events-none" />
           <input
             type="text"
+            aria-label="Search route stops"
             value={filterQuery}
             onChange={(e) => setFilterQuery(e.target.value)}
             placeholder="Search stop name or code..."
@@ -379,21 +381,21 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
                     <span className="text-sm font-bold text-warm-900 truncate">
                       {stop.name}
                     </span>
-                    <span className="font-mono text-[11px] bg-warm-100 text-warm-700 px-1.5 py-0.2 rounded font-medium">
+                    <span className="font-mono text-caption bg-warm-100 text-warm-700 px-1.5 py-0.2 rounded font-medium">
                       {stop.code}
                     </span>
                     {isNearest && (
-                      <span className="bg-lemon-soft text-helvetia-950 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="bg-lemon-soft text-helvetia-950 text-caption font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1">
                         Nearest Stop ({formatDistance(stop.distanceMeters)})
                       </span>
                     )}
                     {isAlight && (
-                      <span className="bg-helvetia-950 text-lemon text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                      <span className="bg-helvetia-950 text-lemon text-caption font-bold px-1.5 py-0.5 rounded-full">
                         {next ? 'Change here' : 'Get off here'}
                       </span>
                     )}
                     {isBoard && prev && (
-                      <span className="bg-helvetia-950 text-lemon text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                      <span className="bg-helvetia-950 text-lemon text-caption font-bold px-1.5 py-0.5 rounded-full">
                         Change here from {prev.serviceNo}
                       </span>
                     )}
@@ -445,8 +447,9 @@ export const RouteStopsList: React.FC<RouteStopsListProps> = ({
         })}
 
         {filteredStops.length === 0 && (
-          <div className="py-8 text-center text-warm-500 text-xs">
-            No stops found matching "{filterQuery}"
+          <div role="status" className="py-8 text-center text-warm-500 text-sm">
+            <p>No stops found matching "{filterQuery}"</p>
+            <ActionButton className="mt-3" onClick={() => setFilterQuery('')}>Clear stop filter</ActionButton>
           </div>
         )}
       </div>

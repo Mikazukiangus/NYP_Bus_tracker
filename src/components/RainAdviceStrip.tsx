@@ -22,7 +22,7 @@ export const RainAdviceStrip: React.FC<{
   const Icon = advice.cause === 'lightning' ? Zap : ACTION_ICON[advice.action];
   const quiet = advice.action === 'go' && !advice.destination;
   const footer = (source || onOpenWeather) && (
-    <span className="text-[10px] opacity-75">
+    <span className="text-caption">
       {source}
       {onOpenWeather && (
         <>
@@ -43,7 +43,7 @@ export const RainAdviceStrip: React.FC<{
       <div className="min-w-0 flex-1 leading-snug">
         {quiet ? (
           <p>
-            <strong className="font-bold">{advice.title}.</strong> <span className="opacity-90">{advice.detail}</span> {footer}
+            <strong className="font-bold">{advice.title}.</strong> <span >{advice.detail}</span> {footer}
           </p>
         ) : (
           <>

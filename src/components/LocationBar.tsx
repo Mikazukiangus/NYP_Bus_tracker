@@ -53,7 +53,7 @@ export const LocationBar: React.FC<LocationBarProps> = ({
 
   return (
     <section aria-label="Your trip" className="space-y-2">
-      <div className="relative bg-helvetia-950 text-white rounded-2xl shadow-sm px-3 py-3 sm:px-4">
+      <div className="trip-surface relative bg-helvetia-950 text-white rounded-2xl shadow-sm px-3 py-3 sm:px-4">
         {/* The dotted line from the start to the destination (longer past the "Not at…?" line) */}
         <span
           aria-hidden="true"
@@ -61,7 +61,8 @@ export const LocationBar: React.FC<LocationBarProps> = ({
             isDefault && !error ? 'h-[4.1rem]' : 'h-[2.6rem]'
           }`}
         />
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="min-w-40 flex flex-1 items-center gap-2.5">
           <span className="w-6 flex justify-center shrink-0" aria-hidden="true">
             <span className="w-3 h-3 rounded-full bg-green-blue ring-[3px] ring-green-blue/40" />
           </span>
@@ -70,7 +71,7 @@ export const LocationBar: React.FC<LocationBarProps> = ({
             className="min-w-0 flex-1 text-left rounded-lg -mx-1 px-1 py-0.5 hover:bg-white/10"
             aria-label={`Your location: ${location.name}. Change location`}
           >
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-helvetia-300">From</span>
+            <span className="block text-caption font-bold uppercase tracking-wider text-helvetia-300">From</span>
             <span className="flex items-center gap-1.5 min-w-0">
               {isGps ? (
                 <Locate className="w-3.5 h-3.5 text-green-blue shrink-0" />
@@ -80,10 +81,11 @@ export const LocationBar: React.FC<LocationBarProps> = ({
                 <MapPin className="w-3.5 h-3.5 text-helvetia-200 shrink-0" />
               )}
               <strong className="text-sm truncate">{location.name}</strong>
-              {detail && <span className="text-[11px] text-helvetia-200 truncate max-sm:hidden">{detail}</span>}
+              {detail && <span className="text-caption text-helvetia-200 truncate max-sm:hidden">{detail}</span>}
             </span>
           </button>
-          <div className="flex items-center gap-1 shrink-0 text-xs">
+          </div>
+          <div className="ml-auto flex flex-wrap items-center gap-1 shrink-0 text-xs">
             <button
               onClick={useGps}
               disabled={isLocating}
@@ -124,7 +126,7 @@ export const LocationBar: React.FC<LocationBarProps> = ({
             <Flag className="w-4 h-4 text-lemon" strokeWidth={2.75} />
           </span>
           <div className="min-w-0 flex-1">
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-helvetia-300 mb-1">Where to?</span>
+            <span className="block text-caption font-bold uppercase tracking-wider text-helvetia-300 mb-1">Where to?</span>
             <PlaceSearch
               network={network}
               onSelect={onSetDestination}

@@ -65,7 +65,7 @@ function Tile({ icon, label, period, value, badge, detail }: TileProps) {
   const tone = badge ? toneClasses[badge.tone] : null;
   return (
     <div className="bg-warm-50 rounded-xl border border-warm-200 p-2.5 min-w-0 flex flex-col gap-1">
-      <div className="flex items-center gap-1 text-[11px] font-semibold text-warm-500 min-w-0">
+      <div className="flex items-center gap-1 text-caption font-semibold text-warm-500 min-w-0">
         <span className="shrink-0">{icon}</span>
         <span className="truncate">
           {label}
@@ -78,11 +78,11 @@ function Tile({ icon, label, period, value, badge, detail }: TileProps) {
         <div className="text-lg font-black text-warm-900 leading-tight truncate">{value}</div>
       )}
       {badge && tone && (
-        <span className={`self-start text-[10px] font-bold px-1.5 py-0.5 rounded ${tone.bg} ${tone.text} truncate max-w-full`}>
+        <span className={`self-start text-caption font-bold px-1.5 py-0.5 rounded ${tone.bg} ${tone.text} truncate max-w-full`}>
           {badge.label}
         </span>
       )}
-      {detail && <div className="text-[10px] text-warm-500 leading-snug line-clamp-2">{detail}</div>}
+      {detail && <div className="text-caption text-warm-500 leading-snug line-clamp-2">{detail}</div>}
     </div>
   );
 }
@@ -100,13 +100,13 @@ function Alerts({ alerts, limit, onShowAll }: { alerts: WeatherSummary['alerts']
             <Icon className="w-4 h-4 mt-0.5 shrink-0" />
             <div className="min-w-0">
               <div className="font-bold">{a.title}</div>
-              <div className="text-[11px] mt-0.5 opacity-90 leading-snug">{a.detail}</div>
+              <div className="text-caption mt-0.5 opacity-90 leading-snug">{a.detail}</div>
             </div>
           </div>
         );
       })}
       {limit && alerts.length > limit && (
-        <button onClick={onShowAll} className="text-[11px] font-semibold text-helvetia hover:underline">
+        <button onClick={onShowAll} className="text-caption font-semibold text-helvetia hover:underline">
           +{alerts.length - limit} more in the Weather tab
         </button>
       )}
@@ -137,15 +137,15 @@ export const WeatherStrip: React.FC<{ weather: WeatherSummary | null; error?: bo
           {weather?.temperature && <span className="font-black"> · {weather.temperature.value}°C</span>}
         </span>
         {weather && (error || weather.stale.length > 0) ? (
-          <span role="status" className="block text-[11px] font-semibold text-amber-800">
+          <span role="status" className="block text-caption font-semibold text-amber-800">
             {error ? 'Refresh failed · showing earlier readings' : 'Showing earlier readings · may be out of date'}
           </span>
         ) : alert ? (
-          <span className={`block text-[11px] font-semibold truncate ${alert.tone === 'good' ? 'text-warm-500' : toneClasses[alert.tone].text}`}>
+          <span className={`block text-caption font-semibold truncate ${alert.tone === 'good' ? 'text-warm-500' : toneClasses[alert.tone].text}`}>
             {alert.title}
           </span>
         ) : (
-          weather && <span className="block text-[11px] text-warm-500 truncate">Near {weather.area} · 2-hr forecast</span>
+          weather && <span className="block text-caption text-warm-500 truncate">Near {weather.area} · 2-hr forecast</span>
         )}
       </span>
       <span className="text-xs font-semibold text-helvetia flex items-center gap-0.5 shrink-0">
@@ -272,8 +272,8 @@ export const NEAWeatherWidget: React.FC<NEAWeatherWidgetProps> = ({
             <Umbrella className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm sm:text-base font-black text-helvetia leading-none">Weather & Air Quality</h3>
-            <p className="text-[11px] text-warm-500 mt-1 truncate">
+            <h2 className="text-sm sm:text-base font-black text-helvetia leading-none">Weather & Air Quality</h2>
+            <p className="text-caption text-warm-500 mt-1 truncate">
               Near <strong className="text-warm-700">{w.area}</strong> · {regionLabel(w.region)} region
             </p>
           </div>
@@ -286,7 +286,7 @@ export const NEAWeatherWidget: React.FC<NEAWeatherWidgetProps> = ({
           aria-label="Refresh weather"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          <span className="text-[11px] hidden sm:inline">Update</span>
+          <span className="text-caption hidden sm:inline">Update</span>
         </button>
       </div>
 
@@ -300,7 +300,7 @@ export const NEAWeatherWidget: React.FC<NEAWeatherWidgetProps> = ({
             <div className="text-lg sm:text-xl font-black text-warm-900 leading-tight">
               {w.forecast2h?.text ?? 'Forecast unavailable'}
             </div>
-            <div className="text-[11px] text-warm-500 font-medium">
+            <div className="text-caption text-warm-500 font-medium">
               <span className="block @md:inline">2-hr forecast</span>
               {w.forecast2h && <span className="block @md:inline"><span className="hidden @md:inline"> · </span>{w.forecast2h.validText}</span>}
             </div>
@@ -316,7 +316,7 @@ export const NEAWeatherWidget: React.FC<NEAWeatherWidgetProps> = ({
               <span className="text-warm-500">—</span>
             )}
           </div>
-          <div className="text-[10px] text-warm-500 font-medium max-w-[9rem] truncate" title={w.temperature?.station}>
+          <div className="text-caption text-warm-500 font-medium max-w-[9rem] truncate" title={w.temperature?.station}>
             {w.temperature ? (
               <>
                 Now<span className="hidden @md:inline"> · {w.temperature.station}</span>
@@ -352,8 +352,8 @@ export const NEAWeatherWidget: React.FC<NEAWeatherWidgetProps> = ({
         <div className="mt-4 grid grid-cols-1 @3xl:grid-cols-2 gap-4">
           {w.today && (
             <div>
-              <h4 className="text-xs font-bold text-warm-800 mb-2">Next 24 hours · {regionLabel(w.region)}</h4>
-              <div className="text-[11px] text-warm-500 mb-2">
+              <h3 className="text-xs font-bold text-warm-800 mb-2">Next 24 hours · {regionLabel(w.region)}</h3>
+              <div className="text-caption text-warm-500 mb-2">
                 {w.today.forecast} · {w.today.temperature.low}–{w.today.temperature.high}°C · Humidity{' '}
                 {w.today.humidity.low}–{w.today.humidity.high}% · Wind {w.today.wind.direction} {w.today.wind.low}–
                 {w.today.wind.high} km/h
@@ -364,7 +364,7 @@ export const NEAWeatherWidget: React.FC<NEAWeatherWidgetProps> = ({
                     <ForecastIcon type={forecastIconType(p.forecast)} className="w-4 h-4 shrink-0" />
                     <div className="min-w-0">
                       <div className="font-semibold text-warm-800">{p.forecast}</div>
-                      <div className="text-[11px] text-warm-500">{p.text}</div>
+                      <div className="text-caption text-warm-500">{p.text}</div>
                     </div>
                   </div>
                 ))}
@@ -373,9 +373,9 @@ export const NEAWeatherWidget: React.FC<NEAWeatherWidgetProps> = ({
           )}
           {w.outlook && (
             <div>
-              <h4 className="text-xs font-bold text-warm-800 mb-2 flex items-center gap-1">
+              <h3 className="text-xs font-bold text-warm-800 mb-2 flex items-center gap-1">
                 <CalendarDays className="w-3.5 h-3.5" /> 4-day outlook
-              </h4>
+              </h3>
               <div className="grid grid-cols-2 @lg:grid-cols-4 @3xl:grid-cols-2 @5xl:grid-cols-4 gap-2">
                 {w.outlook.map((d) => (
                   <div key={d.date} className="bg-warm-50 border border-warm-200 rounded-lg p-2 text-xs min-w-0">
@@ -396,7 +396,7 @@ export const NEAWeatherWidget: React.FC<NEAWeatherWidgetProps> = ({
       )}
 
       {/* Source line */}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[10px] text-warm-500">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-caption text-warm-500">
         <span>
           Source: NEA via data.gov.sg{latestUpdate ? ` · readings ${formatSgTime(latestUpdate)}` : ''}
         </span>

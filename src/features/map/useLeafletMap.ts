@@ -28,6 +28,8 @@ export function useLeafletMap(mapContainerRef: RefObject<HTMLDivElement | null>,
       maxBounds: SINGAPORE_BOUNDS,
       maxBoundsViscosity: 1,
       zoomControl: false,
+      zoomAnimation: !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+      fadeAnimation: !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
     });
 
     const baseLayers = Object.fromEntries(

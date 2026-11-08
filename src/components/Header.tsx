@@ -4,6 +4,7 @@ import { UserLocation } from '../types/bus';
 import { APP_TABS, AppTab } from './AppTabs';
 
 interface HeaderProps {
+  isLiveFeed: boolean;
   userLocation: UserLocation;
   onOpenLocationPicker: () => void;
   favoritesCount: number;
@@ -15,6 +16,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  isLiveFeed,
   userLocation,
   onOpenLocationPicker,
   favoritesCount,
@@ -51,9 +53,9 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="hidden sm:flex bg-helvetia text-white text-xs px-4 py-1.5 flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="font-semibold tracking-wide">BusTrackerSG</span>
-          <span className="text-helvetia-200 text-[11px] hidden sm:inline">| A member of NYP Bus</span>
+          <span className="text-helvetia-200 text-caption hidden sm:inline">| A member of NYP Bus</span>
         </div>
-        <div className="flex items-center gap-4 text-[11px]">
+        <div className="flex items-center gap-4 text-caption">
           <div className="flex items-center gap-1 text-helvetia-200">
             <Clock className="w-3 h-3" />
             <span className="font-mono">{sgTime || 'Singapore Time'}</span>
@@ -62,22 +64,22 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Main header row */}
-      <div className="max-w-7xl mx-auto px-4 py-2 sm:py-3 flex items-center justify-between gap-3">
+      <div className="max-w-7xl mx-auto px-4 py-2 sm:py-3 flex flex-wrap items-center justify-between gap-3">
         {/* Brand identity */}
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl bg-lemon flex items-center justify-center text-helvetia shadow-sm ring-1 ring-warm-gray/40">
             <Bus className="w-5 h-5" />
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5">
               <h1 className="text-base sm:text-lg font-bold text-helvetia tracking-tight leading-none">
                 BusTrackerSG
               </h1>
-              <span className="bg-green-blue-soft text-green-blue-ink text-[10px] font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
+              {isLiveFeed && <span className="bg-green-blue-soft text-green-blue-ink text-caption font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
                 Live
-              </span>
+              </span>}
             </div>
-            <p className="text-[11px] text-warm-500 font-medium hidden sm:block">
+            <p className="text-caption text-warm-500 font-medium hidden sm:block">
               Nearest Bus Arrival & Real-Time Tracker
             </p>
           </div>
@@ -92,10 +94,10 @@ export const Header: React.FC<HeaderProps> = ({
             title="Change your location (preset place or GPS)"
           >
             <MapPin className="w-3.5 h-3.5 text-helvetia shrink-0 group-hover:scale-110 transition-transform" />
-            <span className="truncate font-medium text-[11px] sm:text-xs">
+            <span className="truncate font-medium text-caption sm:text-xs">
               {userLocation.name}
             </span>
-            <span className="text-[10px] bg-white px-1 py-0.2 rounded text-helvetia-700 border border-helvetia-200 hidden md:inline">
+            <span className="text-caption bg-white px-1 py-0.2 rounded text-helvetia-700 border border-helvetia-200 hidden md:inline">
               Change
             </span>
           </button>
@@ -109,7 +111,7 @@ export const Header: React.FC<HeaderProps> = ({
             aria-label="Refresh arrival timings"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-helvetia' : ''}`} />
-            <span className="hidden md:inline font-medium text-[11px]">Refresh</span>
+            <span className="hidden md:inline font-medium text-caption">Refresh</span>
           </button>
 
           {/* Saved buses (a word beside the heart: phones have no hover to explain an icon) */}
@@ -122,7 +124,7 @@ export const Header: React.FC<HeaderProps> = ({
             <Heart className="w-3.5 h-3.5 fill-lemon text-lemon" />
             <span>Saved</span>
             {favoritesCount > 0 && (
-              <span className="bg-lemon text-helvetia-950 text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+              <span className="bg-lemon text-helvetia-950 text-caption font-bold px-1.5 py-0.2 rounded-full">
                 {favoritesCount}
               </span>
             )}

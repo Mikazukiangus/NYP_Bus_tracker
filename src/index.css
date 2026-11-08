@@ -6,6 +6,7 @@
 @source not "../config";
 @source not "../tests";
 @source not "../e2e";
+@source not "../docs";
 
 /* Sanzo Wada, plate 259: Lemon Yellow & Green Blue +2.
    Exact swatches anchor the theme; lighter/darker tones keep small text legible. */
@@ -171,4 +172,102 @@
     transform: scale(0.95);
     opacity: 0;
   }
+}
+
+/* Shared web interaction tokens. Keep the Wada swatches as brand accents. */
+@theme {
+  --color-surface: #ffffff;
+  --color-canvas: var(--color-warm-50);
+  --color-ink: var(--color-warm-900);
+  --color-muted: var(--color-warm-500);
+  --color-action: var(--color-helvetia);
+  --color-focus: var(--color-helvetia);
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.5;
+  --text-label: 0.875rem;
+  --text-label--line-height: 1.4;
+}
+
+:root {
+  --target-compact: 1.5rem;
+  --target-comfortable: 2.75rem;
+  --motion-feedback: 150ms;
+  --ease-feedback: ease-out;
+  --layer-navigation: 40;
+  --focus-width: 2px;
+}
+
+@layer base {
+  html {
+    scroll-padding-top: 8rem;
+    scroll-padding-bottom: calc(9rem + env(safe-area-inset-bottom));
+  }
+  :is(button, summary) {
+    min-block-size: var(--target-compact);
+    scroll-margin-block: 1rem;
+  }
+  button {
+    min-inline-size: var(--target-compact);
+  }
+  :is(button, summary, a) {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:disabled {
+    cursor: wait;
+  }
+  :is(summary, a):focus-visible {
+    outline: var(--focus-width) solid var(--color-focus);
+    outline-offset: 3px;
+  }
+}
+
+.action-button {
+  min-height: var(--target-comfortable);
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: var(--text-label);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  transition: background-color var(--motion-feedback) var(--ease-feedback);
+}
+.action-button-primary { background: var(--color-lemon); color: var(--color-helvetia-950); }
+.action-button-primary:hover { background: var(--color-lemon-hover); }
+.action-button-secondary { background: var(--color-helvetia-50); color: var(--color-action); border: 1px solid var(--color-helvetia-200); }
+.action-button-secondary:hover { background: var(--color-helvetia-100); }
+.action-button-quiet { background: transparent; color: var(--color-action); }
+.action-button-quiet:hover { background: var(--color-helvetia-50); }
+.action-button:disabled { opacity: 0.65; }
+.icon-button { width: var(--target-comfortable); padding: 0.5rem; flex-shrink: 0; }
+.trip-surface :focus-visible { outline-color: var(--color-lemon); }
+.skip-link {
+  position: fixed;
+  inset: 0.5rem auto auto 0.5rem;
+  z-index: 10001;
+  padding: 0.75rem 1rem;
+  background: var(--color-surface);
+  color: var(--color-action);
+  transform: translateY(-200%);
+}
+.skip-link:focus { transform: translateY(0); }
+
+@media (pointer: coarse) {
+  :is(button, summary) { min-block-size: var(--target-comfortable); }
+  button { min-inline-size: var(--target-comfortable); }
+  input[type="text"] { font-size: 1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* A large root font makes each three-column ETA too narrow, even on the same device. */
+@container (max-width: 16rem) {
+  .arrival-times { grid-template-columns: minmax(0, 1fr); }
 }

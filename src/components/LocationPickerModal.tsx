@@ -8,6 +8,7 @@ import type { PlaceResult } from '../features/places/model';
 import { placeToLocation } from '../features/places/domain/locations';
 import { PlaceSearch, PlaceKindIcon } from './PlaceSearch';
 import { LocationPrivacyControls } from './LocationPrivacyControls';
+import { ModalDialog } from './ModalDialog';
 import { X, Navigation, Locate, MapPin, Check, LoaderCircle, GraduationCap, Clock } from 'lucide-react';
 
 interface LocationPickerModalProps {
@@ -46,10 +47,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     setDragY(0);
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -95,14 +93,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center sm:p-4 bg-warm-900/60 backdrop-blur-xs animate-in fade-in duration-200"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
+    <ModalDialog labelledBy="location-picker-title" onClose={onClose} className="items-end sm:items-center sm:p-4">
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="location-picker-title"
         className="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl border border-warm-200 overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh]"
         style={{
           transform: dragY ? `translateY(${dragY}px)` : undefined,
@@ -135,6 +127,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             </div>
             <button
               onClick={onClose}
+              data-dialog-edge="first"
               aria-label="Close location picker"
               className="p-1.5 rounded-lg text-warm-500 hover:text-warm-700 hover:bg-warm-200 transition-colors shrink-0"
             >
@@ -155,7 +148,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               autoFocus={autoFocusSearch}
               inputClassName="py-3 text-sm font-semibold"
             />
-            <p className="mt-1.5 text-[11px] text-warm-500">
+            <p className="mt-1.5 text-caption text-warm-500">
               e.g. <span className="font-semibold text-warm-600">560123</span>,{' '}
               <span className="font-semibold text-warm-600">Ang Mo Kio Hub</span> or stop{' '}
               <span className="font-semibold text-warm-600">55329</span>
@@ -195,7 +188,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           {/* Recent places */}
           {recentPlaces.length > 0 && (
             <section>
-              <h3 className="text-[11px] font-bold uppercase tracking-wider text-warm-500 mb-1.5 flex items-center gap-1">
+              <h3 className="text-caption font-bold uppercase tracking-wider text-warm-500 mb-1.5 flex items-center gap-1">
                 <Clock className="w-3 h-3" /> Recent
               </h3>
               <div className="rounded-xl border border-warm-200 divide-y divide-warm-100 overflow-hidden">
@@ -257,7 +250,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
           {/* Suggested places */}
           <section>
-            <h3 className="text-[11px] font-bold uppercase tracking-wider text-warm-500 mb-1.5">Suggested places</h3>
+            <h3 className="text-caption font-bold uppercase tracking-wider text-warm-500 mb-1.5">Suggested places</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {SINGAPORE_LOCATIONS.filter((loc) => loc !== nypLocation).map((loc) => {
                 const isSelected = (currentLocation.source !== 'gps') && sameSpot(currentLocation, loc);
@@ -286,17 +279,18 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
         {/* Footer */}
         <div className="p-3 bg-warm-50 border-t border-warm-200 flex items-center justify-between gap-3">
-          <span className="text-[11px] text-warm-500 truncate min-w-0">
+          <span className="text-caption text-warm-500 truncate min-w-0">
             Current: <strong className="text-warm-800">{currentLocation.name.split('(')[0].trim()}</strong>
           </span>
           <button
             onClick={onClose}
+            data-dialog-edge="last"
             className="px-4 py-1.5 bg-warm-800 hover:bg-warm-900 text-white text-xs font-semibold rounded-xl shrink-0"
           >
             Done
           </button>
         </div>
       </div>
-    </div>
+    </ModalDialog>
   );
 };

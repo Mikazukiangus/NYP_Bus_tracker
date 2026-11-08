@@ -30,8 +30,8 @@ export const LiveSignal: React.FC<{ className?: string; title?: string }> = ({ c
 );
 
 const MINUTES_SIZE = {
-  sm: { num: 'text-base', unit: 'text-[10px] ml-0.5', icon: 'w-2.5 h-2.5 mr-0.5' },
-  md: { num: 'text-xl tracking-tight', unit: 'text-[11px] ml-0.5', icon: 'w-3 h-3 mr-0.5' },
+  sm: { num: 'text-base', unit: 'text-caption ml-0.5', icon: 'w-2.5 h-2.5 mr-0.5' },
+  md: { num: 'text-xl tracking-tight', unit: 'text-caption ml-0.5', icon: 'w-3 h-3 mr-0.5' },
   lg: { num: 'text-3xl @2xl:text-4xl tracking-tight', unit: 'text-sm @2xl:text-base ml-1', icon: 'w-3.5 h-3.5 mr-0.5 mt-0.5' },
 } as const;
 
@@ -90,9 +90,9 @@ export const LoadMeter: React.FC<{ load: BusLoad; className?: string; emptyClass
 
 // Whether LTA's estimate is based on the bus's live GPS position or only on the timetable
 export const TrackingBadge: React.FC<{ bus: Pick<BusArrivalInfo, 'monitored'>; compact?: boolean }> = ({ bus, compact }) =>
-  bus.monitored === undefined ? <span className="text-[10px] text-warm-500">Tracking unknown</span> : bus.monitored ? (
+  bus.monitored === undefined ? <span className="text-caption text-warm-500">Tracking unknown</span> : bus.monitored ? (
     <span
-      className="inline-flex items-center gap-1 text-[10px] font-bold text-green-blue-ink"
+      className="inline-flex items-center gap-1 text-caption font-bold text-green-blue-ink"
       title="Estimate from the bus's live GPS position"
     >
       <LiveSignal className="w-3 h-3 text-green-blue" />
@@ -100,7 +100,7 @@ export const TrackingBadge: React.FC<{ bus: Pick<BusArrivalInfo, 'monitored'>; c
     </span>
   ) : (
     <span
-      className="inline-flex items-center gap-1 text-[10px] font-bold text-warm-500"
+      className="inline-flex items-center gap-1 text-caption font-bold text-warm-500"
       title="No GPS fix yet (e.g. bus still at the interchange): estimate is from the timetable"
     >
       <Clock className="w-3 h-3 shrink-0" />
@@ -111,7 +111,7 @@ export const TrackingBadge: React.FC<{ bus: Pick<BusArrivalInfo, 'monitored'>; c
 // The key to the signs beside the times, for the signs in use: the live sign for a bus followed by GPS, the clock
 // for one that only has a timetable time. Shown with the times, so nobody has to learn what the icons mean.
 export const TimeKey: React.FC<{ live: boolean; timetable: boolean; className?: string }> = ({ live, timetable, className = '' }) => (
-  <span className={`inline-flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] font-semibold text-warm-600 ${className}`}>
+  <span className={`inline-flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-caption font-semibold text-warm-600 ${className}`}>
     {live && (
       <span className="inline-flex items-center gap-1" title="Times from the bus's live GPS position">
         <LiveSignal className="w-3 h-3 text-green-blue" />

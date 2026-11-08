@@ -44,9 +44,9 @@ export const StopServicesBoard: React.FC<StopServicesBoardProps> = ({
         <div className="flex items-center gap-2 min-w-0">
           <BusFront className="w-4 h-4 text-helvetia shrink-0" />
           {/* The arrivals card right above names the stop */}
-          <h3 className="text-sm font-bold text-helvetia truncate" title={`${stop.name} (${stop.code})`}>
+          <h2 className="text-sm font-bold text-helvetia truncate" title={`${stop.name} (${stop.code})`}>
             All buses at this stop
-          </h3>
+          </h2>
         </div>
         {services && services.length > 0 && (
           <span className="text-[11px] text-warm-500 shrink-0">

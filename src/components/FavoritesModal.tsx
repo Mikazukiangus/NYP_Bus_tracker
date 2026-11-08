@@ -1,17 +1,19 @@
-import React, { useEffect } from 'react';
+import React, { useRef } from 'react';
+import { ActionButton, IconButton } from './ActionButton';
+import { ModalDialog } from './ModalDialog';
 import { FavoriteItem } from '../types/bus';
-import { X, Trash, Heart, ExternalLink, Clock } from 'lucide-react';
+import { X, Trash, Heart, Clock } from 'lucide-react';
 import type { FavoriteArrival } from '../services/favoriteArrivals';
 import { formatEta, TrackingBadge } from './ArrivalBits';
 import { PersistenceNotice } from './PersistenceNotice';
 
 // Compact "next bus" label for a favourite (used in the modal and the Arrivals tab mini card)
 export const NextBusLabel: React.FC<{ arrival?: FavoriteArrival }> = ({ arrival }) => {
-  if (!arrival || arrival.status === 'loading') return <span className="text-[11px] text-warm-500">…</span>;
-  if (arrival.status === 'unavailable') return <span className="text-[11px] text-warm-500">Live times unavailable</span>;
-  if (!arrival.nextBus) return <span className="text-[11px] text-warm-500">No estimate now</span>;
+  if (!arrival || arrival.status === 'loading') return <span className="text-caption text-warm-500">…</span>;
+  if (arrival.status === 'unavailable') return <span className="text-caption text-warm-500">Live times unavailable</span>;
+  if (!arrival.nextBus) return <span className="text-caption text-warm-500">No estimate now</span>;
   return (
-    <span className="flex items-center gap-1.5 text-[11px] shrink-0">
+    <span className="flex items-center gap-1.5 text-caption shrink-0">
       <strong className={arrival.nextBus.estimatedMinutes <= 0 ? 'text-green-blue-ink font-black' : 'text-warm-900'}>
         {formatEta(arrival.nextBus.estimatedMinutes)}
       </strong>
@@ -39,20 +41,11 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
   onRemoveFavorite,
   onSelectFavorite
 }) => {
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
-
+  const closeRef = useRef<HTMLButtonElement>(null);
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-warm-900/60 backdrop-blur-xs animate-in fade-in duration-200"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
+    <ModalDialog labelledBy="saved-buses-title" onClose={onClose} className="items-center p-4">
       <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-warm-200 overflow-hidden flex flex-col max-h-[85vh]">
         {/* Modal Header */}
         <div className="px-5 py-4 bg-warm-50 border-b border-warm-200 flex items-center justify-between">
@@ -61,7 +54,7 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
               <Heart className="w-4 h-4 fill-helvetia" />
             </div>
             <div>
-              <h2 className="text-base font-black text-helvetia leading-tight">
+              <h2 id="saved-buses-title" className="text-base font-black text-helvetia leading-tight">
                 Saved buses ({favorites.length})
               </h2>
               <p className="text-xs text-warm-500">
@@ -70,13 +63,16 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
             </div>
           </div>
 
-          <button
+          <IconButton
+            ref={closeRef}
+            label="Close saved buses"
+            tone="quiet"
             onClick={onClose}
-            aria-label="Close saved buses"
+            data-dialog-edge="first"
             className="p-1.5 rounded-lg text-warm-500 hover:text-warm-700 hover:bg-warm-200 transition-colors"
           >
             <X className="w-5 h-5" />
-          </button>
+          </IconButton>
         </div>
 
         {/* Favorites list body */}
@@ -99,12 +95,15 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
                   key={fav.id}
                   className="pt-2.5 first:pt-0 flex items-center justify-between gap-3 group hover:bg-warm-50 p-2.5 rounded-xl transition-all"
                 >
-                  <div
+                  <button
+                    type="button"
+                    title="Open Tracker"
+                    aria-label={`Track Bus ${fav.serviceNo} from ${fav.stopName} towards ${fav.destination}`}
                     onClick={() => {
                       onSelectFavorite(fav);
                       onClose();
                     }}
-                    className="flex items-center gap-3 min-w-0 cursor-pointer flex-1"
+                    className="flex items-center gap-3 min-w-0 cursor-pointer flex-1 text-left"
                   >
                     <div className="w-10 h-10 rounded-xl bg-helvetia text-white flex items-center justify-center font-black text-sm shrink-0 shadow-2xs">
                       {fav.serviceNo}
@@ -115,7 +114,7 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
                         <span className="text-sm font-bold text-warm-900 truncate">
                           {fav.stopName}
                         </span>
-                        <span className="text-[11px] font-mono text-warm-500 bg-warm-100 px-1 py-0.2 rounded">
+                        <span className="text-caption font-mono text-warm-500 bg-warm-100 px-1 py-0.2 rounded">
                           {fav.stopCode}
                         </span>
                       </div>
@@ -124,7 +123,7 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
                       </div>
 
                       {/* Live arrival preview (LTA BusArrival) */}
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[11px]">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-caption">
                         <span className="flex items-center gap-1 text-warm-600">
                           <Clock className="w-3 h-3 text-helvetia" />
                           <span>Next:</span>
@@ -140,29 +139,19 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
                         )}
                       </div>
                     </div>
-                  </div>
+                  </button>
 
                   {/* Actions */}
                   <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => {
-                        onSelectFavorite(fav);
-                        onClose();
-                      }}
-                      className="p-2 text-helvetia-700 hover:bg-helvetia-100 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
-                      title="Open Tracker"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Track</span>
-                    </button>
-
-                    <button
-                      onClick={() => onRemoveFavorite(fav.id)}
+                    <IconButton
+                      label={`Remove Bus ${fav.serviceNo} from saved buses at ${fav.stopName}`}
+                      tone="quiet"
+                      onClick={() => { onRemoveFavorite(fav.id); closeRef.current?.focus(); }}
                       className="p-2 text-warm-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Remove from saved buses"
                     >
                       <Trash className="w-4 h-4" />
-                    </button>
+                    </IconButton>
                   </div>
                 </div>
               );
@@ -172,14 +161,15 @@ export const FavoritesModal: React.FC<FavoritesModalProps> = ({
 
         {/* Footer */}
         <div className="p-3 bg-warm-50 border-t border-warm-200 text-right">
-          <button
+          <ActionButton
             onClick={onClose}
+            data-dialog-edge="last"
             className="px-4 py-2 bg-warm-800 hover:bg-warm-900 text-white text-xs font-semibold rounded-xl transition-all"
           >
             Close
-          </button>
+          </ActionButton>
         </div>
       </div>
-    </div>
+    </ModalDialog>
   );
 };

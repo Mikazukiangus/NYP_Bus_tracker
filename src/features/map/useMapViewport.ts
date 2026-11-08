@@ -40,11 +40,11 @@ export function useMapViewport(mapInstanceRef: MapRef, { route, direction, neare
   }, [journey?.id]);
 
   const handleCenterNearest = () => {
-    mapInstanceRef.current?.flyTo([nearestStop.lat, nearestStop.lng], 17, { duration: 1 });
+    mapInstanceRef.current?.flyTo([nearestStop.lat, nearestStop.lng], 17, { duration: 1, animate: !window.matchMedia('(prefers-reduced-motion: reduce)').matches });
   };
 
   const handleCenterUser = () => {
-    mapInstanceRef.current?.flyTo([userLocation.lat, userLocation.lng], 17, { duration: 1 });
+    mapInstanceRef.current?.flyTo([userLocation.lat, userLocation.lng], 17, { duration: 1, animate: !window.matchMedia('(prefers-reduced-motion: reduce)').matches });
   };
 
   const handleFitTrip = () => {

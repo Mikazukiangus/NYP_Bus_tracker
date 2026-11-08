@@ -81,7 +81,7 @@ const AlightStrip: React.FC<{
         </span>
         <div className="min-w-0 text-xs text-warm-700">
           {trip && trip.legs.length > 1 && (
-            <p className="text-[11px] font-bold uppercase tracking-wider text-warm-600">
+            <p className="text-caption font-bold uppercase tracking-wider text-warm-600">
               Bus {legIndex + 1} of {trip.legs.length} to {trip.destinationName}
               {prev && <span className="normal-case tracking-normal font-semibold"> · after Bus&nbsp;{prev.serviceNo}</span>}
             </p>
@@ -89,7 +89,7 @@ const AlightStrip: React.FC<{
           <p className="text-sm text-warm-900">
             {next ? 'Get off to change buses at ' : `Get off for ${alight.destinationName} at `}
             <strong className="font-black">{stop.name}</strong>{' '}
-            <span className="font-mono text-[11px] font-semibold text-warm-600">{stop.code}</span>
+            <span className="font-mono text-caption font-semibold text-warm-600">{stop.code}</span>
           </p>
           <p className="mt-0.5">
             {alight.stopCount}&nbsp;stop{alight.stopCount === 1 ? '' : 's'} · ~{minutes(alight.rideMin)}&nbsp;min ride, then{' '}
@@ -246,13 +246,13 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         }`}
       >
         <div className="flex items-center justify-between gap-1 mb-1 @2xl:mb-2">
-          <span className="text-[11px] @2xl:text-xs font-bold uppercase tracking-wider text-warm-500 truncate">
+          <span className="text-caption @2xl:text-xs font-bold uppercase tracking-wider text-warm-500 truncate">
             <span className="@2xl:hidden">{shortLabel}</span>
             <span className="hidden @2xl:inline">{label}</span>
           </span>
           {bus.feature === 'WAB' && (
             <span
-              className="text-helvetia-600 bg-helvetia-50 border border-helvetia-200 p-0.5 @2xl:p-1 rounded-md text-[11px] flex items-center gap-0.5 font-medium shrink-0"
+              className="text-helvetia-600 bg-helvetia-50 border border-helvetia-200 p-0.5 @2xl:p-1 rounded-md text-caption flex items-center gap-0.5 font-medium shrink-0"
               title="Wheelchair Accessible Bus"
               role="img"
               aria-label="Wheelchair accessible bus"
@@ -271,13 +271,13 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
             size="lg"
             className={isArr ? 'animate-pulse' : 'text-warm-900'}
           />
-          <span className="block mt-1 text-[11px] font-semibold text-warm-500 tabular-nums">
+          <span className="block mt-1 text-caption font-semibold text-warm-500 tabular-nums">
             {isArr ? 'Now' : clockIn(bus.estimatedMinutes)}
           </span>
         </div>
 
         {/* How full (a load bar, as in SG BusLeh) and the kind of bus (LTA gives both for each bus) */}
-        <div className="mt-2 @2xl:mt-3 space-y-1 text-[11px] @2xl:text-xs font-semibold text-warm-700">
+        <div className="mt-2 @2xl:mt-3 space-y-1 text-caption @2xl:text-xs font-semibold text-warm-700">
           <span className="flex items-center gap-1.5">
             <LoadMeter load={bus.load} />
             <span className="@2xl:hidden">{LOAD_INFO[bus.load].short}</span>
@@ -298,28 +298,28 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
   return (
     <div className="@container bg-white rounded-2xl border border-warm-200 shadow-sm p-3.5 sm:p-6">
       {/* Header bar (phones: the refresh button sits in the top corner so the lines under the title get the full width) */}
-      <div className="relative flex flex-col @xl:flex-row @xl:items-center justify-between gap-3 pb-3 @2xl:pb-4 border-b border-warm-100">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="relative flex flex-row flex-wrap @xl:items-center justify-between gap-3 pb-3 @2xl:pb-4 border-b border-warm-100">
+        <div className="flex flex-1 basis-48 items-center gap-3 min-w-0">
           {/* Phones: the title already names the bus, so the badge makes room for the refresh button */}
           <div className="max-sm:hidden w-11 h-11 @2xl:w-12 @2xl:h-12 rounded-xl bg-helvetia text-white flex items-center justify-center font-black text-xl shadow-xs shrink-0">
             {arrivals.serviceNo}
           </div>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 max-sm:pr-20 max-sm:min-h-[1.875rem]">
-              <h3 className="text-base sm:text-lg font-black text-helvetia leading-tight">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <h2 className="text-base sm:text-lg font-black text-helvetia leading-tight">
                 Bus {arrivals.serviceNo} Arrivals
-              </h3>
+              </h2>
               <span className="bg-warm-100 text-warm-700 text-xs font-bold px-2 py-0.5 rounded-md" title="Bus company">
                 {operatorName(arrivals.operator)}
               </span>
               {/* Only when something is off: the key under the times says which are live */}
               {!isLive && (
                 <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                  className={`text-caption font-bold px-2 py-0.5 rounded-md border ${
                     isLoading ? 'bg-warm-50 text-warm-600 border-warm-200' : 'bg-amber-50 text-amber-800 border-amber-300'
                   }`}
                 >
-                  {isLoading ? 'Loading live times…' : 'Sample times: the live feed is down'}
+                  {isLoading ? 'Loading live times…' : 'Live times unavailable'}
                 </span>
               )}
             </div>
@@ -327,7 +327,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
               at <strong className="text-warm-800">{activeStop.name}</strong> ({activeStop.code}) • Towards {arrivals.destination}
             </p>
             {(stopInfo || onToggleFavorite) && (
-              <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-warm-600">
+              <div className="mt-1 flex items-center justify-between gap-2 text-caption text-warm-600">
                 {stopInfo && (
                   <span className="min-w-0">
                     {stopInfo.isNearest ? <strong className="text-warm-800">★ Nearest stop</strong> : 'Not your nearest stop'}
@@ -362,7 +362,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
             {firstLast && (
               <button
                 onClick={() => setShowAllDays((v) => !v)}
-                className="mt-1 flex items-center gap-1 text-[11px] text-left text-warm-500 hover:text-warm-700"
+                className="mt-1 flex items-center gap-1 text-caption text-left text-warm-500 hover:text-warm-700"
                 aria-expanded={showAllDays}
               >
                 <CalendarClock className="w-3.5 h-3.5 text-helvetia shrink-0" />
@@ -381,7 +381,7 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
               </button>
             )}
             {firstLast && showAllDays && (
-              <div className="mt-1.5 grid grid-cols-3 gap-1.5 text-[11px] max-w-md">
+              <div className="mt-1.5 grid grid-cols-3 gap-1.5 text-caption max-w-md">
                 {(['weekday', 'saturday', 'sunday'] as const).map((d) => (
                   <div
                     key={d}
@@ -397,16 +397,16 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         </div>
 
         {/* Refresh, in words (how fresh the times are is said under them) */}
-        <div className="flex items-center gap-3 self-end @xl:self-center shrink-0 max-sm:absolute max-sm:top-0 max-sm:right-0">
+        <div className="flex items-center gap-3 self-start @xl:self-center shrink-0">
           <button
             onClick={onRefresh}
             disabled={isRefreshing}
             className="flex items-center gap-1.5 px-3 py-2 max-sm:py-1.5 bg-helvetia-50 hover:bg-helvetia-100 text-helvetia font-semibold text-xs rounded-xl transition-all border border-helvetia-200"
             title="Refresh bus arrivals now"
-            aria-label={`Refresh bus arrivals now (they refresh by themselves in ${secondsUntilRefresh} seconds)`}
+            aria-label={!isLoading && !isLive ? 'Retry live arrivals' : `Refresh bus arrivals now (they refresh by themselves in ${secondsUntilRefresh} seconds)`}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? 'Updating' : 'Refresh'}
+            {isRefreshing ? 'Updating' : isLive ? 'Refresh' : 'Retry'}
           </button>
         </div>
       </div>
@@ -423,17 +423,18 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
         />
       )}
 
-      {/* Grid of 3 Arrival timings */}
-      <div className="grid grid-cols-3 gap-2 @2xl:gap-3.5 mt-3 @2xl:mt-4">
-        {renderSingleBusCard(arrivals.nextBus, 'Next Bus', 'Next', true)}
-        {renderSingleBusCard(arrivals.nextBus2, '2nd Bus', '2nd', false)}
-        {renderSingleBusCard(arrivals.nextBus3, '3rd Bus', '3rd', false)}
-      </div>
+      {(isLive || isLoading) && (
+        <div className="arrival-times grid grid-cols-3 gap-2 @2xl:gap-3.5 mt-3 @2xl:mt-4">
+          {renderSingleBusCard(arrivals.nextBus, 'Next Bus', 'Next', true)}
+          {renderSingleBusCard(arrivals.nextBus2, '2nd Bus', '2nd', false)}
+          {renderSingleBusCard(arrivals.nextBus3, '3rd Bus', '3rd', false)}
+        </div>
+      )}
       {/* How fresh the times are, as a person would say it, and the key to the signs beside them */}
       {isLive && (
         <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           {arrivals.lastUpdated && (
-            <p className="text-[11px] text-warm-500">
+            <p className="text-caption text-warm-500">
               {updatedAgo(arrivals.lastUpdated)} · updates every {REFRESH_SECONDS}&nbsp;s
             </p>
           )}
@@ -442,32 +443,36 @@ export const ArrivalDisplay: React.FC<ArrivalDisplayProps> = ({
       )}
 
       {/* How full: LTA's three load levels (folded away on phones; the signs beside the times have the key above) */}
-      <button
-        type="button"
-        onClick={() => setShowGuide((v) => !v)}
-        aria-expanded={showGuide}
-        className="sm:hidden mt-2 flex items-center gap-1 text-[11px] font-semibold text-warm-600 py-1"
-      >
-        <Info className="w-3.5 h-3.5 text-helvetia-700 shrink-0" />
-        What do the bars mean?
-        <ChevronDown className={`w-3 h-3 transition-transform ${showGuide ? 'rotate-180' : ''}`} />
-      </button>
-      <div
-        className={`${showGuide ? 'flex' : 'hidden sm:flex'} mt-1.5 sm:mt-3 @2xl:mt-5 p-3 bg-warm-50 rounded-xl border border-warm-200/80 flex-col sm:flex-row sm:items-center justify-between text-[11px] text-warm-600 gap-2`}
-      >
-        <div className="flex items-center gap-1 font-semibold text-warm-700">
-          <Info className="w-3.5 h-3.5 text-helvetia-700 shrink-0" />
-          <span>How full the bus is:</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 font-medium">
-          {(['SEA', 'SDA', 'LSD'] as const).map((load) => (
-            <span key={load} className="flex items-center gap-1.5">
-              <LoadMeter load={load} />
-              <strong>{LOAD_INFO[load].label}</strong>
-            </span>
-          ))}
-        </div>
-      </div>
+      {isLive && buses.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowGuide((v) => !v)}
+            aria-expanded={showGuide}
+            className="sm:hidden mt-2 flex items-center gap-1 text-caption font-semibold text-warm-600 py-1"
+          >
+            <Info className="w-3.5 h-3.5 text-helvetia-700 shrink-0" />
+            What do the bars mean?
+            <ChevronDown className={`w-3 h-3 transition-transform ${showGuide ? 'rotate-180' : ''}`} />
+          </button>
+          <div
+            className={`${showGuide ? 'flex' : 'hidden sm:flex'} mt-1.5 sm:mt-3 @2xl:mt-5 p-3 bg-warm-50 rounded-xl border border-warm-200/80 flex-col sm:flex-row sm:items-center justify-between text-caption text-warm-600 gap-2`}
+          >
+            <div className="flex items-center gap-1 font-semibold text-warm-700">
+              <Info className="w-3.5 h-3.5 text-helvetia-700 shrink-0" />
+              <span>How full the bus is:</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 font-medium">
+              {(['SEA', 'SDA', 'LSD'] as const).map((load) => (
+                <span key={load} className="flex items-center gap-1.5">
+                  <LoadMeter load={load} />
+                  <strong>{LOAD_INFO[load].label}</strong>
+                </span>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

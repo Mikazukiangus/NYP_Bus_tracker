@@ -72,7 +72,8 @@ export const PlaceSearch: React.FC<PlaceSearchProps> = ({
     onSelect(place);
     setIsOpen(false);
     setQuery(place.name);
-    inputRef.current?.blur();
+    // Native dialog closing restores its opener. Outside a dialog, retain keyboard focus.
+    if (window.matchMedia('(pointer: coarse)').matches) inputRef.current?.blur();
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -85,8 +86,10 @@ export const PlaceSearch: React.FC<PlaceSearchProps> = ({
       setHighlight((h) => Math.max(h - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (items[highlight]) choose(items[highlight]);
-    } else if (e.key === 'Escape') {
+      if (open && items[highlight]) choose(items[highlight]);
+    } else if (e.key === 'Escape' && open) {
+      e.preventDefault();
+      e.stopPropagation();
       setIsOpen(false);
       if (value) setQuery(value);
     }
@@ -156,7 +159,9 @@ export const PlaceSearch: React.FC<PlaceSearchProps> = ({
   );
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative" onBlur={event => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsOpen(false);
+    }}>
       <div className="relative flex items-center">
         {icon !== null && (
           <span className="absolute left-3.5 text-warm-500 pointer-events-none flex items-center">
@@ -169,7 +174,7 @@ export const PlaceSearch: React.FC<PlaceSearchProps> = ({
           role="combobox"
           aria-label={label}
           aria-expanded={!!open}
-          aria-controls={listId}
+          aria-controls={open && items.length ? listId : undefined}
           aria-autocomplete="list"
           aria-activedescendant={open && items[highlight] ? `${listId}-${highlight}` : undefined}
           value={query}
@@ -182,11 +187,12 @@ export const PlaceSearch: React.FC<PlaceSearchProps> = ({
             // Make it easy to type a new place over the chosen one
             if (value && query === value) inputRef.current?.select();
           }}
+          onBlur={() => setIsOpen(false)}
           onKeyDown={onKeyDown}
           placeholder={placeholder}
           enterKeyHint="search"
           autoComplete="off"
-          autoFocus={autoFocus}
+          data-dialog-autofocus={autoFocus}
           className={`w-full ${icon === null ? 'pl-3.5' : 'pl-11'} pr-10 bg-warm-50 border border-warm-300 rounded-xl text-warm-900 placeholder:text-warm-500 placeholder:font-normal focus:bg-white focus:outline-none focus:ring-2 focus:ring-helvetia focus:border-transparent transition-all ${inputClassName}`}
         />
         {query && (
@@ -205,6 +211,9 @@ export const PlaceSearch: React.FC<PlaceSearchProps> = ({
         )}
       </div>
       {list}
+      <span role="status" className="sr-only">
+        {open ? statusText ?? (items.length ? `${items.length} suggestions. Use arrow keys then Enter to choose.` : '') : ''}
+      </span>
     </div>
   );
 };

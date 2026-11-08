@@ -1,3 +1,4 @@
+import { ActionButton } from '../../components/ActionButton';
 import { Check, Navigation, Locate, Maximize2, TriangleAlert, Route } from 'lucide-react';
 import type { LiveBusMapProps } from './model';
 import type { RouteDirection, TrafficIncident } from '../../types/bus';
@@ -43,33 +44,33 @@ export function MapControls({ incomingBuses, journey, route, incidents, showBuse
         {/* Quick map controls, each with a word (phones have no hover to explain an icon); they wrap rather than
             scroll sideways, so none is hidden off the edge. The layers show a tick while they're on the map. */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <button onClick={() => setShowBuses(!showBuses)} className={toggleClass(showBuses)} aria-pressed={showBuses}>
+          <ActionButton onClick={() => setShowBuses(!showBuses)} className={toggleClass(showBuses)} aria-pressed={showBuses}>
             {showBuses && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
             Buses ({incomingBuses.length})
-          </button>
-          <button onClick={() => setShowStops(!showStops)} className={toggleClass(showStops)} aria-pressed={showStops}>
+          </ActionButton>
+          <ActionButton onClick={() => setShowStops(!showStops)} className={toggleClass(showStops)} aria-pressed={showStops}>
             {showStops && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
             Stops ({routeDir.stops.length})
-          </button>
+          </ActionButton>
           <span className="w-px h-5 bg-warm-200 mx-0.5" aria-hidden="true" />
-          <button onClick={handleCenterNearest} className={actionClass} title="Go to the nearest bus stop">
+          <ActionButton onClick={handleCenterNearest} className={actionClass} title="Go to the nearest bus stop">
             <Navigation className="w-3.5 h-3.5 text-helvetia" />
             Nearest stop
-          </button>
-          <button onClick={handleCenterUser} className={actionClass} title="Go to where you are">
+          </ActionButton>
+          <ActionButton onClick={handleCenterUser} className={actionClass} title="Go to where you are">
             <Locate className="w-3.5 h-3.5 text-green-blue" />
             Me
-          </button>
+          </ActionButton>
           {journey && (
-            <button onClick={handleFitTrip} className={actionClass} title="Show the whole trip">
+            <ActionButton onClick={handleFitTrip} className={actionClass} title="Show the whole trip">
               <Route className="w-3.5 h-3.5 text-helvetia" />
               Trip
-            </button>
+            </ActionButton>
           )}
-          <button onClick={handleFitRoute} className={actionClass} title="Show the bus's whole route">
+          <ActionButton onClick={handleFitRoute} className={actionClass} title="Show the bus's whole route">
             <Maximize2 className="w-3.5 h-3.5 text-warm-600" />
             Whole route
-          </button>
+          </ActionButton>
         </div>
       </div>
 

@@ -22,9 +22,10 @@ test('download remembered locations and clear them without losing saved buses', 
   expect(exported.recentPlaces.length).toBeGreaterThan(0);
   expect(Object.keys(exported).sort()).toEqual(['exportedAt', 'location', 'recentPlaces', 'schemaVersion']);
   await dialog.getByRole('button', { name: 'Clear location and recent places', exact: true }).click();
-  await expect(dialog.getByRole('status')).toContainText('Saved location and recent places cleared.');
-  await dialog.getByRole('status').scrollIntoViewIfNeeded();
-  await expect(dialog.getByRole('status')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Confirm clear', exact: true }).click();
+  await expect(dialog.getByRole('status').filter({ hasText: /Saved location|Browser storage/ })).toContainText('Saved location and recent places cleared.');
+  await dialog.getByRole('status').filter({ hasText: /Saved location|Browser storage/ }).scrollIntoViewIfNeeded();
+  await expect(dialog.getByRole('status').filter({ hasText: /Saved location|Browser storage/ })).toBeVisible();
   const stored = await page.evaluate(() => ({ location: localStorage.getItem('bustrackersg_location_v1'), recent: JSON.parse(localStorage.getItem('bustrackersg_recent_places_v1')!).places }));
   expect(stored).toEqual({ location: null, recent: [] });
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -40,6 +41,13 @@ test('track a bus, change direction and choose a route stop', async ({ page, sce
   void scenario;
   await openApp(page);
   await expect(page.getByRole('img', { name: 'Live GPS', exact: true }).first()).toBeVisible();
+  const changeBus = page.getByRole('button', { name: 'Change bus', exact: true });
+  await expect(page.locator('#live-arrivals').getByRole('heading')).toBeInViewport();
+  await expect(changeBus).toHaveAttribute('aria-expanded', 'false');
+  await changeBus.click();
+  const nearby = page.getByRole('region', { name: /^Nearest bus stops/ });
+  await expect(nearby.getByRole('button', { name: /Bus 72 from Nanyang Poly, towards Tampines/ }).first()).toContainText(/72 → Tampines/);
+  await expect(nearby.getByRole('button', { name: /Bus 72 from Opp Nanyang Poly/ }).first()).toContainText(/72 → Yio Chu Kang/);
   await page.getByRole('button', { name: /To Yio Chu Kang Int/ }).click();
   await view(page, 'stops');
   await expect(page.getByRole('heading', { name: 'Route Stops: Bus 72', exact: true })).toBeVisible();
@@ -48,11 +56,12 @@ test('track a bus, change direction and choose a route stop', async ({ page, sce
   await expect(stop).toHaveAttribute('aria-pressed', 'true');
   await view(page, 'arrivals');
   const search = page.getByPlaceholder('Type a bus number');
+  if (await changeBus.getAttribute('aria-expanded') === 'false') await changeBus.click();
   await search.fill('50');
   await search.press('Enter');
   await expect(page.getByText('Bus 50 Arrivals', { exact: true })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Live GPS', exact: true }).first()).toBeVisible();
-  await search.press('Tab');
+  await expect(changeBus).toHaveAttribute('aria-expanded', 'false');
   await checkpoint(page, testInfo, 'arrivals');
 });
 
@@ -72,6 +81,37 @@ test('save a bus, restore it after reload, open it and remove it', async ({ page
   // The modal is rendered after the underlying tracker, which has the same action title.
   await page.getByTitle('Remove from saved buses', { exact: true }).last().click();
   await expect(page.getByText('No saved buses yet', { exact: true })).toBeVisible();
+});
+
+test('keyboard users can enter and dismiss both dialogs and return to the opener', async ({ page, scenario }) => {
+  void scenario;
+  await openApp(page);
+  const cases = [
+    { opener: page.getByRole('button', { name: 'Saved buses (1)', exact: true }), title: 'Saved buses (1)' },
+    { opener: page.getByRole('region', { name: 'Your trip' }).getByRole('button', { name: /^Your location:/ }), title: 'Set your location' },
+  ];
+  for (const { opener, title } of cases) {
+    await opener.focus();
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: title, exact: true });
+    await expect(dialog).toBeVisible();
+    await expect.poll(() => dialog.evaluate(el => el.contains(document.activeElement))).toBe(true);
+    await page.keyboard.press('Tab');
+    await expect.poll(() => dialog.evaluate(el => el.contains(document.activeElement))).toBe(true);
+    const first = dialog.getByRole('button', { name: /^Close (location picker|saved buses)$/ });
+    const last = dialog.getByRole('button', { name: /^(Close|Done)$/ });
+    await last.focus();
+    await page.keyboard.press('Tab');
+    await expect(first).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(last).toBeFocused();
+    // Even a programmatic attempt to focus an underlying action must be ignored.
+    await page.locator('header button[title="Your saved buses"]').evaluate(el => (el as HTMLElement).focus());
+    await expect.poll(() => dialog.evaluate(el => el.contains(document.activeElement))).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(opener).toBeFocused();
+  }
 });
 
 test('choose a location and keep the saved location on reload', async ({ page, scenario }, testInfo) => {
@@ -145,8 +185,21 @@ for (const mode of ['simulated', 'malformed'] as const) {
     scenario.arrivals = mode;
     await openApp(page);
     await expect(page.getByRole('img', { name: 'Live GPS', exact: true })).toHaveCount(0);
-    await expect(page.getByText('Sample times: the live feed is down', { exact: true })).toBeVisible();
+    const card = page.locator('#live-arrivals');
+    await expect(card.getByText('Live times unavailable', { exact: true })).toBeVisible();
+    await expect(card.getByText('min', { exact: true })).toHaveCount(0);
+    await expect(page.locator('header').getByText('Live', { exact: true })).toBeHidden();
     await checkpoint(page, testInfo, `${mode}-arrivals`);
+    if (testInfo.project.name === 'phone') {
+      await view(page, 'stops');
+      const shortcut = page.getByRole('button', { name: /Live times unavailable.*Show arrivals/ });
+      await expect(shortcut).toBeVisible();
+      await shortcut.click();
+    }
+    scenario.arrivals = 'live';
+    await card.getByRole('button', { name: 'Retry live arrivals' }).click();
+    await expect(card.getByRole('img', { name: 'Live GPS', exact: true }).first()).toBeVisible();
+    await expect(card.getByText('Live times unavailable', { exact: true })).toBeHidden();
   });
 }
 

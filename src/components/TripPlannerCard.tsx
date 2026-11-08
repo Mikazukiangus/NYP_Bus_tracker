@@ -98,7 +98,7 @@ function TripBar({ option, timeline, scaleMin, faded }: { option: TripOption; ti
           return (
             <span key={i} style={grow} className="min-w-[1.75rem] flex items-center px-0.5 text-warm-600">
               <Footprints className="w-3.5 h-3.5 shrink-0" />
-              <span className="text-[10px] font-bold leading-none">{round(seg.endMin - seg.startMin)}</span>
+              <span className="text-caption font-bold leading-none">{round(seg.endMin - seg.startMin)}</span>
               <span className="flex-1 min-w-0 ml-0.5 border-t-2 border-dotted border-warm-300" />
             </span>
           );
@@ -120,14 +120,14 @@ function TimeAxis({ scaleMin }: { scaleMin: number }) {
   }
   return (
     <div className="relative h-5 mx-[13px] mt-3 -mb-1" aria-hidden="true">
-      <span className="absolute top-0 left-0 flex flex-col items-start text-[10px] font-bold text-helvetia-950">
+      <span className="absolute top-0 left-0 flex flex-col items-start text-caption font-bold text-helvetia-950">
         Now
         <span className="w-px h-1.5 bg-helvetia-950" />
       </span>
       {ticks.map((at) => (
         <span
           key={at}
-          className="absolute top-0 -translate-x-1/2 flex flex-col items-center text-[10px] font-semibold text-warm-500 tabular-nums"
+          className="absolute top-0 -translate-x-1/2 flex flex-col items-center text-caption font-semibold text-warm-500 tabular-nums"
           style={{ left: `${(at / scaleMin) * 100}%` }}
         >
           {clockShort(at)}
@@ -202,7 +202,7 @@ function ArriveAt({ trip }: { trip: RankedTrip }) {
   const { option, live } = trip;
   if (live.status === 'not-running') return null;
   return (
-    <span className="text-[11px] text-warm-600 text-right whitespace-nowrap">
+    <span className="text-caption text-warm-600 text-right whitespace-nowrap">
       {live.status === 'live' ? (
         <>
           Arrive <strong className="text-warm-900">{clockIn(expectedTotalMin(option, live))}</strong>
@@ -296,7 +296,7 @@ function Steps({
               <span className="text-warm-600">towards {leg.towards}</span>
             </div>
             {leg.alsoServiceNos.length > 0 && (
-              <div className="text-[11px] text-warm-500">
+              <div className="text-caption text-warm-500">
                 {leg.alsoServiceNos.length === 1 ? 'Both buses go' : 'All these buses go'} between these stops. Tap a
                 number to take that bus.{notDue.length > 0 && ' Greyed-out numbers have no bus due now.'}
               </div>
@@ -311,13 +311,13 @@ function Steps({
             </div>
           </div>
           {isTracked ? (
-            <span className="text-[11px] font-bold text-green-blue-ink bg-green-blue-soft px-2 py-1 rounded-lg shrink-0">
+            <span className="text-caption font-bold text-green-blue-ink bg-green-blue-soft px-2 py-1 rounded-lg shrink-0">
               Tracking
             </span>
           ) : (
             <button
               onClick={() => onTrackLeg(option, i)}
-              className="text-[11px] font-bold text-helvetia bg-white border border-helvetia-200 hover:bg-helvetia-50 px-2 py-1 rounded-lg shrink-0 flex items-center gap-0.5"
+              className="text-caption font-bold text-helvetia bg-white border border-helvetia-200 hover:bg-helvetia-50 px-2 py-1 rounded-lg shrink-0 flex items-center gap-0.5"
             >
               Live times <ChevronRight className="w-3 h-3" />
             </button>
@@ -392,7 +392,7 @@ export const TripPlannerCard: React.FC<TripPlannerCardProps> = ({
             <Route className="w-4 h-4" />
           </span>
           <div className="min-w-0">
-            <h3 className="text-sm font-black text-helvetia-950 truncate">Buses to {destination.name}</h3>
+            <h2 className="text-sm font-black text-helvetia-950 truncate">Buses to {destination.name}</h2>
             <p className="text-xs text-warm-500 truncate">
               {[fromName && `From ${fromName.split('(')[0].trim()}`, plan && `${formatMetres(plan.straightDistanceM)} away`]
                 .filter(Boolean)
@@ -486,7 +486,7 @@ export const TripPlannerCard: React.FC<TripPlannerCardProps> = ({
                         <TotalTime trip={trip} />
                         <ArriveAt trip={trip} />
                       </span>
-                      <div className="col-span-2 flex items-center justify-between gap-2 text-[11px] text-warm-500">
+                      <div className="col-span-2 flex items-center justify-between gap-2 text-caption text-warm-500">
                         <span className="min-w-0">
                           Board at <strong className="text-warm-800">{legs[0].board.name}</strong> ·{' '}
                           {legs.reduce((n, l) => n + l.stopCount, 0)}&nbsp;stops ·{' '}
@@ -546,12 +546,12 @@ export const TripPlannerCard: React.FC<TripPlannerCardProps> = ({
             </button>
           )}
           {isPhone ? (
-            <details className="mt-2 text-[11px] text-warm-500">
+            <details className="mt-2 text-caption text-warm-500">
               <summary className="cursor-pointer font-semibold py-1">How times are estimated</summary>
               <p className="leading-relaxed">{ESTIMATES_NOTE}</p>
             </details>
           ) : (
-            <p className="mt-3 text-[11px] text-warm-500 leading-relaxed">Estimates: {ESTIMATES_NOTE.charAt(0).toLowerCase() + ESTIMATES_NOTE.slice(1)}</p>
+            <p className="mt-3 text-caption text-warm-500 leading-relaxed">Estimates: {ESTIMATES_NOTE.charAt(0).toLowerCase() + ESTIMATES_NOTE.slice(1)}</p>
           )}
         </>
       )}

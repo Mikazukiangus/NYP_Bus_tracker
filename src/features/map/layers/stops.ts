@@ -40,11 +40,11 @@ export function useStopLayer(mapInstanceRef: MapRef, routeDir: RouteDirection, n
         icon.append(element('div', 'absolute w-7 h-7 rounded-full bg-lemon/40 animate-ping'),
           element('div', 'w-5 h-5 rounded-full bg-lemon border-2 border-helvetia shadow-md flex items-center justify-center text-helvetia-950 text-[9px] font-black', '★'));
       } else if (isSelected) {
-        size = 22;
-        icon = element('div', 'w-4 h-4 m-[3px] rounded-full bg-helvetia border-2 border-white shadow-md');
+        size = 28;
+        icon = element('div', 'w-4 h-4 m-[6px] rounded-full bg-helvetia border-2 border-white shadow-md');
       } else {
-        size = 22;
-        icon = element('div', 'w-3 h-3 m-[5px] rounded-full bg-white border-[3px] border-helvetia shadow-xs');
+        size = 28;
+        icon = element('div', 'w-3 h-3 m-[8px] rounded-full bg-white border-[3px] border-helvetia shadow-xs');
       }
 
       const marker = L.marker([stop.lat, stop.lng], {

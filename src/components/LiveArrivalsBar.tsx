@@ -3,7 +3,7 @@ import { BellRing, ChevronUp } from 'lucide-react';
 import { AlightHint, ArrivalDataSource, BusServiceArrivals, BusStop } from '../types/bus';
 import { LeaveWithin, leaveLabel } from '../services/leaveWithin';
 import { BOTTOM_BAR_HEIGHT } from './AppTabs';
-import { Minutes } from './ArrivalBits';
+import { formatEta, Minutes } from './ArrivalBits';
 
 interface LiveArrivalsBarProps {
   arrivals: BusServiceArrivals;
@@ -62,7 +62,7 @@ export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({
     dataSource === 'LOADING'
       ? 'Loading'
       : !isLive
-        ? 'Sample times'
+        ? 'Live times unavailable'
         : !arrivals.nextBus
           ? 'No bus due'
           : leave?.status === 'leave'
@@ -79,7 +79,7 @@ export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({
       <button
         type="button"
         onClick={onOpen}
-        aria-label={`Bus ${arrivals.serviceNo} at ${stop.name}: show live arrivals`}
+        aria-label={[`Bus ${arrivals.serviceNo} at ${stop.name}`, isLive && arrivals.nextBus && formatEta(arrivals.nextBus.estimatedMinutes), status, alarmLine, 'Show arrivals'].filter(Boolean).join('. ')}
         className="pointer-events-auto w-full bg-helvetia-950 text-white rounded-2xl shadow-lg ring-1 ring-white/10 px-3 py-2 flex items-center gap-3 text-left"
       >
         <span className="min-w-[2.75rem] text-center bg-lemon text-helvetia-950 font-black text-sm px-2 py-1 rounded-lg shrink-0">
@@ -90,7 +90,7 @@ export const LiveArrivalsBar: React.FC<LiveArrivalsBarProps> = ({
           {alarmLine ? (
             <span className="flex items-center gap-1 text-lemon font-bold min-w-0">
               <BellRing className="w-3 h-3 shrink-0" aria-label="Get-off alarm" />
-              <span className="truncate">{alarmLine}</span>
+              <span className="truncate">{alarmLine}{!isLive && ` · ${status}`}</span>
             </span>
           ) : (
             <span className={`block truncate ${leave?.status === 'leave' && isLive ? 'text-lemon font-bold' : 'text-helvetia-200'}`}>

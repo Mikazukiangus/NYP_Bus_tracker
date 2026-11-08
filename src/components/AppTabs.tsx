@@ -38,13 +38,13 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ activeTab, onSelect,
             type="button"
             onClick={() => onSelect(id)}
             aria-current={active ? 'page' : undefined}
-            aria-label={alert ? `${shortLabel} (weather alert)` : undefined}
-            className={`flex flex-col items-center justify-center gap-0.5 text-[11px] ${
+            aria-label={alert ? `${shortLabel} (weather alert)` : shortLabel}
+            className={`min-w-0 flex flex-col items-center justify-center gap-0.5 text-[11px] ${
               active ? 'text-helvetia-950 font-bold' : 'text-warm-600 font-medium'
             }`}
           >
             <span
-              className={`relative w-14 h-7 rounded-full flex items-center justify-center transition-colors ${
+              className={`relative w-full max-w-14 h-7 rounded-full flex items-center justify-center transition-colors ${
                 active ? 'bg-lemon' : ''
               }`}
             >

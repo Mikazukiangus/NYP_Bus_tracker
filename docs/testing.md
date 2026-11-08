@@ -80,24 +80,30 @@ On a Linux machine without browser system libraries, provision them with `npx pl
 
 `playwright.config.ts` builds the real Vite application into ignored `.e2e-dist/` and starts a temporary loopback preview on port 4173. The port must be free. It does not run the production provider-data generator or clear local `public/bus-routes/`. Each test uses its own browser context/storage, a clock advancing from a known date, Singapore timezone, reduced motion, and controlled HTTP fixtures. Advancing time lets real Leaflet pan/fade animation finish. No provider key, production write or real device location is required. Unexpected data/provider URLs and uncaught browser exceptions fail the test.
 
-Ten scenarios run in Chromium at **1280×900** and **390×844** (20 cases):
+Seventeen functional scenarios run in Chromium at **1280×900** and **390×844** (34 cases):
 
 | Flow | Browser assertions |
 | --- | --- |
 | Bus tracking | Switch direction, select a stop, search another service and show live GPS indicators |
 | Saved buses | Save/remove, reload persistence, modal preview and open tracker |
+| Search interaction | Escape/Tab dismissal, malformed bus input retained, successful-search focus and pending submit feedback |
+| Stop-filter recovery | Labelled no-match state and one-action reset |
+| Saved/clear recovery | Semantic saved row, 44px close action and cancellation before location deletion |
+| Responsive views | Four views at 320, 390, 600, 768, 1024 and 1440px |
+| Enlarged text | Skip navigation and primary views at 200% root text without horizontal page overflow |
+| Keyboard navigation | Check initial focus, forward and reverse tab wrapping, background isolation, Escape and focus restoration in both dialogs |
 | Saved location | Select a five-digit stop code and retain it after reload |
 | Location privacy | Download allowlisted location data, clear remembered location/recent places, reload the default and retain saved buses |
 | Fresh GPS | Grant virtual geolocation, update the visible location and persist GPS provenance |
 | Journey/map | Choose Bishan Int, select a trip, load real Leaflet tiles/markers, open boarding popup, zoom and reopen the map |
 | Weather recovery | Retain earlier readings with a failed-refresh warning, then clear it on successful refresh |
-| Simulated arrivals | Display sample-feed disclosure and omit live GPS indicators |
-| Malformed arrivals | Reject invalid response data and disclose fallback instead of live GPS |
+| Simulated arrivals | Show unavailable status, omit ETAs and recover on manual retry |
+| Malformed arrivals | Reject invalid data, show unavailable status including the phone shortcut, then recover on retry |
 | Error recovery/privacy | Capture an unhandled rejection, send a validated report without its raw detail, dismiss the safe notice and keep navigation usable |
 
 The route/network fixture contains public stops and routes for services 50/72, extracted from the existing generated LTA dataset; OSM shape geometry is copied from the tracked route-shape assets. Version/time are fixed for the fixture. Weather readings and the map tile are authored test data. HTTP requests are intercepted; application components, routing, client validation, hooks, persistence, planning and Leaflet run normally. This validates client integration with those contracts; it does **not** exercise real API handlers, provider uptime, Vercel headers/firewall or live OneMap cartography. Keep `npm run verify` and separate release smoke checks for those boundaries.
 
-Every scenario captures a checkpoint PNG and attaches it to the HTML report, with a horizontal-overflow assertion. Most capture the full page; the saved-bus modal captures the viewport and the dedicated map checkpoint captures the map component. Maps must finish loading/decoding tiles and zoom/fade animation before capture; page scroll is normalized. Failed cases also retain a screenshot, error context and trace. `playwright-report/` and `test-results/` are ignored; open a failure with `npx playwright show-trace <path-to-trace.zip>`. Keep reports private if adding tests with sensitive data later.
+Every visual scenario captures a checkpoint PNG and attaches it to the HTML report, with a horizontal-overflow assertion. Most capture the full page; the saved-bus modal captures the viewport and the dedicated map checkpoint captures the map component. Maps must finish loading/decoding tiles and zoom/fade animation before capture; page scroll is normalized. Failed cases also retain a screenshot, error context and trace. `playwright-report/` and `test-results/` are ignored; open a failure with `npx playwright show-trace <path-to-trace.zip>`. Keep reports private if adding tests with sensitive data later.
 
 ### Screenshot comparisons
 
@@ -116,3 +122,11 @@ As [Playwright documents](https://playwright.dev/docs/test-snapshots), browser/O
 This suite runs separately from `npm run verify`; the existing Vercel publication gate remains types/HTTPS/Node tests. No GitHub deployment workflow, browser CI job or extra deployment token was added. Run the browser suite before releasing UI changes. It does not become a required remote check merely by installing Playwright.
 
 Delivered in release `28d7b9e` on 29 October 2026: all 18 browser/screenshot checks passed locally, and the Vercel Git deployment passed types/HTTPS/all 345 Node tests before reaching READY with the production domain assigned. Real production APIs, exact built assets, phone/desktop arrival/map flows and 58 CORS checks passed separately. Turn 140 in COMMENTS.md records the deployment and validation limits. Generated reports remain local/ignored; reviewed baselines and fixtures are committed.
+
+### Optional accessibility scanner
+
+The behavioral suite includes 34 cases. Four additional audit cases run when UX_AXE_SOURCE points to a locally installed axe-core/axe.min.js. This review used axe-core 4.14.0 without changing project dependencies. Supply a trusted local copy and run UX_AXE_SOURCE=/absolute/path/to/axe.min.js npm run test:e2e. No scanner script is downloaded by the tests.
+
+The audit attaches raw JSON for 24 view/width scans and 12 dialog/recovery scans. Unexpected WCAG A/AA violations fail. Dense map-stop overlap target-size warnings are explicitly retained as an outstanding issue in docs/ux-2026-11-08/review.md. That narrow exception applies only to target-size findings whose affected elements are bus-stop markers, not other rules or targets. Inspect warnings even on a passing audit. CI does not provision this optional scanner automatically.
+
+New visual baselines in the November UX review were intentionally updated after implementation and inspected, then compared independently at zero-pixel tolerance. Full-page captures are separate from the enlarged-text viewport evidence.

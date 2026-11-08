@@ -26,7 +26,7 @@ test('saved location markup remains text in the actual header', () => {
   assert.ok(location);
   const html = renderToStaticMarkup(createElement(Header, {
     userLocation: location, onOpenLocationPicker() {}, favoritesCount: 0, onOpenFavorites() {},
-    activeTab: 'arrivals', setActiveTab() {}, onRefreshAll() {}, isRefreshing: false,
+    isLiveFeed: true, activeTab: 'arrivals', setActiveTab() {}, onRefreshAll() {}, isRefreshing: false,
   }));
   assert.ok(html.includes('&lt;img data-xss'));
   assert.ok(!html.includes('<img data-xss'));

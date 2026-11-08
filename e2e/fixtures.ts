@@ -81,7 +81,7 @@ export async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
   if ((page.viewportSize()?.width ?? 1280) < 640) {
     // focusout updates the phone's fixed bars on the next animation frame. Wait for their
     // committed layout before full-page capture changes the viewport/compositor dimensions.
-    await expect(page.getByRole('navigation', { name: 'Views', exact: true })).toBeVisible();
+    await expect(page.locator('nav[aria-label="Views"]')).toBeVisible();
     await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   }
   await expect(page.getByText('Loading map…', { exact: true })).toHaveCount(0);
@@ -95,7 +95,7 @@ export async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
     })), { message: 'Map tiles decoded and real Leaflet animation finished' }).toBe(true);
   }
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), { message: 'No horizontal page overflow' }).toBe(true);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), { message: 'No horizontal page overflow' }).toBe(true);
   // The dedicated journey-map checkpoint compares map pixels. Incidental map previews can
   // finish a different subpixel pan during other flows, so keep them outside those baselines.
   const mask = [page.locator('header').getByText(/^\d{2}:\d{2}:\d{2} SGT$/), page.locator('.leaflet-container')];
@@ -110,9 +110,9 @@ export async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
     const phone = (page.viewportSize()?.width ?? 1280) < 640;
     if (phone) {
       // Check the actual fixed viewport layout before normalizing full-document composition.
-      await expect.poll(() => page.getByRole('navigation', { name: 'Views', exact: true }).evaluate(element =>
+      await expect.poll(() => page.locator('nav[aria-label="Views"]').evaluate(element =>
         Math.abs(element.getBoundingClientRect().bottom - window.innerHeight))).toBeLessThanOrEqual(1);
-      const live = page.getByRole('button', { name: /: show live arrivals$/ });
+      const live = page.getByRole('button', { name: /Show arrivals$/ });
       if (await live.count()) {
         await expect.poll(() => live.evaluate(element => getComputedStyle(element.parentElement!).position)).toBe('fixed');
         await expect.poll(() => live.evaluate(element => Math.abs(element.parentElement!.getBoundingClientRect().bottom - document.querySelector('nav[aria-label="Views"]')!.getBoundingClientRect().top))).toBeLessThanOrEqual(1);
@@ -123,19 +123,19 @@ export async function checkpoint(page: Page, testInfo: TestInfo, name: string) {
     // Do not resize the viewport (it changes IntersectionObserver-driven app state), add a mask,
     // update a baseline or relax pixel tolerance. Actual fixed positioning is asserted above.
     const style = phone && name === 'arrivals' ? `body { position: relative !important; }
-      nav[aria-label="Views"], .fixed:has(> button[aria-label$=": show live arrivals"]) { position: absolute !important; }` : undefined;
+      nav[aria-label="Views"], .fixed:has(> button[aria-label$="Show arrivals"]) { position: absolute !important; }` : undefined;
     const sheet = style ? await page.addStyleTag({ content: style }) : null;
     try {
       if (sheet) {
         // Apply and flush layout before capture preparation; injecting during screenshot itself is too late
         // for Chromium's cached fixed compositing layer on some runs.
-        await expect.poll(() => page.getByRole('navigation', { name: 'Views', exact: true }).evaluate(element =>
+        await expect.poll(() => page.locator('nav[aria-label="Views"]').evaluate(element =>
           Math.abs(element.getBoundingClientRect().bottom - document.body.getBoundingClientRect().bottom))).toBeLessThanOrEqual(1);
       }
       if (process.env.E2E_VISUAL === '1') await expect(page).toHaveScreenshot(`${name}.png`, { fullPage, mask });
       await page.screenshot({ path, fullPage, animations: 'disabled' });
     } finally { await sheet?.evaluate(element => { element.parentNode?.removeChild(element); }); }
-    if (phone) await expect(page.getByRole('navigation', { name: 'Views', exact: true })).toHaveCSS('position', 'fixed');
+    if (phone) await expect(page.locator('nav[aria-label="Views"]')).toHaveCSS('position', 'fixed');
   }
   await testInfo.attach(name, { path, contentType: 'image/png' });
 }

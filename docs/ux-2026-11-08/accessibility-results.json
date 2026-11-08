@@ -1,0 +1,787 @@
+{
+  "method": "axe-core 4.14.0, compiled local fixture client, WCAG A/AA tags, 8 November 2026",
+  "baseline": {
+    "phone": [
+      {
+        "width": 320,
+        "tab": "arrivals",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "First 5:31 am \u00b7 Last 11:31 pm (weekdays)",
+            "width": 251.25,
+            "height": 16.5
+          },
+          {
+            "label": "Use my location",
+            "width": 113.96875,
+            "height": 16
+          },
+          {
+            "label": "Weather",
+            "width": 54.125,
+            "height": 13.75
+          },
+          {
+            "label": "See all",
+            "width": 38.984375,
+            "height": 16
+          }
+        ],
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "nodes": [
+              {
+                "target": [
+                  ".opacity-75"
+                ],
+                "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.51 (foreground color: #3f8a8e, background color: #e5f3f2, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".underline.inline-flex.font-semibold"
+                ],
+                "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.51 (foreground color: #3f8a8e, background color: #e5f3f2, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "width": 320,
+        "tab": "map",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 320,
+        "tab": "stops",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 320,
+        "tab": "weather",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "Refresh weather",
+            "width": 22,
+            "height": 22
+          }
+        ],
+        "violations": []
+      },
+      {
+        "width": 390,
+        "tab": "arrivals",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "First 5:31 am \u00b7 Last 11:31 pm (weekdays)",
+            "width": 251.25,
+            "height": 16.5
+          },
+          {
+            "label": "Use my location",
+            "width": 113.96875,
+            "height": 16
+          },
+          {
+            "label": "Weather",
+            "width": 54.125,
+            "height": 13.75
+          },
+          {
+            "label": "See all",
+            "width": 38.984375,
+            "height": 16
+          }
+        ],
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "nodes": [
+              {
+                "target": [
+                  ".opacity-75"
+                ],
+                "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.51 (foreground color: #3f8a8e, background color: #e5f3f2, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".underline.inline-flex.font-semibold"
+                ],
+                "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.51 (foreground color: #3f8a8e, background color: #e5f3f2, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "tab": "map",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 390,
+        "tab": "stops",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 390,
+        "tab": "weather",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "Refresh weather",
+            "width": 22,
+            "height": 22
+          }
+        ],
+        "violations": []
+      },
+      {
+        "width": 600,
+        "tab": "arrivals",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "First 5:31 am \u00b7 Last 11:31 pm (weekdays)",
+            "width": 251.25,
+            "height": 16.5
+          },
+          {
+            "label": "Use my location",
+            "width": 113.96875,
+            "height": 16
+          },
+          {
+            "label": "Weather",
+            "width": 54.125,
+            "height": 13.75
+          },
+          {
+            "label": "See all",
+            "width": 38.984375,
+            "height": 16
+          }
+        ],
+        "violations": [
+          {
+            "id": "color-contrast",
+            "impact": "serious",
+            "nodes": [
+              {
+                "target": [
+                  ".opacity-75"
+                ],
+                "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.51 (foreground color: #3f8a8e, background color: #e5f3f2, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+              },
+              {
+                "target": [
+                  ".underline.inline-flex.font-semibold"
+                ],
+                "summary": "Fix any of the following:\n  Element has insufficient color contrast of 3.51 (foreground color: #3f8a8e, background color: #e5f3f2, font size: 7.5pt (10px), font weight: normal). Expected contrast ratio of 4.5:1"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "width": 600,
+        "tab": "map",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 600,
+        "tab": "stops",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 600,
+        "tab": "weather",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "Refresh weather",
+            "width": 22,
+            "height": 22
+          }
+        ],
+        "violations": []
+      }
+    ],
+    "desktop": [
+      {
+        "width": 768,
+        "tab": "arrivals",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "First 5:31 am \u00b7 Last 11:31 pm (weekdays)",
+            "width": 251.25,
+            "height": 16.5
+          },
+          {
+            "label": "Use my location",
+            "width": 113.96875,
+            "height": 16
+          },
+          {
+            "label": "Weather",
+            "width": 54.125,
+            "height": 13.75
+          },
+          {
+            "label": "Refresh weather",
+            "width": 64.25,
+            "height": 22.65625
+          },
+          {
+            "label": "See all",
+            "width": 38.984375,
+            "height": 16
+          }
+        ],
+        "violations": [
+          {
+            "id": "target-size",
+            "impact": "serious",
+            "nodes": [
+              {
+                "target": [
+                  "div[title=\"ITE Coll Ctrl (54481)\"]"
+                ],
+                "summary": "Fix any of the following:\n  Target has insufficient size (22px by 22px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 16px instead of at least 24px."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "width": 768,
+        "tab": "map",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "Show 1 more nearby stops",
+            "width": 172.78125,
+            "height": 16
+          },
+          {
+            "label": "Use my location",
+            "width": 113.96875,
+            "height": 16
+          },
+          {
+            "label": "First 5:31 am \u00b7 Last 11:31 pm (weekdays)",
+            "width": 251.25,
+            "height": 16.5
+          }
+        ],
+        "violations": []
+      },
+      {
+        "width": 768,
+        "tab": "stops",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "Show 1 more nearby stops",
+            "width": 172.78125,
+            "height": 16
+          },
+          {
+            "label": "Use my location",
+            "width": 113.96875,
+            "height": 16
+          },
+          {
+            "label": "First 5:31 am \u00b7 Last 11:31 pm (weekdays)",
+            "width": 251.25,
+            "height": 16.5
+          }
+        ],
+        "violations": []
+      },
+      {
+        "width": 768,
+        "tab": "weather",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "Refresh weather",
+            "width": 64.25,
+            "height": 22.65625
+          }
+        ],
+        "violations": []
+      },
+      {
+        "width": 1024,
+        "tab": "arrivals",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "First 5:31 am \u00b7 Last 11:31 pm (weekdays)",
+            "width": 251.25,
+            "height": 16.5
+          },
+          {
+            "label": "Use my location",
+            "width": 113.96875,
+            "height": 16
+          },
+          {
+            "label": "Weather",
+            "width": 54.125,
+            "height": 13.75
+          },
+          {
+            "label": "Refresh weather",
+            "width": 64.25,
+            "height": 22.65625
+          },
+          {
+            "label": "See all",
+            "width": 38.984375,
+            "height": 16
+          }
+        ],
+        "violations": []
+      },
+      {
+        "width": 1024,
+        "tab": "map",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "Show 1 more nearby stops",
+            "width": 172.78125,
+            "height": 16
+          },
+          {
+            "label": "Use my location",
+            "width": 113.96875,
+            "height": 16
+          },
+          {
+            "label": "First 5:31 am \u00b7 Last 11:31 pm (weekdays)",
+            "width": 251.25,
+            "height": 16.5
+          }
+        ],
+        "violations": []
+      },
+      {
+        "width": 1024,
+        "tab": "stops",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "Show 1 more nearby stops",
+            "width": 172.78125,
+            "height": 16
+          },
+          {
+            "label": "Use my location",
+            "width": 113.96875,
+            "height": 16
+          },
+          {
+            "label": "First 5:31 am \u00b7 Last 11:31 pm (weekdays)",
+            "width": 251.25,
+            "height": 16.5
+          }
+        ],
+        "violations": []
+      },
+      {
+        "width": 1024,
+        "tab": "weather",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "Refresh weather",
+            "width": 64.25,
+            "height": 22.65625
+          }
+        ],
+        "violations": []
+      },
+      {
+        "width": 1440,
+        "tab": "arrivals",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "First 5:31 am \u00b7 Last 11:31 pm (weekdays)",
+            "width": 251.25,
+            "height": 16.5
+          },
+          {
+            "label": "Use my location",
+            "width": 113.96875,
+            "height": 16
+          },
+          {
+            "label": "Weather",
+            "width": 54.125,
+            "height": 13.75
+          },
+          {
+            "label": "Refresh weather",
+            "width": 64.25,
+            "height": 22.65625
+          },
+          {
+            "label": "See all",
+            "width": 38.984375,
+            "height": 16
+          }
+        ],
+        "violations": []
+      },
+      {
+        "width": 1440,
+        "tab": "map",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "Show 1 more nearby stops",
+            "width": 172.78125,
+            "height": 16
+          },
+          {
+            "label": "Use my location",
+            "width": 113.96875,
+            "height": 16
+          },
+          {
+            "label": "First 5:31 am \u00b7 Last 11:31 pm (weekdays)",
+            "width": 251.25,
+            "height": 16.5
+          }
+        ],
+        "violations": []
+      },
+      {
+        "width": 1440,
+        "tab": "stops",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "Show 1 more nearby stops",
+            "width": 172.78125,
+            "height": 16
+          },
+          {
+            "label": "Use my location",
+            "width": 113.96875,
+            "height": 16
+          },
+          {
+            "label": "First 5:31 am \u00b7 Last 11:31 pm (weekdays)",
+            "width": 251.25,
+            "height": 16.5
+          }
+        ],
+        "violations": []
+      },
+      {
+        "width": 1440,
+        "tab": "weather",
+        "overflow": false,
+        "smallButtons": [
+          {
+            "label": "Refresh weather",
+            "width": 64.25,
+            "height": 22.65625
+          }
+        ],
+        "violations": []
+      }
+    ]
+  },
+  "final": {
+    "phone": [
+      {
+        "width": 320,
+        "tab": "arrivals",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 320,
+        "tab": "map",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 320,
+        "tab": "stops",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 320,
+        "tab": "weather",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 390,
+        "tab": "arrivals",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 390,
+        "tab": "map",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 390,
+        "tab": "stops",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 390,
+        "tab": "weather",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 600,
+        "tab": "arrivals",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 600,
+        "tab": "map",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 600,
+        "tab": "stops",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 600,
+        "tab": "weather",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      }
+    ],
+    "desktop": [
+      {
+        "width": 768,
+        "tab": "arrivals",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": [
+          {
+            "id": "target-size",
+            "impact": "serious",
+            "nodes": [
+              {
+                "target": [
+                  "div[title=\"ITE Coll Ctrl (54481)\"]"
+                ],
+                "summary": "Fix any of the following:\n  Target has insufficient size because it is partially obscured (smallest space is 17px by 28px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 19px instead of at least 24px."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "width": 768,
+        "tab": "map",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": [
+          {
+            "id": "target-size",
+            "impact": "serious",
+            "nodes": [
+              {
+                "target": [
+                  "div[title=\"ITE Coll Ctrl (54481)\"]"
+                ],
+                "summary": "Fix any of the following:\n  Target has insufficient size because it is partially obscured (smallest space is 18px by 28px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 20px instead of at least 24px."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "width": 768,
+        "tab": "stops",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 768,
+        "tab": "weather",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 1024,
+        "tab": "arrivals",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": [
+          {
+            "id": "target-size",
+            "impact": "serious",
+            "nodes": [
+              {
+                "target": [
+                  "div[title=\"Opp Blk 538 (54471)\"]"
+                ],
+                "summary": "Fix any of the following:\n  Target has insufficient size because it is partially obscured (smallest space is 11.7px by 28px, should be at least 24px by 24px)\n  Target has insufficient space to its closest neighbors. Safe clickable space has a diameter of 12.4px instead of at least 24px."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "width": 1024,
+        "tab": "map",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 1024,
+        "tab": "stops",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 1024,
+        "tab": "weather",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 1440,
+        "tab": "arrivals",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 1440,
+        "tab": "map",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 1440,
+        "tab": "stops",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      },
+      {
+        "width": 1440,
+        "tab": "weather",
+        "overflow": false,
+        "smallButtons": [],
+        "violations": []
+      }
+    ]
+  },
+  "additional_final_states": {
+    "phone": [
+      {
+        "state": "saved-dialog",
+        "violations": []
+      },
+      {
+        "state": "location-dialog",
+        "violations": []
+      },
+      {
+        "state": "location-suggestions",
+        "violations": []
+      },
+      {
+        "state": "privacy-confirmation",
+        "violations": []
+      },
+      {
+        "state": "arrival-unavailable",
+        "violations": []
+      },
+      {
+        "state": "stops-empty",
+        "violations": []
+      }
+    ],
+    "desktop": [
+      {
+        "state": "saved-dialog",
+        "violations": []
+      },
+      {
+        "state": "location-dialog",
+        "violations": []
+      },
+      {
+        "state": "location-suggestions",
+        "violations": []
+      },
+      {
+        "state": "privacy-confirmation",
+        "violations": []
+      },
+      {
+        "state": "arrival-unavailable",
+        "violations": []
+      },
+      {
+        "state": "stops-empty",
+        "violations": []
+      }
+    ]
+  }
+}
