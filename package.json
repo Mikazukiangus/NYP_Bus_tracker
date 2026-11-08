@@ -29,7 +29,7 @@
     "profile:lookups": "tsx scripts/profile-lookups.ts"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.4",
     "@types/leaflet": "^1.9.22",
     "@vitejs/plugin-react": "^6.1.1",
     "dotenv": "^17.2.3",
