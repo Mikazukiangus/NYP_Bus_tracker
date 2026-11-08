@@ -53,7 +53,6 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="hidden sm:flex bg-helvetia text-white text-xs px-4 py-1.5 flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="font-semibold tracking-wide">BusTrackerSG</span>
-          <span className="text-helvetia-200 text-caption hidden sm:inline">| A member of NYP Bus</span>
         </div>
         <div className="flex items-center gap-4 text-caption">
           <div className="flex items-center gap-1 text-helvetia-200">

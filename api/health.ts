@@ -72,7 +72,7 @@ export function createHealthHandler(config: AppConfig, diagnostics: Pick<typeof 
     const healthy = await readiness(), httpStatus = healthy ? 200 : 503;
     const healthData = {
       status: healthy ? 'ok' : 'degraded',
-      service: 'BusTrackerSG - A member of NYP Bus API',
+      service: 'BusTrackerSG API',
       timestamp: new Date().toISOString(),
     };
 

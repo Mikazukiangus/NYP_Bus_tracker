@@ -2,7 +2,7 @@
 
 > **Repository:** [https://github.com/Mikazukiangus/NYP_Bus_tracker](https://github.com/Mikazukiangus/NYP_Bus_tracker)  
 > **Live Vercel Deployment:** [https://nypbus-tracker.vercel.app](https://nypbus-tracker.vercel.app)  
-> **Brand:** BusTrackerSG – a member of NYP Bus
+> **Brand:** BusTrackerSG
 
 ---
 
@@ -2095,3 +2095,11 @@ The complete reference, including operational settings added in Turn 51, is gene
 - npm audit reproduced the prior high body-parser and moderate qs advisories. Updated only their lockfile resolutions to body-parser 1.20.9 and qs 6.16.2 within existing Express ranges, with install scripts disabled. No direct dependency added. A fresh full npm audit reports zero vulnerabilities. Local npm run verify again passes all 366 tests / 51 files, types/unused and HTTPS checks. Recording this follow-up in SECURITY.md and the audit history, then publishing the patch for remote gate and live verification. Final delivery results follow.
 - **Patched release verified**: committed/pushed 637cb37f9136be82e864f48c17dabc14cea297b3. GitHub Security checks run 42437289470 completed successfully, including Gitleaks, staged-secret regression and the npm advisory gate. Vercel production deployment dpl_CU6BjsGSjxdAxJXaobtHfrw8pmee reached READY at that exact SHA and assigned the live domain; remote types/HTTPS/all 366 tests pass before route generation. Fresh six-API validation and 320/1280px real Chromium flows pass with zero page exceptions/insecure requests/overflow. Health is ok and arrivals are LTA_DATAMALL_V3. The sampled weather now has two missing datasets (windSpeed/outlook4d), valid partial data under the existing policy.
 - **Delivery record**: updated SECURITY.md and the UX review with actual remote results. This documentation-only record is being committed/pushed through the same gated pipeline; Git identifies the final record revision. No additional package, project setting, credential, firewall/DNS change or automatic dependency-PR merge was introduced. Outstanding map warnings, immutable action pins, repository-required-check integration, physical-device/user-study/field-performance work and the known deprecation warning remain documented.
+
+### Turn 150: Remove the affiliation tagline from current branding (8 November 2026)
+- The user requested removal of the membership wording. Removed the affiliation line from the header and footer, changed the footer badge to SG, simplified the document/OpenGraph titles to BusTrackerSG, and updated the health API service label plus its documentation example. The current Brand summary at the top of this file now uses BusTrackerSG. Existing dated history and audit captures remain historical evidence under the project history-preservation instruction.
+- Validation: source and rebuilt-client scans find no remaining affiliation phrase in current app/API code, HTML metadata or the health documentation example. TypeScript and 18 focused health/rendering tests pass. Refreshed the 16 affected phone/desktop visual baselines, inspected the phone arrival capture, then independently passed 22 browser cases with all 18 strict screenshot comparisons. Whitespace check passes. Changes are local/uncommitted and have not been deployed.
+
+### Turn 151: Resume the branding commit and deployment (8 November 2026)
+- The user authorised commit/deploy of Turn 150 and asked to continue after an interruption. The initial combined commit/push command was not executed because automatic approval review hit a usage limit; it was a review-service failure, not an unsafe-action determination. Read the history and confirmed the branding changes remain unstaged, with HEAD still at 56137c1. Retrying through the normal approval process.
+- The reviewed release includes current UI/metadata/health-label/API-example cleanup and affected screenshot baselines. Prior validation is TypeScript, 18 focused health/rendering tests and 22 browser cases with 18 strict screenshot comparisons passing. Reuse the existing nypbus-tracker / carbon-bc04 Git-triggered production pipeline. Commit/push and deployment outcomes follow; no dependency or platform setting change is intended.

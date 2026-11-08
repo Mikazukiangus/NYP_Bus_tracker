@@ -14,7 +14,7 @@ A healthy public response has this shape:
 ```json
 {
   "status": "ok",
-  "service": "BusTrackerSG - A member of NYP Bus API",
+  "service": "BusTrackerSG API",
   "timestamp": "2026-10-23T00:00:00.000Z"
 }
 ```

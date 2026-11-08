@@ -604,9 +604,9 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-helvetia flex items-center justify-center text-lemon font-bold text-[10px]">
-              NYP
+              SG
             </div>
-            <span className="font-semibold text-warm-700">BusTrackerSG • A member of NYP Bus</span>
+            <span className="font-semibold text-warm-700">BusTrackerSG</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-warm-500">
             <span>Bus data: LTA DataMall</span>
