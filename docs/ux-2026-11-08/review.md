@@ -295,3 +295,7 @@ The current web accessibility target is WCAG 2.2 AA. Apple and Android guidance 
 - [Android accessibility guidance](https://developer.android.com/design/ui/mobile/guides/foundations/accessibility)
 - [Apple accessibility guidance](https://developer.apple.com/design/human-interface-guidelines/accessibility) returned a JavaScript-only page in the reference reader. Detailed native compliance is N/A to this web build.
 - [Web Vitals definitions and thresholds](https://web.dev/articles/vitals)
+
+## Release follow-up
+
+The user authorised publication after the local review. The UX commit 5f2ed66 and earlier security commits were pushed to main and deployed on 8 November 2026. The initial remote dependency check exposed two previously deferred transitive advisories. After explicit approval for online advisory checks and compatible fixes, 637cb37 patched body-parser and qs. GitHub Security checks passed and Vercel deployed that exact patched revision after its 366-test/type/HTTPS gate. Six real API/data responses and 320/1280px live browser flows passed. The sampled weather remained valid partial data with two missing datasets. This live smoke complements the earlier controlled visual/accessibility evidence; the three dense-map warnings and real-user/device/field-performance limitations remain as recorded above. The release record is also saved in COMMENTS.md.
